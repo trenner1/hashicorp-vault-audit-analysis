@@ -1,0 +1,5 @@
+pre-commit>=3.0.0
+flake8>=6.0.0
+ruff>=0.0.293
+detect-secrets>=1.5.0
+pyflakes>=3.0.0

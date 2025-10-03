@@ -28,14 +28,23 @@ Notes:
 - Use `--include-entities` to export identity entity alias mappings.
 - Use `--namespace` to target a specific namespace (Enterprise only).
 
-Installing git hooks (recommended):
+
+Pre-commit hooks (recommended):
+
+This repository uses `pre-commit` to run linters and secret scanning on each commit. To set it up locally:
 
 ```bash
-chmod +x scripts/install-git-hooks.sh
-./scripts/install-git-hooks.sh
+# Install development dependencies into your venv
+.venv/bin/pip install -r requirements-dev.txt
+
+# Install git pre-commit hooks
+.venv/bin/pre-commit install
+
+# (Optional) Run all checks once on the repo
+.venv/bin/pre-commit run --all-files
 ```
 
-The hooks will block commits that appear to contain common secret patterns and will validate commit messages follow Conventional Commits.
+The configured checks include `flake8`, `ruff`, basic formatting checks, and `detect-secrets` (with a baseline in `.secrets.baseline`).
 
 Security:
 - Never store tokens or secrets in the repository. Add them to `.env` and add `.env` to `.gitignore`.
