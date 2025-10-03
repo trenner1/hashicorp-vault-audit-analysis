@@ -39,3 +39,5 @@ The hooks will block commits that appear to contain common secret patterns and w
 
 Security:
 - Never store tokens or secrets in the repository. Add them to `.env` and add `.env` to `.gitignore`.
+
+# test change
