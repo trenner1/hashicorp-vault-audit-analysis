@@ -1,0 +1,8 @@
+.env
+vault-data/
+*.csv
+__pycache__/
+.vscode/
+ .venv/
+ .githooks/
+ scripts/

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Validate commit message against Conventional Commits
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+
+# Simple conventional commit regex: type(scope)?: subject
+if ! echo "$MSG" | grep -Eq "^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert|feat\!:|fix\!:)[\(]?[a-zA-Z0-9_\-]*[\)]?:?\s.+"; then
+  echo "Commit message does not follow Conventional Commits format." >&2
+  echo "Examples: \"feat: add feature\" or \"fix(parser): handle edge case\"" >&2
+  exit 1
+fi
+
+exit 0

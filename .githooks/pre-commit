@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Minimal pre-commit hook to catch secrets and run basic python checks
+set -euo pipefail
+
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.py$' || true)
+if [ -n "$FILES" ]; then
+  echo "Running python -m pyflakes on staged python files"
+  for f in $FILES; do
+    python3 -m pyflakes "$f" || { echo "pyflakes failed for $f"; exit 1; }
+  done
+fi
+
+# Basic secrets check: grep for token-like patterns or direct assignments in staged files
+# Skip documentation and known placeholder files to avoid false positives.
+# Files to skip: .env.example, README.md, .githooks/*, scripts/*
+FILES_TO_SCAN=$(git diff --cached --name-only --diff-filter=ACM | grep -vE '^(\.env.example$|README.md$|\.githooks/|scripts/|run\.sh$|run_in_venv\.sh$|setup_venv\.sh$)' || true)
+if [ -n "$FILES_TO_SCAN" ]; then
+  # Match patterns like AWS keys (AKIA...), Vault tokens (hvs.<...> or s.<...>), or VAULT_TOKEN=<non-empty>
+  SECRETS=$(echo "$FILES_TO_SCAN" | xargs grep -En "(AKIA[0-9A-Z]{8,}|hvs\.[A-Za-z0-9_\-\.]{6,}|s\.[A-Za-z0-9_\-\.]{6,}|\bVAULT_TOKEN\s*=\s*\S+|-----BEGIN PRIVATE KEY-----|password\s*=|api_key\s*=|apikey\s*=)" || true)
+else
+  SECRETS=""
+fi
+ 
+if [ -n "$SECRETS" ]; then
+  echo "Potential secret/credential found in staged files:" >&2
+  echo "$SECRETS" >&2
+  echo "Aborting commit. Remove secrets or add them to .env and .gitignore." >&2
+  exit 1
+fi
+
+exit 0
