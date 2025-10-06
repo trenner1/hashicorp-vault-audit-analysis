@@ -15,8 +15,8 @@ cp .env.example .env
 # Edit .env with your VAULT_ADDR and VAULT_TOKEN (do NOT commit .env)
 
 # Create and activate virtual environment
-chmod +x setup_venv.sh
-./setup_venv.sh
+chmod +x scripts/setup_venv.sh
+./scripts/setup_venv.sh
 source .venv/bin/activate
 ```
 
@@ -26,10 +26,10 @@ Report unique clients per authentication method using Enterprise telemetry:
 
 ```bash
 # Activate env and run counter
-set -a && [ -f ./.env ] && . ./.env && set +a && python counter.py
+set -a && [ -f ./.env ] && . ./.env && set +a && python bin/counter.py
 
 # Include entity/alias export for enrichment
-python counter.py --include-entities
+python bin/counter.py --include-entities
 ```
 
 **Output files:**
@@ -49,19 +49,19 @@ Analyze which clients/entities are accessing which KV secret paths:
 
 ```bash
 # Step 1: Export entities for enrichment
-python counter.py --include-entities
+python bin/counter.py --include-entities
 
 # Step 2: Obtain audit logs (example: from k8s)
 kubectl exec -n vault vault-0 -- cat /vault/logs/audit.log > audit.log
 
 # Step 3: Analyze audit logs
-python kv_usage_analyzer.py audit.log --alias-export data/vault_identity_alias_export.csv
+python bin/kv_usage_analyzer.py audit.log --alias-export data/vault_identity_alias_export.csv
 
 # Or analyze multiple log files
-python kv_usage_analyzer.py /vault/logs/audit*.log
+python bin/kv_usage_analyzer.py /vault/logs/audit*.log
 
 # Step 4: View formatted report
-python summarize_kv_usage.py data/kv_usage_by_client.csv
+python bin/summarize_kv_usage.py data/kv_usage_by_client.csv
 ```
 
 **Output file:**
@@ -69,7 +69,7 @@ python summarize_kv_usage.py data/kv_usage_by_client.csv
 
 **View formatted report:**
 ```bash
-python summarize_kv_usage.py [kv_usage_by_client.csv]
+python bin/summarize_kv_usage.py [kv_usage_by_client.csv]
 ```
 This will display a pretty-printed summary with overview statistics and per-path details.
 
@@ -111,7 +111,7 @@ Set in `.env` file (copy from `.env.example`):
 ### Counter.py Options
 
 ```bash
-python counter.py --help
+python bin/counter.py --help
 
 # Common options:
 --include-entities     # Export entity/alias mappings
@@ -122,7 +122,7 @@ python counter.py --help
 ### KV Usage Analyzer Options
 
 ```bash
-python kv_usage_analyzer.py --help
+python bin/kv_usage_analyzer.py --help
 
 # Common options:
 --kv-prefix kv/                          # KV mount path to filter
@@ -182,7 +182,7 @@ The commit-msg hook validates commit messages on every commit.
 
 ## Examples
 
-See `sample_audit.log.example` for audit log format and testing examples.
+See `examples/sample_audit.log.example` for audit log format and testing examples.
 
 ## License
 
