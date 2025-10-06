@@ -89,11 +89,14 @@ def list_namespaces(client, ns_path=""):
 
 def get_auth_mounts(client):
     """
-    Returns dict: accessor -> { 'path': 'oidc/', 'type': 'oidc' }
+    Returns tuple: (mounts_by_accessor, mounts_by_path)
+    - mounts_by_accessor: dict accessor -> { 'path': 'oidc/', 'type': 'oidc' }
+    - mounts_by_path: dict 'auth/oidc/' -> accessor (for mapping activity data)
     Uses a requests.Session (constructed in main) to call the Vault API directly to avoid hvac adapter/UI issues.
     Expects client to be a tuple (session, base_url, debug) when called from main.
     """
-    mounts = {}
+    mounts_by_accessor = {}
+    mounts_by_path = {}
     debug = False
     try:
         session, base_url, debug = client
@@ -102,14 +105,17 @@ def get_auth_mounts(client):
         if r is None or r.status_code >= 400:
             if debug:
                 print(f"[DEBUG] GET {url} status={getattr(r,'status_code',None)} body={repr(getattr(r,'text',None))}", file=sys.stderr)
-            return {}
+            return {}, {}
         payload = r.json() or {}
         data = payload.get("data", {})
         for path, cfg in data.items():
             acc = cfg.get("accessor")
             typ = cfg.get("type")
             if acc:
-                mounts[acc] = {"path": path, "type": typ}
+                mounts_by_accessor[acc] = {"path": path, "type": typ}
+                # Normalize path for activity mapping (Enterprise uses auth/mount/ format)
+                normalized_path = f"auth/{path.rstrip('/')}/" if not path.startswith("auth/") else path.rstrip("/") + "/"
+                mounts_by_path[normalized_path] = acc
     except Exception:
         try:
             if debug:
@@ -117,25 +123,26 @@ def get_auth_mounts(client):
                 traceback.print_exc(file=sys.stderr)
         except Exception:
             pass
-        return {}
-    return mounts
+        return {}, {}
+    return mounts_by_accessor, mounts_by_path
 
-def get_activity_by_accessor(client, start_time, end_time, granularity="daily"):
+def get_activity_by_accessor(client, start_time, end_time, granularity="daily", mounts_by_path=None):
     """
     Calls sys/internal/counters/activity and aggregates unique client counts by accessor.
     Returns dict accessor -> unique_client_count (sum over returned buckets).
     If the endpoint is unavailable (OSS), returns {}.
+    
+    mounts_by_path: dict of mount_path -> accessor for mapping mount_path to accessor
+    
+    Note: Enterprise may ignore start_time/end_time if they don't align with billing periods.
+    For current billing period data, we query without date params.
     """
-    q = {
-        "start_time": iso(start_time),
-        "end_time": iso(end_time),
-        "granularity": granularity
-    }
     debug = False
     try:
         session, base_url, debug = client
         url = f"{base_url.rstrip('/')}/v1/sys/internal/counters/activity"
-        resp = session.get(url, params=q, timeout=20)
+        # Query without date params to get current billing period (Enterprise often ignores custom dates)
+        resp = session.get(url, timeout=20)
         if resp is None or resp.status_code >= 400:
             if debug:
                 try:
@@ -145,26 +152,48 @@ def get_activity_by_accessor(client, start_time, end_time, granularity="daily"):
             return {}
         payload = resp.json() or {}
         data = payload.get("data", {})
-        # Defensive parsing: different versions may nest differently.
-        # Look for a per-accessor structure.
-        # Common shape: data['by_accessor'] = [{ 'accessor': 'auth_...', 'client_count': N, ...}, ...]
-        by_accessor = data.get("by_accessor") or data.get("accessors") or []
         agg = {}
+        
+        # Try legacy by_accessor format first
+        by_accessor = data.get("by_accessor") or data.get("accessors") or []
         for row in by_accessor:
             acc = row.get("accessor")
             cnt = row.get("client_count") or row.get("count") or 0
             if not acc:
                 continue
             agg[acc] = agg.get(acc, 0) + int(cnt)
-        # If empty, try to derive from 'buckets' shape:
+        
+        # Try buckets format
         if not agg and "buckets" in data:
-            # buckets: [ { 'by_accessor': [ {accessor, client_count}, ...] }, ...]
             for bucket in data["buckets"]:
                 for row in bucket.get("by_accessor", []):
                     acc = row.get("accessor")
                     cnt = row.get("client_count") or row.get("count") or 0
                     if acc:
                         agg[acc] = agg.get(acc, 0) + int(cnt)
+        
+        # Try Enterprise format: by_namespace -> mounts (uses mount_path, not accessor)
+        if not agg and "by_namespace" in data:
+            for ns in data.get("by_namespace", []):
+                for mount in ns.get("mounts", []):
+                    mount_path = mount.get("mount_path", "").rstrip("/") + "/"
+                    cnt = mount.get("counts", {}).get("clients", 0)
+                    # Map mount_path to accessor if we have the mapping
+                    if mounts_by_path and mount_path in mounts_by_path:
+                        acc = mounts_by_path[mount_path]
+                        agg[acc] = agg.get(acc, 0) + int(cnt)
+        
+        # Also try months -> namespaces -> mounts format
+        if not agg and "months" in data:
+            for month in data.get("months", []):
+                for ns in month.get("namespaces", []):
+                    for mount in ns.get("mounts", []):
+                        mount_path = mount.get("mount_path", "").rstrip("/") + "/"
+                        cnt = mount.get("counts", {}).get("clients", 0)
+                        if mounts_by_path and mount_path in mounts_by_path:
+                            acc = mounts_by_path[mount_path]
+                            agg[acc] = agg.get(acc, 0) + int(cnt)
+        
         return agg
     except Exception:
         # Likely OSS or insufficient perms
@@ -337,19 +366,19 @@ def main():
         else:
             session.headers.pop("X-Vault-Namespace", None)
 
-        # Get auth mounts
+        # Get auth mounts (returns tuple: by_accessor, by_path)
         try:
-            mounts = get_auth_mounts(api_client)  # accessor -> {path,type}
+            mounts, mounts_by_path = get_auth_mounts(api_client)
         except Exception as e:
             print(f"[WARN] Failed to read sys/auth in ns '{ns}': {e}", file=sys.stderr)
-            mounts = {}
+            mounts, mounts_by_path = {}, {}
 
         # Time window for this namespace (end is now)
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=args.days)
 
         # Get activity counts by accessor (Enterprise)
-        counts = get_activity_by_accessor(api_client, start_time, end_time, granularity=args.granularity)
+        counts = get_activity_by_accessor(api_client, start_time, end_time, granularity=args.granularity, mounts_by_path=mounts_by_path)
 
         if not counts:
             # Still write zero counts for visibility
