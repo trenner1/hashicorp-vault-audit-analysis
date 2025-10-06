@@ -4,3 +4,4 @@ vault-data/
 __pycache__/
 .vscode/
  .venv/
+.DS_Store
