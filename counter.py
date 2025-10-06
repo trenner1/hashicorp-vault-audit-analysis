@@ -336,15 +336,18 @@ def main():
     # Time window: compute per-namespace right before calling the activity API so the end time is 'now'
     # (previous behavior computed a single end_time at script start)
 
+    # Ensure data directory exists
+    os.makedirs("data", exist_ok=True)
+
     # Output CSVs
-    auth_csv = open("vault_client_counts_by_auth.csv", "w", newline="", encoding="utf-8")
+    auth_csv = open("data/vault_client_counts_by_auth.csv", "w", newline="", encoding="utf-8")
     auth_writer = csv.writer(auth_csv)
     auth_writer.writerow(["namespace", "auth_accessor", "auth_path", "auth_type", "unique_clients_in_window", "window_start_utc", "window_end_utc", "granularity"])
 
     # Use correct attribute name (argparse dest uses underscore)
     ent_csv = None
     if args.include_entities:
-        ent_csv = open("vault_identity_alias_export.csv", "w", newline="", encoding="utf-8")
+        ent_csv = open("data/vault_identity_alias_export.csv", "w", newline="", encoding="utf-8")
         ent_writer = csv.writer(ent_csv)
         ent_writer.writerow(["namespace", "entity_id", "entity_name", "alias_id", "alias_name", "alias_mount_accessor", "alias_metadata"])
     else:
@@ -415,9 +418,9 @@ def main():
             pass
 
     print("Done.")
-    print("• vault_client_counts_by_auth.csv")
+    print("• data/vault_client_counts_by_auth.csv")
     if args.include_entities:
-        print("• vault_identity_alias_export.csv")
+        print("• data/vault_identity_alias_export.csv")
     print("Tip: Join alias_mount_accessor (from alias export) to auth_accessor (from counts) to map aliases/entities to mounts. "
           "If your alias/entity metadata includes app/env tags, you can pivot by app/env.")
 

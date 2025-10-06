@@ -1,0 +1,28 @@
+# Example Vault Audit Log Entries for Testing KV Usage Analyzer
+
+## Sample entries (one JSON object per line):
+
+{"time":"2025-10-06T12:00:00.000000Z","type":"response","auth":{"entity_id":"e123-entity-app1","token_type":"service"},"request":{"operation":"read","path":"kv/data/app1/config"},"response":{"status":200}}
+{"time":"2025-10-06T12:05:00.000000Z","type":"response","auth":{"entity_id":"e456-entity-app2","token_type":"service"},"request":{"operation":"read","path":"kv/data/app2/secrets"},"response":{"status":200}}
+{"time":"2025-10-06T12:10:00.000000Z","type":"response","auth":{"entity_id":"e123-entity-app1","token_type":"service"},"request":{"operation":"list","path":"kv/metadata/app1/"},"response":{"status":200}}
+{"time":"2025-10-06T12:15:00.000000Z","type":"response","auth":{"entity_id":"e789-entity-app3","token_type":"service"},"request":{"operation":"read","path":"kv/data/app3/db_password"},"response":{"status":200}}
+{"time":"2025-10-06T12:20:00.000000Z","type":"response","auth":{"entity_id":"e456-entity-app2","token_type":"service"},"request":{"operation":"read","path":"kv/data/app1/shared_config"},"response":{"status":200}}
+
+## Usage:
+
+```bash
+# Analyze the sample log
+python kv_usage_analyzer.py sample_audit.log
+
+# Analyze multiple logs with entity enrichment
+python kv_usage_analyzer.py /vault/logs/audit*.log --alias-export vault_identity_alias_export.csv
+```
+
+## Expected output (kv_usage_by_client.csv):
+
+```csv
+kv_path,unique_clients,operations_count,entity_ids,alias_names,sample_paths_accessed
+kv/app1/,2,3,"e123-entity-app1, e456-entity-app2","app1-alias, app2-alias","kv/data/app1/config, kv/data/app1/shared_config, kv/metadata/app1/"
+kv/app2/,1,1,e456-entity-app2,app2-alias,kv/data/app2/secrets
+kv/app3/,1,1,e789-entity-app3,app3-alias,kv/data/app3/db_password
+```

@@ -5,3 +5,10 @@ __pycache__/
 .vscode/
  .venv/
 .DS_Store
+
+# CSV outputs
+*.csv
+!sample*.csv
+
+# Data directory (all outputs)
+data/
