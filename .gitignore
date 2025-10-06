@@ -12,3 +12,7 @@ __pycache__/
 
 # Data directory (all outputs)
 data/
+
+# Audit logs (may contain sensitive data)
+*audit*.log
+!sample*.log
