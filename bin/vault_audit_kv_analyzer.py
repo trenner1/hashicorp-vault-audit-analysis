@@ -6,7 +6,7 @@ This script:
 1. Parses Vault audit log files (JSON format)
 2. Extracts entity IDs and KV paths accessed (read/list operations)
 3. Aggregates unique clients per KV path
-4. Optionally joins with entity/alias export for rich reporting
+4. Optionally enriches output with entity/alias names from external CSV
 
 Output: CSV with columns: kv_path, unique_clients, entity_ids, operations_count
 """
@@ -18,7 +18,7 @@ import json
 import argparse
 from collections import defaultdict
 
-def parse_audit_log_line(line):
+def parse_audit_log_line(line, kv_prefix="kv/"):
     """
     Parse a single audit log JSON line.
     Returns dict with: entity_id, path, operation, timestamp
@@ -38,9 +38,15 @@ def parse_audit_log_line(line):
     operation = req.get("operation", "")
     path = req.get("path", "")
     
-    # Only interested in KV read/list operations
-    if not path.startswith("kv/") and not path.startswith("secret/"):
-        return None
+    # Only interested in KV read/list operations on the specified KV mount
+    # If kv_prefix is empty, match all paths with /data/ or /metadata/ (KV v2 indicator)
+    if kv_prefix:
+        if not path.startswith(kv_prefix):
+            return None
+    else:
+        # Match any path that contains /data/ or /metadata/ (KV v2 pattern)
+        if "/data/" not in path and "/metadata/" not in path:
+            return None
     
     if operation not in ["read", "list"]:
         return None
@@ -89,9 +95,14 @@ def normalize_kv_path(path):
         else:
             return f"{mount}/"
     
-    # Handle KV v1 or simple paths
-    if len(parts) >= 2:
-        # kv/app1/... -> kv/app1/
+    # Handle KV v1 or simple paths (no /data/ or /metadata/)
+    # Preserve up to 4 levels to capture: mount/appcode/env/app-name/
+    # e.g., appcodes/IOP0/PROD/Rundeck_Keys/ or ansible/DEV/app-name/
+    if len(parts) >= 4:
+        return f"{parts[0]}/{parts[1]}/{parts[2]}/{parts[3]}/"
+    elif len(parts) == 3:
+        return f"{parts[0]}/{parts[1]}/{parts[2]}/"
+    elif len(parts) == 2:
         return f"{parts[0]}/{parts[1]}/"
     
     # Fallback
@@ -124,7 +135,7 @@ def analyze_audit_logs(log_files, kv_prefix="kv/"):
         with open(log_file, 'r') as f:
             for line in f:
                 total_lines += 1
-                result = parse_audit_log_line(line)
+                result = parse_audit_log_line(line, kv_prefix=kv_prefix)
                 
                 if not result:
                     continue
@@ -153,10 +164,14 @@ def analyze_audit_logs(log_files, kv_prefix="kv/"):
 
 def load_entity_alias_mapping(alias_export_csv):
     """
-    Load entity/alias data from the counter.py export.
+    Load entity/alias mapping data from CSV (optional enrichment).
+    Expected CSV format: entity_id, alias_name columns.
     Returns dict: entity_id -> list of alias names
     """
     entity_aliases = defaultdict(list)
+    
+    if alias_export_csv is None:
+        return entity_aliases
     
     if not os.path.exists(alias_export_csv):
         print(f"[WARN] Entity alias export not found: {alias_export_csv}", file=sys.stderr)
