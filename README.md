@@ -1,188 +1,191 @@
-# Vault Client Counter
+# Vault Audit Log Analysis Tools
 
-This repository contains tools to analyze Vault client usage:
+This repository contains a comprehensive suite of tools for analyzing HashiCorp Vault audit logs to identify performance bottlenecks, security issues, and optimization opportunities.
 
-1. **`counter.py`** - Reports unique client counts by auth mount from Enterprise activity counters
-2. **`kv_usage_analyzer.py`** - Analyzes audit logs to report client usage by KV secret path
+## Tool Categories
+
+### KV Secret Engine Analysis (3 tools)
+- **`vault_audit_kv_analyzer.py`** - Analyze KV secret engine usage patterns by entity and path
+- **`vault_audit_kv_compare.py`** - Compare usage statistics across multiple KV mounts
+- **`vault_audit_kv_summary.py`** - Human-readable summary of single KV mount usage
+
+### Token Operations Analysis (3 tools)
+- **`vault_audit_token_operations.py`** - Analyze token lifecycle operations (lookup, renew, revoke)
+- **`vault_audit_token_lookup_abuse.py`** - Identify excessive token lookup patterns
+- **`vault_audit_token_export.py`** - Export comprehensive token lookup data to CSV
+
+### System-Wide Analysis (1 tool)
+- **`vault_audit_system_overview.py`** - Comprehensive overview of all high-volume operations
+
+### Specialized Deep-Dive Tools (4 tools)
+- **`vault_audit_airflow_polling.py`** - Analyze Airflow secret polling patterns
+- **`vault_audit_entity_timeline.py`** - Time-series analysis of specific entity behavior
+- **`vault_audit_entity_gaps.py`** - Investigate operations without entity IDs
+- **`vault_audit_path_hotspots.py`** - Deep-dive into most-accessed paths with recommendations
+
+### Kubernetes/OpenShift Auth Analysis (1 tool)
+- **`vault_audit_k8s_auth_analysis.py`** - Multi-dimensional K8s/OpenShift authentication analysis
 
 ## Quick Start
 
 ### Prerequisites
 
 ```bash
-# Copy environment template and set your Vault connection details
-cp .env.example .env
-# Edit .env with your VAULT_ADDR and VAULT_TOKEN (do NOT commit .env)
+# Install Python 3.8 or higher
+python3 --version
 
 # Create and activate virtual environment
-chmod +x scripts/setup_venv.sh
-./scripts/setup_venv.sh
+python3 -m venv .venv
 source .venv/bin/activate
+
+# Install required packages
+pip install -r requirements.txt
 ```
 
-### Option 1: Client Count by Auth Mount
+### Basic Usage
 
-Report unique clients per authentication method using Enterprise telemetry:
+All tools analyze Vault audit logs (JSON format, newline-delimited). Here's a typical workflow:
 
 ```bash
-# Activate env and run counter
-set -a && [ -f ./.env ] && . ./.env && set +a && python bin/counter.py
+# 1. Get audit logs (example: from file or kubectl)
+kubectl exec -n vault vault-0 -- cat /vault/logs/audit.log > vault_audit.log
 
-# Include entity/alias export for enrichment
-python bin/counter.py --include-entities
+# 2. Start with system-wide overview
+python bin/vault_audit_system_overview.py vault_audit.log --top 20
+
+# 3. Analyze specific areas based on findings
+python bin/vault_audit_token_lookup_abuse.py vault_audit.log --min-lookups 100
+python bin/vault_audit_airflow_polling.py vault_audit.log
+python bin/vault_audit_path_hotspots.py vault_audit.log 50
+
+# 4. Deep-dive on specific entities
+python bin/vault_audit_entity_timeline.py vault_audit.log <entity_id> "<display_name>"
+
+# 5. Analyze KV mount usage
+python bin/vault_audit_kv_analyzer.py vault_audit.log --kv-prefix "<kv_path>/" --output data/kv_usage_<kv_path>.csv
+python bin/vault_audit_kv_compare.py  # Compares all kv_usage_*.csv files in data/
 ```
 
-**Output files:**
-- `data/vault_client_counts_by_auth.csv` - Client counts per auth mount (accessor, path, type, count)
-- `data/vault_identity_alias_export.csv` - Entity/alias mappings (when `--include-entities` used)
+## Common Use Cases
 
-**Example output:**
-```csv
-namespace,auth_accessor,auth_path,auth_type,unique_clients_in_window,window_start_utc,window_end_utc,granularity
-,auth_jwt_6fce7f2b,jenkins-jwt/,jwt,1,2025-09-06T20:59:57Z,2025-10-06T20:59:57Z,daily
-,auth_token_a7269f86,token/,token,0,2025-09-06T20:59:57Z,2025-10-06T20:59:57Z,daily
-```
-
-### Option 2: KV Usage by Client (Audit Log Analysis)
-
-Analyze which clients/entities are accessing which KV secret paths:
-
+### Use Case 1: "Vault is slow"
 ```bash
-# Step 1: Export entities for enrichment
-python bin/counter.py --include-entities
+# Step 1: System overview to identify stress points
+python bin/vault_audit_system_overview.py vault_audit.log --top 20
 
-# Step 2: Obtain audit logs (example: from k8s)
-kubectl exec -n vault vault-0 -- cat /vault/logs/audit.log > audit.log
+# Step 2: Analyze top paths
+python bin/vault_audit_path_hotspots.py vault_audit.log 30
 
-# Step 3: Analyze audit logs
-python bin/kv_usage_analyzer.py audit.log --alias-export data/vault_identity_alias_export.csv
-
-# Or analyze multiple log files
-python bin/kv_usage_analyzer.py /vault/logs/audit*.log
-
-# Step 4: View formatted report
-python bin/summarize_kv_usage.py data/kv_usage_by_client.csv
+# Step 3: Investigate top entity behavior
+python bin/vault_audit_entity_timeline.py vault_audit.log <entity_id> "<name>"
 ```
 
-**Output file:**
-- `data/kv_usage_by_client.csv` - KV path usage with client counts and entity details
-
-**View formatted report:**
+### Use Case 2: "Too many token lookups"
 ```bash
-python bin/summarize_kv_usage.py [kv_usage_by_client.csv]
-```
-This will display a pretty-printed summary with overview statistics and per-path details.
+# Step 1: Identify patterns
+python bin/vault_audit_token_lookup_abuse.py vault_audit.log --min-lookups 100
 
-**Example output:**
-```csv
-kv_path,unique_clients,operations_count,entity_ids,alias_names,sample_paths_accessed
-kv/app1/,2,15,"e123-app1, e456-app2","jenkins-app1, app2-svc","kv/data/app1/config, kv/data/app1/db"
-kv/app2/,1,8,e456-app2,app2-svc,"kv/data/app2/secrets, kv/metadata/app2/"
-kv/shared/,3,42,"e123-app1, e456-app2, e789-app3","jenkins-app1, app2-svc, app3-batch",kv/data/shared/common
+# Step 2: Export for analysis
+python bin/vault_audit_token_export.py vault_audit.log --output data/token_abuse.csv
+
+# Step 3: Investigate worst offender
+python bin/vault_audit_entity_timeline.py vault_audit.log <top_entity> "<name>"
 ```
 
-**Use case:** Track which apps (organized by KV path) are being actively used and by which entities.
-
-## Configuration
-
-### Environment Variables
-
-Set in `.env` file (copy from `.env.example`):
-
-- `VAULT_ADDR` - Vault server address (default: `http://localhost:8200`)
-- `VAULT_TOKEN` - Vault token with required permissions
-- `VAULT_SKIP_VERIFY` - Set to `1` to skip TLS verification (dev/testing only)
-- `VAULT_CACERT` - Path to CA certificate for TLS verification
-
-### Required Permissions
-
-**For `counter.py`:**
-- `sys/auth` - read (list auth mounts)
-- `sys/internal/counters/activity` - read (Enterprise telemetry)
-- `identity/entity/id` - list, read (when using `--include-entities`)
-- `sys/namespaces` - list (Enterprise, for namespace enumeration)
-
-**For `kv_usage_analyzer.py`:**
-- Read access to audit log files
-- No Vault API permissions required (offline analysis)
-
-## Advanced Usage
-
-### Counter.py Options
-
+### Use Case 3: "Airflow causing high load"
 ```bash
-python bin/counter.py --help
-
-# Common options:
---include-entities     # Export entity/alias mappings
---namespace <ns>       # Target specific namespace (Enterprise)
---debug                # Enable verbose HTTP debug output
+# Specialized Airflow analysis with optimization recommendations
+python bin/vault_audit_airflow_polling.py vault_audit.log
 ```
 
-### KV Usage Analyzer Options
-
+### Use Case 4: "K8s pods authenticating too frequently"
 ```bash
-python bin/kv_usage_analyzer.py --help
-
-# Common options:
---kv-prefix kv/                          # KV mount path to filter
---alias-export vault_identity_alias_export.csv  # Entity/alias enrichment
---output kv_usage.csv                    # Output file name
+# Multi-dimensional K8s auth analysis
+python bin/vault_audit_k8s_auth_analysis.py vault_audit.log
 ```
 
-## Notes
+### Use Case 5: "Security audit - who accesses which secrets?"
+```bash
+# Step 1: Check for entity aliasing gaps
+python bin/vault_audit_entity_gaps.py vault_audit.log
 
-- **Enterprise vs OSS**: The activity counters endpoint (`/v1/sys/internal/counters/activity`) is Enterprise-only. On OSS Vault, `counter.py` will return zero counts but still export auth mount metadata and entity aliases.
-- **Billing Periods**: Enterprise telemetry returns data for the current billing period. Custom date ranges are often ignored if they don't align with billing periods.
-- **Audit Logs**: The KV usage analyzer requires JSON-formatted audit logs. Ensure audit device is enabled (`vault audit list`).
-- **Log Rotation**: Audit log analysis is limited to available logs. Consider log retention policies.
+# Step 2: Analyze KV access patterns
+python bin/vault_audit_kv_analyzer.py vault_audit.log --kv-prefix "sensitive/"
+
+# Step 3: Compare across mounts
+python bin/vault_audit_kv_compare.py
+```
+
+
+## Requirements
+
+All tools perform **offline audit log analysis** - no Vault API access required:
+- Read access to Vault audit log files (JSON format, newline-delimited)
+- Python 3.8 or higher
+- Dependencies: See `requirements.txt`
+
+## Output Files
+
+Analysis tools generate CSV and markdown reports in the `data/` directory:
+- `kv_usage_*.csv` - KV mount usage data
+- `token_lookups_by_entity.csv` - Token lookup patterns
+- Various markdown reports with findings and recommendations
 
 ## Development
 
-### Pre-commit Hooks
-
-This repository uses `pre-commit` for linting and secret scanning:
+### Verify Tool Installation
 
 ```bash
-# Install development dependencies
-.venv/bin/pip install -r requirements-dev.txt
+# Verify all 12 tools are present
+ls -1 bin/vault_audit_*.py | wc -l  # Should show: 12
 
-# Install git hooks
-.venv/bin/pre-commit install
-
-# Run checks manually
-.venv/bin/pre-commit run --all-files
+# Test all tools support --help
+for tool in bin/vault_audit_*.py; do
+  python3 "$tool" --help >/dev/null 2>&1 && echo "Installed $(basename $tool)" || echo "Not Installed$(basename $tool)"
+done
 ```
 
-**Configured checks:**
-- `flake8` - Python linting
-- `detect-secrets` - Secret scanning (baseline: `.secrets.baseline`)
-- Formatting checks (trailing whitespace, EOF, YAML)
+### Tool Usage
 
-### Conventional Commits
+All tools support `--help` for detailed usage information:
+```bash
+# Get help for any tool
+python3 bin/<tool_name>.py --help
 
-This repository follows [Conventional Commits](https://www.conventionalcommits.org/):
-
+# Examples
+python3 bin/vault_audit_system_overview.py --help
+python3 bin/vault_audit_kv_analyzer.py --help
+python3 bin/vault_audit_entity_timeline.py --help
 ```
-feat: add new feature
-fix: bug fix
-chore: maintenance
-docs: documentation updates
-test: test additions
-```
-
-The commit-msg hook validates commit messages on every commit.
 
 ## Security
 
-**Never commit secrets to the repository**
-- Add tokens to `.env` (already in `.gitignore`)
-- Pre-commit hooks scan for common secret patterns
-- Review `.secrets.baseline` if detect-secrets flags false positives
+**Audit logs may contain sensitive information:**
+- Entity IDs, display names, service account details
+- Path names that may reveal application architecture
+- Authentication metadata
+- Handle audit logs according to your organization's security policies
 
-## Examples
+**Best Practices:**
+- Store audit logs securely
+- Limit access to analysis outputs
+- Sanitize data before sharing externally
+- Use `.gitignore` to prevent committing sensitive data files
 
-See `examples/sample_audit.log.example` for audit log format and testing examples.
+## Documentation
+
+All tools include comprehensive built-in help:
+```bash
+python3 bin/<tool_name>.py --help
+```
+
+Each tool displays:
+- Description of its purpose
+- Required and optional arguments
+- Usage examples
+- Output format details
+
+For workflow examples, see the "Common Use Cases" section above.
 
 ## License
 

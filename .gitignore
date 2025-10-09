@@ -15,4 +15,8 @@ data/
 
 # Audit logs (may contain sensitive data)
 *audit*.log
+*.log.gz
 !sample*.log
+
+# Analysis findings and reports (contain sensitive customer data)
+docs/
