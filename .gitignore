@@ -3,7 +3,7 @@ vault-data/
 *.csv
 __pycache__/
 .vscode/
- .venv/
+.venv/
 .DS_Store
 
 # CSV outputs
@@ -20,3 +20,7 @@ data/
 
 # Analysis findings and reports (contain sensitive customer data)
 docs/
+
+# Rust build artifacts
+vault-audit-kv-analyzer-rs/target/
+*.lock
