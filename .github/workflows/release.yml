@@ -155,7 +155,7 @@ jobs:
           cd vault-audit-tools/target/${{ matrix.target }}/release
           tar -czf ../../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
           cd ../../../../
-          sha256sum ${{ matrix.archive_name }} >> checksums.txt
+          sha256sum ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
 
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
@@ -163,7 +163,7 @@ jobs:
           cd vault-audit-tools/target/${{ matrix.target }}/release
           7z a ../../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
           cd ../../../../
-          certutil -hashfile ${{ matrix.archive_name }} SHA256 >> checksums.txt
+          certutil -hashfile ${{ matrix.archive_name }} SHA256 > ${{ matrix.archive_name }}.sha256
 
       - name: Upload Release Assets
         env:
@@ -171,7 +171,7 @@ jobs:
         run: |
           gh release upload ${{ needs.create-release.outputs.version }} \
             ${{ matrix.archive_name }} \
-            checksums.txt
+            ${{ matrix.archive_name }}.sha256
 
   publish-crates:
     name: Publish to crates.io
