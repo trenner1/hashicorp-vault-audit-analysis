@@ -90,7 +90,7 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         // Track entity usage for all entities (including "no-entity")
         let entity_map = entity_paths
             .entry(entity_id.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
         *entity_map.entry(path.to_string()).or_insert(0) += 1;
         entity_names
             .entry(entity_id.to_string())

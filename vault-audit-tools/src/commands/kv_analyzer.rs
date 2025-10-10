@@ -112,7 +112,8 @@ pub fn run(
         // Check prefix
         if !kv_prefix.is_empty() && !path.starts_with(kv_prefix) {
             continue;
-        } else if kv_prefix.is_empty() && !path.contains("/data/") && !path.contains("/metadata/") {
+        }
+        if kv_prefix.is_empty() && !path.contains("/data/") && !path.contains("/metadata/") {
             continue;
         }
 
@@ -170,7 +171,7 @@ pub fn run(
     let file = File::create(output_file).context("Failed to create output file")?;
     let mut writer = csv::Writer::from_writer(file);
 
-    writer.write_record(&[
+    writer.write_record([
         "kv_path",
         "unique_clients",
         "operations_count",

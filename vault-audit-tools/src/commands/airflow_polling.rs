@@ -321,7 +321,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     if !polling_patterns.is_empty() {
         println!("4. PRIORITY PATHS FOR IMMEDIATE OPTIMIZATION (by burst rate):");
         for (i, pattern) in polling_patterns.iter().take(10).enumerate() {
-            let path_name = pattern.path.split('/').last().unwrap_or(&pattern.path);
+            let path_name = pattern.path.split('/').next_back().unwrap_or(&pattern.path);
             println!(
                 "   {}. {}: {} operations ({:.0}/hour burst rate)",
                 i + 1,

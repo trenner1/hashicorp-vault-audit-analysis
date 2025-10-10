@@ -80,7 +80,7 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
 
         let entity_map = patterns
             .entry(entity_id.to_string())
-            .or_insert_with(HashMap::new);
+            .or_default();
 
         entity_map
             .entry(accessor.clone())

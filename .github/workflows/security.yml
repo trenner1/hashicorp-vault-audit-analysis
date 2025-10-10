@@ -27,18 +27,20 @@ jobs:
           cd vault-audit-tools
           cargo build --release
 
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/rust@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --file=vault-audit-tools/Cargo.toml
-
-      - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk.sarif
+      # Note: Snyk Rust action requires SNYK_TOKEN secret and may not work for private repos
+      # Commenting out for now - uncomment and configure if Snyk integration is needed
+      # - name: Run Snyk to check for vulnerabilities
+      #   uses: snyk/actions/rust@1.2.0
+      #   continue-on-error: true
+      #   env:
+      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      #   with:
+      #     args: --severity-threshold=high --file=vault-audit-tools/Cargo.toml
+      #
+      # - name: Upload Snyk results to GitHub Code Scanning
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: snyk.sarif
 
   cargo-audit:
     name: Cargo Audit (RustSec)

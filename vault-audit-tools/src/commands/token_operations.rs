@@ -49,7 +49,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
 
         let ops = token_ops
             .entry(entity_id.to_string())
-            .or_insert_with(TokenOps::default);
+            .or_default();
 
         // Categorize operation
         if path.contains("lookup-self") {

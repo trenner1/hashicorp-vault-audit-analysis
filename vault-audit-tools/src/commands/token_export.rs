@@ -160,7 +160,7 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
     let file = File::create(output).context("Failed to create output file")?;
     let mut writer = csv::Writer::from_writer(file);
 
-    writer.write_record(&[
+    writer.write_record([
         "entity_id",
         "display_name",
         "token_accessor",
@@ -172,7 +172,7 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
     ])?;
 
     for (entity_id, display_name, accessor, lookups, time_span, rate, first, last) in &rows {
-        writer.write_record(&[
+        writer.write_record([
             entity_id,
             display_name,
             accessor,
