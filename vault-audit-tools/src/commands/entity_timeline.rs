@@ -43,8 +43,11 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
         total_lines += 1;
 
         if total_lines % 500_000 == 0 {
-            println!("  Processed {} lines, found {} operations for this entity...",
-                format_number(total_lines), format_number(entity_operations));
+            println!(
+                "  Processed {} lines, found {} operations for this entity...",
+                format_number(total_lines),
+                format_number(entity_operations)
+            );
         }
 
         // Check if this is our entity
@@ -56,10 +59,10 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
 
         let path = entry.path().unwrap_or("").to_string();
         let operation = entry.operation().unwrap_or("").to_string();
-        
+
         if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&entry.time) {
             let ts_utc = ts.with_timezone(&Utc);
-            
+
             // Track by hour
             let hour_key = ts_utc.format("%Y-%m-%d %H:00").to_string();
             let hour_ops = operations_by_hour.entry(hour_key).or_default();
@@ -82,7 +85,11 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
     }
 
     println!("\nProcessed {} total lines", format_number(total_lines));
-    println!("Found {} operations for entity: {}", format_number(entity_operations), entity_id);
+    println!(
+        "Found {} operations for entity: {}",
+        format_number(entity_operations),
+        entity_id
+    );
 
     if entity_operations == 0 {
         println!("\nNo operations found for this entity!");
@@ -111,10 +118,16 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
     println!("\n1. SUMMARY STATISTICS");
     println!("{}", "-".repeat(100));
     println!("Total operations: {}", format_number(entity_operations));
-    println!("Time span: {:.2} hours ({:.2} days)", time_span_hours, time_span_hours / 24.0);
-    println!("Average rate: {:.1} operations/hour ({:.2}/minute)",
+    println!(
+        "Time span: {:.2} hours ({:.2} days)",
+        time_span_hours,
+        time_span_hours / 24.0
+    );
+    println!(
+        "Average rate: {:.1} operations/hour ({:.2}/minute)",
         entity_operations as f64 / time_span_hours,
-        entity_operations as f64 / time_span_hours / 60.0);
+        entity_operations as f64 / time_span_hours / 60.0
+    );
     println!("First operation: {}", first_op.format("%Y-%m-%d %H:%M:%S"));
     println!("Last operation: {}", last_op.format("%Y-%m-%d %H:%M:%S"));
 
@@ -129,7 +142,12 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
 
     for (op, count) in sorted_ops {
         let percentage = (*count as f64 / entity_operations as f64) * 100.0;
-        println!("{:<30} {:<15} {:<15.2}%", op, format_number(*count), percentage);
+        println!(
+            "{:<30} {:<15} {:<15.2}%",
+            op,
+            format_number(*count),
+            percentage
+        );
     }
 
     // 3. Top paths accessed
@@ -148,13 +166,21 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
         } else {
             path.to_string()
         };
-        println!("{:<70} {:<15} {:<15.2}%", display_path, format_number(**count), percentage);
+        println!(
+            "{:<70} {:<15} {:<15.2}%",
+            display_path,
+            format_number(**count),
+            percentage
+        );
     }
 
     // 4. Hourly activity pattern
     println!("\n4. HOURLY ACTIVITY PATTERN (Top 30 Hours)");
     println!("{}", "-".repeat(100));
-    println!("{:<20} {:<12} {:<10} {:<10} {:<10} {:<10}", "Hour", "Total Ops", "read", "update", "list", "Other");
+    println!(
+        "{:<20} {:<12} {:<10} {:<10} {:<10} {:<10}",
+        "Hour", "Total Ops", "read", "update", "list", "Other"
+    );
     println!("{}", "-".repeat(100));
 
     let mut sorted_hours: Vec<_> = operations_by_hour.iter().collect();
@@ -171,9 +197,15 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
         let list_op = *ops.get("list").unwrap_or(&0);
         let other = total - read - update - list_op;
 
-        println!("{:<20} {:<12} {:<10} {:<10} {:<10} {:<10}",
-            hour, format_number(total), format_number(read),
-            format_number(update), format_number(list_op), format_number(other));
+        println!(
+            "{:<20} {:<12} {:<10} {:<10} {:<10} {:<10}",
+            hour,
+            format_number(total),
+            format_number(read),
+            format_number(update),
+            format_number(list_op),
+            format_number(other)
+        );
     }
 
     // 5. Activity distribution by hour of day
@@ -211,23 +243,34 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
     for op in &operations_timeline {
         // Round to 5-minute window
         let minute = (op.timestamp.minute() / 5) * 5;
-        let window_start = op.timestamp
-            .with_minute(minute).unwrap()
-            .with_second(0).unwrap()
-            .with_nanosecond(0).unwrap();
+        let window_start = op
+            .timestamp
+            .with_minute(minute)
+            .unwrap()
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
         *window_counts.entry(window_start).or_insert(0) += 1;
     }
 
     let mut sorted_windows: Vec<_> = window_counts.iter().collect();
     sorted_windows.sort_by(|a, b| b.1.cmp(a.1));
 
-    println!("{:<25} {:<15} {:<20}", "5-Minute Window", "Operations", "Rate (ops/sec)");
+    println!(
+        "{:<25} {:<15} {:<20}",
+        "5-Minute Window", "Operations", "Rate (ops/sec)"
+    );
     println!("{}", "-".repeat(100));
 
     for (window, count) in sorted_windows.iter().take(20) {
         let rate = **count as f64 / 300.0;
-        println!("{:<25} {:<15} {:<20.3}", window.format("%Y-%m-%d %H:%M"),
-            format_number(**count), rate);
+        println!(
+            "{:<25} {:<15} {:<20.3}",
+            window.format("%Y-%m-%d %H:%M"),
+            format_number(**count),
+            rate
+        );
     }
 
     // 7. Behavioral patterns
@@ -237,23 +280,33 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
     if time_span_hours > 1.0 {
         let ops_per_hour = entity_operations as f64 / time_span_hours;
         if ops_per_hour > 100.0 {
-            println!("⚠️  HIGH FREQUENCY: {:.0} operations/hour suggests automated polling", ops_per_hour);
+            println!(
+                "⚠️  HIGH FREQUENCY: {:.0} operations/hour suggests automated polling",
+                ops_per_hour
+            );
             println!("   Recommended action: Implement caching or increase polling interval");
         }
 
         // Check for token lookup abuse
-        let token_lookup_paths: Vec<_> = paths_accessed.keys()
+        let token_lookup_paths: Vec<_> = paths_accessed
+            .keys()
             .filter(|p| p.contains("token/lookup"))
             .collect();
-        let total_token_lookups: usize = token_lookup_paths.iter()
+        let total_token_lookups: usize = token_lookup_paths
+            .iter()
             .map(|p| paths_accessed.get(*p).unwrap_or(&0))
             .sum();
 
         if total_token_lookups > 1000 {
-            println!("⚠️  TOKEN LOOKUP ABUSE: {} token lookups detected", format_number(total_token_lookups));
-            println!("   Rate: {:.1} lookups/hour = {:.2} lookups/second",
+            println!(
+                "⚠️  TOKEN LOOKUP ABUSE: {} token lookups detected",
+                format_number(total_token_lookups)
+            );
+            println!(
+                "   Rate: {:.1} lookups/hour = {:.2} lookups/second",
                 total_token_lookups as f64 / time_span_hours,
-                total_token_lookups as f64 / time_span_hours / 3600.0);
+                total_token_lookups as f64 / time_span_hours / 3600.0
+            );
             println!("   Recommended action: Implement client-side token TTL tracking");
         }
 
@@ -261,17 +314,27 @@ pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Re
         if let Some((top_path, top_count)) = sorted_paths.first() {
             let top_path_pct = (**top_count as f64 / entity_operations as f64) * 100.0;
             if top_path_pct > 30.0 {
-                println!("⚠️  PATH CONCENTRATION: {:.1}% of operations on single path", top_path_pct);
+                println!(
+                    "⚠️  PATH CONCENTRATION: {:.1}% of operations on single path",
+                    top_path_pct
+                );
                 println!("   Path: {}", top_path);
-                println!("   Recommended action: Review why this path is accessed {} times",
-                    format_number(**top_count));
+                println!(
+                    "   Recommended action: Review why this path is accessed {} times",
+                    format_number(**top_count)
+                );
             }
         }
 
         // Check for 24/7 activity
-        let hours_with_activity = (0..24).filter(|h| hour_of_day_stats.contains_key(h)).count();
+        let hours_with_activity = (0..24)
+            .filter(|h| hour_of_day_stats.contains_key(h))
+            .count();
         if hours_with_activity >= 20 {
-            println!("⚠️  24/7 ACTIVITY: Active in {}/24 hours", hours_with_activity);
+            println!(
+                "⚠️  24/7 ACTIVITY: Active in {}/24 hours",
+                hours_with_activity
+            );
             println!("   Suggests automated system or background process");
         }
     }

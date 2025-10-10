@@ -77,14 +77,16 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
 
         lookup_count += 1;
 
-        let entity_data = entities.entry(entity_id.to_string()).or_insert_with(|| {
-            EntityData {
+        let entity_data = entities
+            .entry(entity_id.to_string())
+            .or_insert_with(|| EntityData {
                 display_name: entry.display_name().unwrap_or("N/A").to_string(),
                 tokens: HashMap::new(),
-            }
-        });
+            });
 
-        let accessor = entry.auth.as_ref()
+        let accessor = entry
+            .auth
+            .as_ref()
             .and_then(|a| a.accessor.as_deref())
             .unwrap_or("unknown")
             .to_string();
@@ -100,33 +102,46 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
         token_data.last_seen = timestamp;
     }
 
-    eprintln!("[INFO] Processed {} total lines", format_number(total_lines));
-    eprintln!("[INFO] Found {} token lookup operations", format_number(lookup_count));
-    eprintln!("[INFO] Found {} unique entities", format_number(entities.len()));
+    eprintln!(
+        "[INFO] Processed {} total lines",
+        format_number(total_lines)
+    );
+    eprintln!(
+        "[INFO] Found {} token lookup operations",
+        format_number(lookup_count)
+    );
+    eprintln!(
+        "[INFO] Found {} unique entities",
+        format_number(entities.len())
+    );
 
     // Prepare CSV rows
     let mut rows: Vec<_> = entities
         .iter()
         .flat_map(|(entity_id, entity_data)| {
-            entity_data.tokens.iter().map(move |(accessor, token_data)| {
-                let time_span = calculate_time_span_hours(&token_data.first_seen, &token_data.last_seen);
-                let lookups_per_hour = if time_span > 0.0 {
-                    token_data.lookups as f64 / time_span
-                } else {
-                    0.0
-                };
+            entity_data
+                .tokens
+                .iter()
+                .map(move |(accessor, token_data)| {
+                    let time_span =
+                        calculate_time_span_hours(&token_data.first_seen, &token_data.last_seen);
+                    let lookups_per_hour = if time_span > 0.0 {
+                        token_data.lookups as f64 / time_span
+                    } else {
+                        0.0
+                    };
 
-                (
-                    entity_id.clone(),
-                    entity_data.display_name.clone(),
-                    accessor.clone(),
-                    token_data.lookups,
-                    time_span,
-                    lookups_per_hour,
-                    token_data.first_seen.clone(),
-                    token_data.last_seen.clone(),
-                )
-            })
+                    (
+                        entity_id.clone(),
+                        entity_data.display_name.clone(),
+                        accessor.clone(),
+                        token_data.lookups,
+                        time_span,
+                        lookups_per_hour,
+                        token_data.first_seen.clone(),
+                        token_data.last_seen.clone(),
+                    )
+                })
         })
         .collect();
 
@@ -171,7 +186,11 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
 
     writer.flush()?;
 
-    eprintln!("\n[SUCCESS] Exported {} token lookup records to: {}", format_number(rows.len()), output);
+    eprintln!(
+        "\n[SUCCESS] Exported {} token lookup records to: {}",
+        format_number(rows.len()),
+        output
+    );
 
     // Print summary
     let total_lookups: usize = rows.iter().map(|r| r.3).sum();
@@ -181,10 +200,16 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
     eprintln!("\n{}", "=".repeat(80));
     eprintln!("Summary Statistics:");
     eprintln!("{}", "-".repeat(80));
-    eprintln!("Total Token Lookup Operations: {}", format_number(total_lookups));
+    eprintln!(
+        "Total Token Lookup Operations: {}",
+        format_number(total_lookups)
+    );
     eprintln!("Unique Entities: {}", format_number(unique_entities));
     eprintln!("Unique Token Accessors: {}", format_number(unique_tokens));
-    eprintln!("Average Lookups per Token: {:.1}", total_lookups as f64 / unique_tokens as f64);
+    eprintln!(
+        "Average Lookups per Token: {:.1}",
+        total_lookups as f64 / unique_tokens as f64
+    );
 
     // Top 5 entities by lookup count
     let mut entity_totals: HashMap<String, usize> = HashMap::new();
@@ -201,7 +226,13 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
     eprintln!("{}", "-".repeat(80));
     for (i, (entity_id, count)) in top_entities.iter().take(5).enumerate() {
         let name = entity_names.get(entity_id).unwrap();
-        eprintln!("{}. {} ({}): {} lookups", i + 1, name, entity_id, format_number(*count));
+        eprintln!(
+            "{}. {} ({}): {} lookups",
+            i + 1,
+            name,
+            entity_id,
+            format_number(*count)
+        );
     }
 
     eprintln!("{}", "=".repeat(80));

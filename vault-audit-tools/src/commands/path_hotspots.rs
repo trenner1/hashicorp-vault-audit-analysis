@@ -1,9 +1,9 @@
-use anyhow::Result;
-use std::collections::{HashMap, HashSet};
 use crate::audit::AuditLogReader;
 use crate::utils::time::parse_timestamp;
+use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 struct PathStats {
@@ -55,7 +55,9 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         }
 
         let Some(path) = entry.path() else { continue };
-        let Some(operation) = entry.operation() else { continue };
+        let Some(operation) = entry.operation() else {
+            continue;
+        };
 
         total_operations += 1;
 
@@ -65,11 +67,19 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         let ts = parse_timestamp(&entry.time).ok();
 
         // Track path statistics
-        let stats = path_stats.entry(path.to_string()).or_insert_with(PathStats::new);
+        let stats = path_stats
+            .entry(path.to_string())
+            .or_insert_with(PathStats::new);
         stats.operations += 1;
         stats.entities.insert(entity_id.to_string());
-        *stats.operations_by_type.entry(operation.to_string()).or_insert(0) += 1;
-        *stats.entity_operations.entry(entity_id.to_string()).or_insert(0) += 1;
+        *stats
+            .operations_by_type
+            .entry(operation.to_string())
+            .or_insert(0) += 1;
+        *stats
+            .entity_operations
+            .entry(entity_id.to_string())
+            .or_insert(0) += 1;
         if let Some(t) = ts {
             stats.timestamps.push(t);
         }
@@ -149,8 +159,11 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         if data.timestamps.len() >= 2 {
             let mut sorted_ts = data.timestamps.clone();
             sorted_ts.sort();
-            let time_span = (sorted_ts.last().unwrap().signed_duration_since(*sorted_ts.first().unwrap()))
-                .num_seconds() as f64
+            let time_span = (sorted_ts
+                .last()
+                .unwrap()
+                .signed_duration_since(*sorted_ts.first().unwrap()))
+            .num_seconds() as f64
                 / 3600.0;
             if time_span > 0.0 {
                 let ops_per_hour = ops as f64 / time_span;
@@ -168,7 +181,12 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         ops_by_type.sort_by(|a, b| b.1.cmp(a.1));
         for (op, count) in ops_by_type.iter().take(5) {
             let op_pct = (**count as f64 / ops as f64) * 100.0;
-            println!("      - {}: {} ({:.1}%)", op, format_number(**count), op_pct);
+            println!(
+                "      - {}: {} ({:.1}%)",
+                op,
+                format_number(**count),
+                op_pct
+            );
         }
 
         // Top entities
@@ -198,14 +216,16 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
 
         if path.contains("token/lookup") {
             println!("TOKEN LOOKUP");
-            recommendations.push("Implement client-side token TTL tracking to eliminate polling".to_string());
+            recommendations
+                .push("Implement client-side token TTL tracking to eliminate polling".to_string());
             recommendations.push(format!(
                 "Potential reduction: 80-90% ({} operations)",
                 format_number((ops as f64 * 0.85) as usize)
             ));
         } else if path.to_lowercase().contains("airflow") {
             println!("AIRFLOW SECRET");
-            recommendations.push("Deploy Vault agent with template rendering for Airflow".to_string());
+            recommendations
+                .push("Deploy Vault agent with template rendering for Airflow".to_string());
             recommendations.push("Configure connection caching in Airflow".to_string());
             recommendations.push(format!(
                 "Potential reduction: 95% ({} operations)",
@@ -214,12 +234,17 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         } else if path.contains("approle/login") {
             println!("APPROLE AUTHENTICATION");
             if entity_count == 1 {
+                recommendations.push(format!(
+                    "⚠️  CRITICAL: Single entity making all {} login requests",
+                    format_number(ops)
+                ));
                 recommendations
-                    .push(format!("⚠️  CRITICAL: Single entity making all {} login requests", format_number(ops)));
-                recommendations.push("Review token TTL configuration - may be too short".to_string());
+                    .push("Review token TTL configuration - may be too short".to_string());
                 recommendations.push("Consider SecretID caching if appropriate".to_string());
             }
-        } else if path.to_lowercase().contains("openshift") || path.to_lowercase().contains("kubernetes") {
+        } else if path.to_lowercase().contains("openshift")
+            || path.to_lowercase().contains("kubernetes")
+        {
             println!("KUBERNETES/OPENSHIFT AUTH");
             recommendations.push("Review pod authentication token TTLs".to_string());
             recommendations.push("Consider increasing default token lifetime".to_string());
@@ -228,7 +253,10 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
             println!("GITHUB AUTHENTICATION");
             recommendations.push("Review GitHub auth token TTLs".to_string());
             if entity_count == 1 {
-                recommendations.push(format!("⚠️  Single entity ({}) - investigate why", entity_count));
+                recommendations.push(format!(
+                    "⚠️  Single entity ({}) - investigate why",
+                    entity_count
+                ));
             }
         } else if path.contains("data/") || path.contains("metadata/") {
             println!("KV SECRET ENGINE");
@@ -241,7 +269,8 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
                 recommendations.push("Implement caching layer or Vault agent".to_string());
                 recommendations.push("Review if secret needs this frequency of access".to_string());
             } else {
-                recommendations.push("Consider Vault agent for high-frequency consumers".to_string());
+                recommendations
+                    .push("Consider Vault agent for high-frequency consumers".to_string());
             }
         } else {
             println!("OTHER");
@@ -275,7 +304,7 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
     // 3. Summary by category
     println!("\n\nSUMMARY BY PATH CATEGORY");
     println!("{}", "=".repeat(120));
-    
+
     let mut categories: HashMap<&str, usize> = HashMap::new();
     categories.insert("Token Operations", 0);
     categories.insert("KV Secret Access", 0);
@@ -303,15 +332,23 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         }
     }
 
-    println!("{:<30} {:<15} {:<15}", "Category", "Operations", "% of Total");
+    println!(
+        "{:<30} {:<15} {:<15}",
+        "Category", "Operations", "% of Total"
+    );
     println!("{}", "-".repeat(120));
-    
+
     let mut sorted_categories: Vec<_> = categories.iter().collect();
     sorted_categories.sort_by(|a, b| b.1.cmp(a.1));
 
     for (category, ops) in sorted_categories {
         let percentage = (*ops as f64 / total_operations as f64) * 100.0;
-        println!("{:<30} {:<15} {:<15.2}%", category, format_number(*ops), percentage);
+        println!(
+            "{:<30} {:<15} {:<15.2}%",
+            category,
+            format_number(*ops),
+            percentage
+        );
     }
 
     println!("\n{}", "=".repeat(120));
@@ -331,11 +368,12 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
     let mut opportunities = Vec::new();
 
     // Calculate token lookup impact
-    let token_lookup_ops: usize = path_stats.iter()
+    let token_lookup_ops: usize = path_stats
+        .iter()
         .filter(|(path, _)| path.contains("token/lookup"))
         .map(|(_, stats)| stats.operations)
         .sum();
-    
+
     if token_lookup_ops > 10000 {
         opportunities.push(Opportunity {
             name: "Eliminate Token Lookup Polling".to_string(),
@@ -347,11 +385,12 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
     }
 
     // Calculate Airflow impact
-    let airflow_ops: usize = path_stats.iter()
+    let airflow_ops: usize = path_stats
+        .iter()
         .filter(|(path, _)| path.to_lowercase().contains("airflow"))
         .map(|(_, stats)| stats.operations)
         .sum();
-    
+
     if airflow_ops > 10000 {
         opportunities.push(Opportunity {
             name: "Deploy Vault Agent for Airflow".to_string(),
@@ -363,12 +402,14 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
     }
 
     // Calculate high-frequency path caching opportunities
-    let high_freq_ops: usize = path_stats.iter()
+    let high_freq_ops: usize = path_stats
+        .iter()
         .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
         .map(|(_, stats)| stats.operations)
         .sum();
-    
-    let high_freq_count = path_stats.iter()
+
+    let high_freq_count = path_stats
+        .iter()
         .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
         .count();
 
@@ -384,7 +425,10 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
 
     opportunities.sort_by_key(|o| o.priority);
 
-    println!("\n{:<10} {:<50} {:<15} {:<15} {:<15}", "Priority", "Opportunity", "Current Ops", "Savings", "Effort");
+    println!(
+        "\n{:<10} {:<50} {:<15} {:<15} {:<15}",
+        "Priority", "Opportunity", "Current Ops", "Savings", "Effort"
+    );
     println!("{}", "-".repeat(120));
 
     let mut total_current_ops = 0;
@@ -413,7 +457,10 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
     );
 
     let projected_reduction = (total_savings as f64 / total_operations as f64) * 100.0;
-    println!("\nProjected reduction: {:.1}% of all Vault operations", projected_reduction);
+    println!(
+        "\nProjected reduction: {:.1}% of all Vault operations",
+        projected_reduction
+    );
     println!("{}", "=".repeat(120));
 
     Ok(())

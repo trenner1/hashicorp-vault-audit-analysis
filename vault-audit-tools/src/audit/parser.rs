@@ -25,7 +25,7 @@ impl AuditLogReader {
         loop {
             self.line_buffer.clear();
             let bytes_read = self.reader.read_line(&mut self.line_buffer)?;
-            
+
             if bytes_read == 0 {
                 return Ok(None); // EOF
             }

@@ -33,7 +33,7 @@ fn analyze_mount(csvfile: &str) -> Result<Option<MountData>> {
 
     for result in reader.records() {
         let record = result?;
-        
+
         // Get operations_count (column 2)
         if let Some(ops_str) = record.get(2) {
             if let Ok(ops) = ops_str.parse::<usize>() {
@@ -67,9 +67,12 @@ fn analyze_mount(csvfile: &str) -> Result<Option<MountData>> {
 
 pub fn run(csv1: &str, csv2: &str) -> Result<()> {
     let csv_files = vec![csv1.to_string(), csv2.to_string()];
-    
+
     println!("{}", "=".repeat(95));
-    println!("{:<20} {:<18} {:<18} {:<20}", "KV Mount", "Operations", "Unique Paths", "Unique Entities");
+    println!(
+        "{:<20} {:<18} {:<18} {:<20}",
+        "KV Mount", "Operations", "Unique Paths", "Unique Entities"
+    );
     println!("{}", "=".repeat(95));
 
     let mut results = Vec::new();
@@ -86,7 +89,8 @@ pub fn run(csv1: &str, csv2: &str) -> Result<()> {
 
         match analyze_mount(csv_file).context(format!("Failed to analyze {}", csv_file))? {
             Some(data) => {
-                println!("{:<20} {:<18} {:<18} {:<20}",
+                println!(
+                    "{:<20} {:<18} {:<18} {:<20}",
                     mount_name,
                     format_number(data.operations),
                     format_number(data.paths),
@@ -106,7 +110,8 @@ pub fn run(csv1: &str, csv2: &str) -> Result<()> {
     }
 
     println!("{}", "=".repeat(95));
-    println!("{:<20} {:<18} {:<18} {:<20}",
+    println!(
+        "{:<20} {:<18} {:<18} {:<20}",
         "TOTAL",
         format_number(total_ops),
         format_number(total_paths),

@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
 
 /// Parse a timestamp string from Vault audit logs
 #[allow(dead_code)]
@@ -20,7 +20,7 @@ pub fn format_timestamp(dt: &DateTime<Utc>) -> String {
 pub fn duration_human(start: &DateTime<Utc>, end: &DateTime<Utc>) -> String {
     let duration = end.signed_duration_since(*start);
     let seconds = duration.num_seconds();
-    
+
     if seconds < 60 {
         format!("{} seconds", seconds)
     } else if seconds < 3600 {

@@ -1,6 +1,6 @@
+use crate::audit::AuditLogReader;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
-use crate::audit::AuditLogReader;
 
 #[derive(Debug)]
 struct PathData {
@@ -51,7 +51,9 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         }
 
         let Some(path) = entry.path() else { continue };
-        let Some(operation) = entry.operation() else { continue };
+        let Some(operation) = entry.operation() else {
+            continue;
+        };
         let entity_id = entry.entity_id().unwrap_or("no-entity");
         let display_name = entry.display_name().unwrap_or("N/A");
 
@@ -60,9 +62,14 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         }
 
         // Track by full path
-        let path_data = path_operations.entry(path.to_string()).or_insert_with(PathData::new);
+        let path_data = path_operations
+            .entry(path.to_string())
+            .or_insert_with(PathData::new);
         path_data.count += 1;
-        *path_data.operations.entry(operation.to_string()).or_insert(0) += 1;
+        *path_data
+            .operations
+            .entry(operation.to_string())
+            .or_insert(0) += 1;
         // Track all entities including "no-entity" to match Python behavior
         path_data.entities.insert(entity_id.to_string());
 
@@ -81,12 +88,19 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         *path_prefixes.entry(prefix).or_insert(0) += 1;
 
         // Track entity usage for all entities (including "no-entity")
-        let entity_map = entity_paths.entry(entity_id.to_string()).or_insert_with(HashMap::new);
+        let entity_map = entity_paths
+            .entry(entity_id.to_string())
+            .or_insert_with(HashMap::new);
         *entity_map.entry(path.to_string()).or_insert(0) += 1;
-        entity_names.entry(entity_id.to_string()).or_insert_with(|| display_name.to_string());
+        entity_names
+            .entry(entity_id.to_string())
+            .or_insert_with(|| display_name.to_string());
     }
 
-    eprintln!("[INFO] Processed {} total lines", format_number(total_lines));
+    eprintln!(
+        "[INFO] Processed {} total lines",
+        format_number(total_lines)
+    );
 
     let total_operations: usize = operation_types.values().sum();
 
@@ -114,12 +128,20 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
     }
 
     println!("{}", "-".repeat(100));
-    println!("{:<20} {:>15} {:>11.2}%", "TOTAL", format_number(total_operations), 100.0);
+    println!(
+        "{:<20} {:>15} {:>11.2}%",
+        "TOTAL",
+        format_number(total_operations),
+        100.0
+    );
 
     // 2. Top Path Prefixes
     println!("\n2. Top Path Prefixes (First 2 components)");
     println!("{}", "-".repeat(100));
-    println!("{:<40} {:>15} {:>12}", "Path Prefix", "Operations", "Percentage");
+    println!(
+        "{:<40} {:>15} {:>12}",
+        "Path Prefix", "Operations", "Percentage"
+    );
     println!("{}", "-".repeat(100));
 
     let mut sorted_prefixes: Vec<_> = path_prefixes.iter().collect();
@@ -131,13 +153,21 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         } else {
             0.0
         };
-        println!("{:<40} {:>15} {:>11.2}%", prefix, format_number(**count), pct);
+        println!(
+            "{:<40} {:>15} {:>11.2}%",
+            prefix,
+            format_number(**count),
+            pct
+        );
     }
 
     // 3. Top Individual Paths
     println!("\n3. Top {} Individual Paths (Highest Volume)", top);
     println!("{}", "-".repeat(100));
-    println!("{:<60} {:>10} {:>10} {:>15}", "Path", "Ops", "Entities", "Top Op");
+    println!(
+        "{:<60} {:>10} {:>10} {:>15}",
+        "Path", "Ops", "Entities", "Top Op"
+    );
     println!("{}", "-".repeat(100));
 
     let mut sorted_paths: Vec<_> = path_operations.iter().collect();
@@ -147,7 +177,12 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         if data.count < min_operations {
             break;
         }
-        let top_op = data.operations.iter().max_by_key(|x| x.1).map(|x| x.0.as_str()).unwrap_or("N/A");
+        let top_op = data
+            .operations
+            .iter()
+            .max_by_key(|x| x.1)
+            .map(|x| x.0.as_str())
+            .unwrap_or("N/A");
         let path_display = if path.len() > 60 {
             format!("{}...", &path[..58])
         } else {
@@ -165,7 +200,10 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
     // 4. Top Entities by Total Operations
     println!("\n4. Top {} Entities by Total Operations", top);
     println!("{}", "-".repeat(100));
-    println!("{:<50} {:<38} {:>10}", "Display Name", "Entity ID", "Total Ops");
+    println!(
+        "{:<50} {:<38} {:>10}",
+        "Display Name", "Entity ID", "Total Ops"
+    );
     println!("{}", "-".repeat(100));
 
     let mut entity_totals: HashMap<String, usize> = HashMap::new();
@@ -178,18 +216,22 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
     sorted_entities.sort_by(|a, b| b.1.cmp(a.1));
 
     for (entity_id, total) in sorted_entities.iter().take(top) {
-        let name = entity_names.get(*entity_id).map(|s| s.as_str()).unwrap_or("N/A");
-        let name_display = if name.len() > 48 {
-            &name[..48]
-        } else {
-            name
-        };
+        let name = entity_names
+            .get(*entity_id)
+            .map(|s| s.as_str())
+            .unwrap_or("N/A");
+        let name_display = if name.len() > 48 { &name[..48] } else { name };
         let entity_short = if entity_id.len() > 36 {
             &entity_id[..36]
         } else {
             entity_id
         };
-        println!("{:<50} {:<38} {:>10}", name_display, entity_short, format_number(**total));
+        println!(
+            "{:<50} {:<38} {:>10}",
+            name_display,
+            entity_short,
+            format_number(**total)
+        );
     }
 
     // 5. Potential Stress Points
@@ -213,7 +255,10 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
                         if entity_ops >= min_operations {
                             stress_points.push(StressPoint {
                                 path: path.clone(),
-                                entity_name: entity_names.get(entity_id).cloned().unwrap_or_else(|| "N/A".to_string()),
+                                entity_name: entity_names
+                                    .get(entity_id)
+                                    .cloned()
+                                    .unwrap_or_else(|| "N/A".to_string()),
                                 operations: entity_ops,
                             });
                         }
@@ -239,7 +284,12 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
         } else {
             &sp.path
         };
-        println!("{:<40} {:<40} {:>10}", entity_display, path_display, format_number(sp.operations));
+        println!(
+            "{:<40} {:<40} {:>10}",
+            entity_display,
+            path_display,
+            format_number(sp.operations)
+        );
     }
 
     println!("{}", "=".repeat(100));

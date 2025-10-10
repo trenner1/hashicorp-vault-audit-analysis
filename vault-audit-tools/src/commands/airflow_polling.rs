@@ -55,13 +55,18 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
                 airflow_operations += 1;
 
                 let entity_id = entry.entity_id().unwrap_or("no-entity");
-                
+
                 // Track path statistics
-                let path_data = airflow_paths.entry(path.to_string()).or_insert_with(PathData::new);
+                let path_data = airflow_paths
+                    .entry(path.to_string())
+                    .or_insert_with(PathData::new);
                 path_data.operations += 1;
                 path_data.entities.insert(entity_id.to_string());
-                *path_data.operations_by_entity.entry(entity_id.to_string()).or_insert(0) += 1;
-                
+                *path_data
+                    .operations_by_entity
+                    .entry(entity_id.to_string())
+                    .or_insert(0) += 1;
+
                 // Track timestamp if available
                 if let Ok(ts) = parse_timestamp(&entry.time) {
                     path_data.timestamps.push(ts);
@@ -76,13 +81,20 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
 
     println!("\nSummary:");
     println!("  Total lines processed: {}", format_number(total_lines));
-    println!("  Airflow operations: {}", format_number(airflow_operations));
+    println!(
+        "  Airflow operations: {}",
+        format_number(airflow_operations)
+    );
     println!("  Unique paths: {}", format_number(airflow_paths.len()));
-    
-    let total_entities: std::collections::HashSet<_> = airflow_paths.values()
+
+    let total_entities: std::collections::HashSet<_> = airflow_paths
+        .values()
         .flat_map(|data| data.entities.iter().cloned())
         .collect();
-    println!("  Entities involved: {}", format_number(total_entities.len()));
+    println!(
+        "  Entities involved: {}",
+        format_number(total_entities.len())
+    );
 
     // 1. Top Airflow paths by operations
     println!("\n1. TOP AIRFLOW PATHS BY OPERATIONS");
@@ -99,26 +111,37 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         } else {
             &path[..75]
         };
-        println!("{:<80} {:<12} {:<10}", display_path, format_number(data.operations), format_number(data.entities.len()));
+        println!(
+            "{:<80} {:<12} {:<10}",
+            display_path,
+            format_number(data.operations),
+            format_number(data.entities.len())
+        );
     }
 
     // 2. Entity access patterns
     println!("\n2. ENTITIES ACCESSING AIRFLOW SECRETS");
     println!("{}", "-".repeat(100));
-    println!("{:<50} {:<12} {:<15}", "Entity ID", "Operations", "Unique Paths");
+    println!(
+        "{:<50} {:<12} {:<15}",
+        "Entity ID", "Operations", "Unique Paths"
+    );
     println!("{}", "-".repeat(100));
 
-    let mut entity_patterns: HashMap<String, (usize, std::collections::HashSet<String>)> = HashMap::new();
+    let mut entity_patterns: HashMap<String, (usize, std::collections::HashSet<String>)> =
+        HashMap::new();
     for (path, data) in &airflow_paths {
         for entity in &data.entities {
-            let entry = entity_patterns.entry(entity.clone()).or_insert((0, std::collections::HashSet::new()));
+            let entry = entity_patterns
+                .entry(entity.clone())
+                .or_insert((0, std::collections::HashSet::new()));
             entry.0 += data.operations_by_entity.get(entity).unwrap_or(&0);
             entry.1.insert(path.clone());
         }
     }
 
     let mut sorted_entities: Vec<_> = entity_patterns.iter().collect();
-    sorted_entities.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+    sorted_entities.sort_by(|a, b| b.1 .0.cmp(&a.1 .0));
 
     for (entity, (ops, paths)) in sorted_entities.iter().take(20) {
         let display_entity = if entity.len() <= 48 {
@@ -126,14 +149,22 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         } else {
             &entity[..45]
         };
-        println!("{:<50} {:<12} {:<15}", display_entity, format_number(*ops), format_number(paths.len()));
+        println!(
+            "{:<50} {:<12} {:<15}",
+            display_entity,
+            format_number(*ops),
+            format_number(paths.len())
+        );
     }
 
     // 3. Polling pattern analysis with BURST RATES
     println!("\n3. BURST RATE ANALYSIS (Paths with Time Data)");
     println!("   NOTE: Rates calculated over actual time span - high rates indicate bursty access");
     println!("{}", "-".repeat(100));
-    println!("{:<60} {:<12} {:<12} {:<15}", "Path", "Operations", "Time Span", "Avg Interval");
+    println!(
+        "{:<60} {:<12} {:<12} {:<15}",
+        "Path", "Operations", "Time Span", "Avg Interval"
+    );
     println!("{}", "-".repeat(100));
 
     struct PollingPattern {
@@ -183,8 +214,14 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         };
         let time_span = format!("{:.1}h", pattern.time_span_hours);
         let interval = format!("{:.1}s", pattern.avg_interval_seconds);
-        
-        println!("{:<60} {:<12} {:<12} {:<15}", path_display, format_number(pattern.operations), time_span, interval);
+
+        println!(
+            "{:<60} {:<12} {:<12} {:<15}",
+            path_display,
+            format_number(pattern.operations),
+            time_span,
+            interval
+        );
     }
 
     // 4. Entity-path combinations
@@ -223,37 +260,57 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         } else {
             &combo.path[..40]
         };
-        
-        println!("{:<40} {:<45} {:<15}", entity_display, path_display, format_number(combo.operations));
+
+        println!(
+            "{:<40} {:<45} {:<15}",
+            entity_display,
+            path_display,
+            format_number(combo.operations)
+        );
     }
 
     // 5. Recommendations
     println!("\n5. OPTIMIZATION RECOMMENDATIONS");
     println!("{}", "-".repeat(100));
 
-    let high_frequency_paths: Vec<_> = polling_patterns.iter()
+    let high_frequency_paths: Vec<_> = polling_patterns
+        .iter()
         .filter(|p| p.ops_per_hour > 100.0)
         .collect();
     let total_high_freq_ops: usize = high_frequency_paths.iter().map(|p| p.operations).sum();
 
-    println!("Total Airflow operations: {}", format_number(airflow_operations));
-    println!("Paths with >100 ops/hour burst rate: {}", format_number(high_frequency_paths.len()));
-    println!("Operations from high-frequency paths: {} ({:.1}%)", 
-        format_number(total_high_freq_ops), 
-        (total_high_freq_ops as f64 / airflow_operations as f64) * 100.0);
+    println!(
+        "Total Airflow operations: {}",
+        format_number(airflow_operations)
+    );
+    println!(
+        "Paths with >100 ops/hour burst rate: {}",
+        format_number(high_frequency_paths.len())
+    );
+    println!(
+        "Operations from high-frequency paths: {} ({:.1}%)",
+        format_number(total_high_freq_ops),
+        (total_high_freq_ops as f64 / airflow_operations as f64) * 100.0
+    );
     println!();
     println!("Recommended Actions:");
     println!();
     println!("1. IMPLEMENT AIRFLOW CONNECTION CACHING");
     println!("   - Configure Airflow to cache connection objects");
     println!("   - Expected reduction: 80-90% of reads");
-    println!("   - Potential savings: {} operations/day", format_number((airflow_operations as f64 * 0.85) as usize));
+    println!(
+        "   - Potential savings: {} operations/day",
+        format_number((airflow_operations as f64 * 0.85) as usize)
+    );
     println!();
     println!("2. DEPLOY VAULT AGENT WITH AIRFLOW");
     println!("   - Run Vault agent as sidecar/daemon");
     println!("   - Configure template rendering for connections");
     println!("   - Expected reduction: 95% of reads");
-    println!("   - Potential savings: {} operations/day", format_number((airflow_operations as f64 * 0.95) as usize));
+    println!(
+        "   - Potential savings: {} operations/day",
+        format_number((airflow_operations as f64 * 0.95) as usize)
+    );
     println!();
     println!("3. USE AIRFLOW SECRETS BACKEND EFFICIENTLY");
     println!("   - Review connection lookup patterns in DAGs");
@@ -265,11 +322,13 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         println!("4. PRIORITY PATHS FOR IMMEDIATE OPTIMIZATION (by burst rate):");
         for (i, pattern) in polling_patterns.iter().take(10).enumerate() {
             let path_name = pattern.path.split('/').last().unwrap_or(&pattern.path);
-            println!("   {}. {}: {} operations ({:.0}/hour burst rate)", 
-                i + 1, 
-                path_name, 
-                format_number(pattern.operations), 
-                pattern.ops_per_hour);
+            println!(
+                "   {}. {}: {} operations ({:.0}/hour burst rate)",
+                i + 1,
+                path_name,
+                format_number(pattern.operations),
+                pattern.ops_per_hour
+            );
         }
     }
 

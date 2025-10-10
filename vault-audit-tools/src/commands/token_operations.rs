@@ -1,6 +1,6 @@
+use crate::audit::AuditLogReader;
 use anyhow::Result;
 use std::collections::HashMap;
-use crate::audit::AuditLogReader;
 
 #[derive(Debug, Default)]
 struct TokenOps {
@@ -42,10 +42,14 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
             continue;
         }
 
-        let Some(entity_id) = entry.entity_id() else { continue };
+        let Some(entity_id) = entry.entity_id() else {
+            continue;
+        };
         let operation = entry.operation().unwrap_or("");
 
-        let ops = token_ops.entry(entity_id.to_string()).or_insert_with(TokenOps::default);
+        let ops = token_ops
+            .entry(entity_id.to_string())
+            .or_insert_with(TokenOps::default);
 
         // Categorize operation
         if path.contains("lookup-self") {
@@ -83,7 +87,9 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
             (
                 entity_id.clone(),
                 total,
-                ops.display_name.clone().unwrap_or_else(|| "unknown".to_string()),
+                ops.display_name
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string()),
                 ops.lookup_self,
                 ops.renew_self,
                 ops.revoke_self,
@@ -142,7 +148,11 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         format!("TOTAL (top {})", entity_totals.len().min(top)),
         format_number(grand_total)
     );
-    println!("{:<55} {:<10}", "TOTAL ENTITIES", format_number(entity_totals.len()));
+    println!(
+        "{:<55} {:<10}",
+        "TOTAL ENTITIES",
+        format_number(entity_totals.len())
+    );
     println!("{}", "=".repeat(140));
 
     // Summary by operation type
@@ -181,7 +191,10 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         (total_other as f64 / overall_total as f64) * 100.0
     );
     println!("{}", "-".repeat(60));
-    println!("TOTAL:                 {:>12}", format_number(overall_total));
+    println!(
+        "TOTAL:                 {:>12}",
+        format_number(overall_total)
+    );
 
     // TODO: CSV output if specified
     if let Some(_output_path) = output {

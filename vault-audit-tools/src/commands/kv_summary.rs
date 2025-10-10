@@ -60,7 +60,10 @@ pub fn run(csv_file: &str) -> Result<()> {
 
     println!("Overview:");
     println!("   • Total KV Paths: {}", total_paths);
-    println!("   • Total Unique Clients: {}", format_number(total_clients));
+    println!(
+        "   • Total Unique Clients: {}",
+        format_number(total_clients)
+    );
     println!("   • Total Operations: {}", format_number(total_operations));
     println!("\n{}\n", "-".repeat(70));
 
@@ -71,20 +74,24 @@ pub fn run(csv_file: &str) -> Result<()> {
     let sample_paths_idx = headers.iter().position(|h| h == "sample_paths_accessed");
 
     for (i, row) in rows.iter().enumerate() {
-        println!("{}. KV Path: {}", i + 1, kv_path_idx.and_then(|idx| row.get(idx)).unwrap_or("N/A"));
-        
+        println!(
+            "{}. KV Path: {}",
+            i + 1,
+            kv_path_idx.and_then(|idx| row.get(idx)).unwrap_or("N/A")
+        );
+
         if let Some(idx) = unique_clients_idx {
             println!("   Unique Clients: {}", row.get(idx).unwrap_or("0"));
         }
-        
+
         if let Some(idx) = operations_idx {
             println!("   Total Operations: {}", row.get(idx).unwrap_or("0"));
         }
-        
+
         if let Some(idx) = entity_ids_idx {
             println!("   Entity IDs: {}", row.get(idx).unwrap_or("N/A"));
         }
-        
+
         if let Some(idx) = alias_names_idx {
             if let Some(names) = row.get(idx) {
                 if !names.is_empty() {
@@ -92,7 +99,7 @@ pub fn run(csv_file: &str) -> Result<()> {
                 }
             }
         }
-        
+
         if let Some(idx) = sample_paths_idx {
             if let Some(paths) = row.get(idx) {
                 let display_paths = if paths.len() > 80 {
@@ -103,7 +110,7 @@ pub fn run(csv_file: &str) -> Result<()> {
                 println!("   Sample Paths: {}", display_paths);
             }
         }
-        
+
         println!();
     }
 

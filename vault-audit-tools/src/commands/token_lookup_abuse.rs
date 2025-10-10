@@ -1,7 +1,7 @@
-use anyhow::Result;
-use std::collections::HashMap;
 use crate::audit::AuditLogReader;
 use crate::utils::time::parse_timestamp;
+use anyhow::Result;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct TokenData {
@@ -68,14 +68,20 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
             continue;
         }
 
-        let Some(entity_id) = entry.entity_id() else { continue };
+        let Some(entity_id) = entry.entity_id() else {
+            continue;
+        };
         let Some(auth) = &entry.auth else { continue };
-        let Some(accessor) = &auth.accessor else { continue };
+        let Some(accessor) = &auth.accessor else {
+            continue;
+        };
 
         lookup_lines += 1;
 
-        let entity_map = patterns.entry(entity_id.to_string()).or_insert_with(HashMap::new);
-        
+        let entity_map = patterns
+            .entry(entity_id.to_string())
+            .or_insert_with(HashMap::new);
+
         entity_map
             .entry(accessor.clone())
             .and_modify(|data| {
@@ -85,8 +91,14 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
             .or_insert_with(|| TokenData::new(entry.time.clone()));
     }
 
-    eprintln!("[INFO] Processed {} total lines", format_number(total_lines));
-    eprintln!("[INFO] Found {} token lookup operations", format_number(lookup_lines));
+    eprintln!(
+        "[INFO] Processed {} total lines",
+        format_number(total_lines)
+    );
+    eprintln!(
+        "[INFO] Found {} token lookup operations",
+        format_number(lookup_lines)
+    );
 
     // Find entities with excessive lookups
     let mut excessive_patterns = Vec::new();
@@ -154,7 +166,11 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
         {
             println!(
                 "{:<40} {:<25} {:>10} {:>12.1} {:>15.1}",
-                entity_id, accessor, format_number(*lookups), time_span, rate
+                entity_id,
+                accessor,
+                format_number(*lookups),
+                time_span,
+                rate
             );
         }
 
@@ -164,9 +180,15 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
         let max_lookups = excessive_patterns[0].2;
 
         println!("\n{}", "-".repeat(120));
-        println!("Total Excessive Lookups: {}", format_number(total_excessive_lookups));
+        println!(
+            "Total Excessive Lookups: {}",
+            format_number(total_excessive_lookups)
+        );
         println!("Average Lookups per Entity: {:.1}", avg_lookups);
-        println!("Maximum Lookups (single token): {}", format_number(max_lookups));
+        println!(
+            "Maximum Lookups (single token): {}",
+            format_number(max_lookups)
+        );
 
         // Find highest rate
         let mut by_rate = excessive_patterns.clone();

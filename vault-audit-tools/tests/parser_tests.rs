@@ -1,12 +1,12 @@
-use vault_audit_tools::audit::parser::AuditLogReader;
 use std::io::Write;
 use tempfile::NamedTempFile;
+use vault_audit_tools::audit::parser::AuditLogReader;
 
 #[test]
 fn test_parse_valid_audit_entry() {
     let mut temp_file = NamedTempFile::new().unwrap();
     let log_line = r#"{"type":"response","time":"2025-10-07T10:30:00.123456Z","auth":{"entity_id":"test-entity-123","display_name":"test-user","policies":["default"]},"request":{"path":"kv/data/test","operation":"read"},"response":{}}"#;
-    
+
     writeln!(temp_file, "{}", log_line).unwrap();
     temp_file.flush().unwrap();
 
@@ -23,7 +23,7 @@ fn test_parse_valid_audit_entry() {
 fn test_parse_missing_entity() {
     let mut temp_file = NamedTempFile::new().unwrap();
     let log_line = r#"{"type":"response","time":"2025-10-07T10:30:00Z","auth":{},"request":{"path":"auth/token/lookup-self","operation":"read"},"response":{}}"#;
-    
+
     writeln!(temp_file, "{}", log_line).unwrap();
     temp_file.flush().unwrap();
 
@@ -58,7 +58,7 @@ fn test_empty_file() {
 #[test]
 fn test_multiple_entries() {
     let mut temp_file = NamedTempFile::new().unwrap();
-    
+
     for i in 1..=5 {
         let log_line = format!(
             r#"{{"type":"response","time":"2025-10-07T10:30:00Z","auth":{{"entity_id":"entity-{}"}},"request":{{"path":"test","operation":"read"}},"response":{{}}}}"#,
@@ -70,7 +70,7 @@ fn test_multiple_entries() {
 
     let mut reader = AuditLogReader::new(temp_file.path()).unwrap();
     let mut count = 0;
-    
+
     while let Some(_entry) = reader.next_entry().unwrap() {
         count += 1;
     }
@@ -82,7 +82,7 @@ fn test_multiple_entries() {
 fn test_kv_v2_path_detection() {
     let mut temp_file = NamedTempFile::new().unwrap();
     let log_line = r#"{"type":"response","time":"2025-10-07T10:30:00Z","auth":{"entity_id":"test"},"request":{"path":"kv/data/app1/secret","operation":"read","mount_type":"kv"},"response":{}}"#;
-    
+
     writeln!(temp_file, "{}", log_line).unwrap();
     temp_file.flush().unwrap();
 
@@ -97,7 +97,7 @@ fn test_kv_v2_path_detection() {
 fn test_kubernetes_auth_path() {
     let mut temp_file = NamedTempFile::new().unwrap();
     let log_line = r#"{"type":"response","time":"2025-10-07T10:30:00Z","auth":{"entity_id":"test"},"request":{"path":"auth/kubernetes/login","operation":"update"},"response":{}}"#;
-    
+
     writeln!(temp_file, "{}", log_line).unwrap();
     temp_file.flush().unwrap();
 

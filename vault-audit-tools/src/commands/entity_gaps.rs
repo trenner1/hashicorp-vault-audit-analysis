@@ -29,8 +29,11 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
         total_lines += 1;
 
         if total_lines % 500_000 == 0 {
-            eprintln!("  Processed {} lines, found {} no-entity operations...",
-                format_number(total_lines), format_number(no_entity_operations));
+            eprintln!(
+                "  Processed {} lines, found {} no-entity operations...",
+                format_number(total_lines),
+                format_number(no_entity_operations)
+            );
         }
 
         // Check for no entity
@@ -55,7 +58,10 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
     }
 
     eprintln!("\nProcessed {} total lines", format_number(total_lines));
-    eprintln!("Found {} operations with no entity ID", format_number(no_entity_operations));
+    eprintln!(
+        "Found {} operations with no entity ID",
+        format_number(no_entity_operations)
+    );
 
     if no_entity_operations == 0 {
         println!("\nNo operations without entity ID found!");
@@ -68,9 +74,14 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
 
     println!("\n1. SUMMARY");
     println!("{}", "-".repeat(100));
-    println!("Total no-entity operations: {}", format_number(no_entity_operations));
-    println!("Percentage of all operations: {:.2}%", 
-        (no_entity_operations as f64 / total_lines as f64) * 100.0);
+    println!(
+        "Total no-entity operations: {}",
+        format_number(no_entity_operations)
+    );
+    println!(
+        "Percentage of all operations: {:.2}%",
+        (no_entity_operations as f64 / total_lines as f64) * 100.0
+    );
 
     println!("\n2. OPERATION TYPE DISTRIBUTION");
     println!("{}", "-".repeat(100));
@@ -82,7 +93,12 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
 
     for (op, count) in sorted_ops.iter().take(20) {
         let percentage = (**count as f64 / no_entity_operations as f64) * 100.0;
-        println!("{:<30} {:<15} {:<15.2}%", op, format_number(**count), percentage);
+        println!(
+            "{:<30} {:<15} {:<15.2}%",
+            op,
+            format_number(**count),
+            percentage
+        );
     }
 
     println!("\n3. TOP 30 PATHS ACCESSED");
@@ -100,12 +116,20 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
         } else {
             path.to_string()
         };
-        println!("{:<70} {:<15} {:<15.2}%", display_path, format_number(**count), percentage);
+        println!(
+            "{:<70} {:<15} {:<15.2}%",
+            display_path,
+            format_number(**count),
+            percentage
+        );
     }
 
     println!("\n4. TOP 30 DISPLAY NAMES");
     println!("{}", "-".repeat(100));
-    println!("{:<60} {:<20} {:<15}", "Display Name", "Count", "Percentage");
+    println!(
+        "{:<60} {:<20} {:<15}",
+        "Display Name", "Count", "Percentage"
+    );
     println!("{}", "-".repeat(100));
 
     let mut sorted_names: Vec<_> = display_names.iter().collect();
@@ -118,7 +142,12 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
         } else {
             name.to_string()
         };
-        println!("{:<60} {:<20} {:<15.2}%", display_name, format_number(**count), percentage);
+        println!(
+            "{:<60} {:<20} {:<15.2}%",
+            display_name,
+            format_number(**count),
+            percentage
+        );
     }
 
     println!("\n{}", "=".repeat(100));

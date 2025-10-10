@@ -15,7 +15,10 @@ fn format_number(n: usize) -> String {
 }
 
 pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
-    println!("Analyzing Kubernetes authentication patterns in {}...", log_file);
+    println!(
+        "Analyzing Kubernetes authentication patterns in {}...",
+        log_file
+    );
 
     let mut reader = AuditLogReader::new(log_file)?;
     let mut k8s_logins = 0;
@@ -35,10 +38,11 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
                 if path.ends_with("/login") {
                     // Check if it's a K8s/OpenShift login by path OR mount_type
                     let is_k8s_by_path = path.contains("kubernetes") || path.contains("openshift");
-                    let is_k8s_by_mount = entry.mount_type()
+                    let is_k8s_by_mount = entry
+                        .mount_type()
                         .map(|mt| mt == "kubernetes" || mt == "openshift")
                         .unwrap_or(false);
-                    
+
                     if is_k8s_by_path || is_k8s_by_mount {
                         k8s_logins += 1;
 
@@ -57,7 +61,10 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
 
     println!("\nSummary:");
     println!("  Total lines processed: {}", format_number(total_lines));
-    println!("  Total K8s/OpenShift logins: {}", format_number(k8s_logins));
+    println!(
+        "  Total K8s/OpenShift logins: {}",
+        format_number(k8s_logins)
+    );
     println!("  Unique entities: {}", format_number(entities_seen.len()));
 
     if k8s_logins > 0 {

@@ -32,7 +32,10 @@ fn normalize_kv_path(path: &str) -> String {
             .collect();
 
         return if remaining.len() >= 3 {
-            format!("{}/{}/{}/{}/", mount, remaining[0], remaining[1], remaining[2])
+            format!(
+                "{}/{}/{}/{}/",
+                mount, remaining[0], remaining[1], remaining[2]
+            )
         } else if remaining.len() == 2 {
             format!("{}/{}/{}/", mount, remaining[0], remaining[1])
         } else if remaining.len() == 1 {
@@ -82,7 +85,12 @@ fn load_entity_alias_mapping(alias_export_csv: &str) -> Result<HashMap<String, V
     Ok(entity_aliases)
 }
 
-pub fn run(log_file: &str, kv_prefix: &str, output: Option<&str>, entity_csv: Option<&str>) -> Result<()> {
+pub fn run(
+    log_file: &str,
+    kv_prefix: &str,
+    output: Option<&str>,
+    entity_csv: Option<&str>,
+) -> Result<()> {
     let output_file = output.unwrap_or("data/kv_usage_by_client.csv");
 
     eprintln!("Processing: {}", log_file);

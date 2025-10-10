@@ -108,9 +108,7 @@ impl AuditEntry {
 
     #[allow(dead_code)]
     pub fn path_starts_with(&self, prefix: &str) -> bool {
-        self.path()
-            .map(|p| p.starts_with(prefix))
-            .unwrap_or(false)
+        self.path().map(|p| p.starts_with(prefix)).unwrap_or(false)
     }
 
     #[allow(dead_code)]
