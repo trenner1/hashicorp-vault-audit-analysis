@@ -2,13 +2,10 @@
 # https://embarkstudios.github.io/cargo-deny/
 
 [advisories]
-db-path = "~/.cargo/advisory-db"
-db-urls = ["https://github.com/rustsec/advisory-db"]
 version = 2
-ignore = []
 
 [licenses]
-unlicensed = "deny"
+version = 2
 allow = [
     "MIT",
     "Apache-2.0",
@@ -18,27 +15,10 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
 ]
-deny = [
-    "GPL-2.0",
-    "GPL-3.0",
-    "AGPL-3.0",
-]
-copyleft = "warn"
-allow-osi-fsf-free = "both"
-default = "deny"
-confidence-threshold = 0.8
 
 [bans]
 multiple-versions = "warn"
-wildcards = "allow"
-highlight = "all"
-workspace-default-features = "allow"
-external-default-features = "allow"
-allow = []
-deny = []
 
 [sources]
 unknown-registry = "warn"
 unknown-git = "warn"
-allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []

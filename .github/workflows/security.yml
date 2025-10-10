@@ -69,16 +69,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-deny
-        run: cargo install cargo-deny
-
-      - name: Check licenses and advisories
-        run: |
-          cd vault-audit-tools
-          cargo deny check
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: ./vault-audit-tools/Cargo.toml
 
   dependency-review:
     name: Dependency Review
