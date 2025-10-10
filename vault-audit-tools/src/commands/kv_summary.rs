@@ -1,0 +1,114 @@
+use anyhow::{Context, Result};
+use std::fs::File;
+use std::io::BufReader;
+
+fn format_number(n: usize) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
+
+pub fn run(csv_file: &str) -> Result<()> {
+    let file = File::open(csv_file).context("Failed to open CSV file")?;
+    let reader = BufReader::new(file);
+    let mut csv_reader = csv::Reader::from_reader(reader);
+
+    let mut rows = Vec::new();
+    for result in csv_reader.records() {
+        let record = result?;
+        rows.push(record);
+    }
+
+    if rows.is_empty() {
+        println!("No data found in {}", csv_file);
+        return Ok(());
+    }
+
+    println!("\n{}", "=".repeat(70));
+    println!("{:^70}", "KV Usage Summary Report");
+    println!("{:^70}", format!("Source: {}", csv_file));
+    println!("{}\n", "=".repeat(70));
+
+    // Calculate totals
+    let total_paths = rows.len();
+    let mut total_clients = 0;
+    let mut total_operations = 0;
+
+    // Get headers
+    let headers = csv_reader.headers()?.clone();
+    let unique_clients_idx = headers.iter().position(|h| h == "unique_clients");
+    let operations_idx = headers.iter().position(|h| h == "operations_count");
+
+    for row in &rows {
+        if let Some(idx) = unique_clients_idx {
+            if let Ok(n) = row.get(idx).unwrap_or("0").parse::<usize>() {
+                total_clients += n;
+            }
+        }
+        if let Some(idx) = operations_idx {
+            if let Ok(n) = row.get(idx).unwrap_or("0").parse::<usize>() {
+                total_operations += n;
+            }
+        }
+    }
+
+    println!("Overview:");
+    println!("   • Total KV Paths: {}", total_paths);
+    println!("   • Total Unique Clients: {}", format_number(total_clients));
+    println!("   • Total Operations: {}", format_number(total_operations));
+    println!("\n{}\n", "-".repeat(70));
+
+    // Get column indices
+    let kv_path_idx = headers.iter().position(|h| h == "kv_path");
+    let entity_ids_idx = headers.iter().position(|h| h == "entity_ids");
+    let alias_names_idx = headers.iter().position(|h| h == "alias_names");
+    let sample_paths_idx = headers.iter().position(|h| h == "sample_paths_accessed");
+
+    for (i, row) in rows.iter().enumerate() {
+        println!("{}. KV Path: {}", i + 1, kv_path_idx.and_then(|idx| row.get(idx)).unwrap_or("N/A"));
+        
+        if let Some(idx) = unique_clients_idx {
+            println!("   Unique Clients: {}", row.get(idx).unwrap_or("0"));
+        }
+        
+        if let Some(idx) = operations_idx {
+            println!("   Total Operations: {}", row.get(idx).unwrap_or("0"));
+        }
+        
+        if let Some(idx) = entity_ids_idx {
+            println!("   Entity IDs: {}", row.get(idx).unwrap_or("N/A"));
+        }
+        
+        if let Some(idx) = alias_names_idx {
+            if let Some(names) = row.get(idx) {
+                if !names.is_empty() {
+                    println!("   Alias Names: {}", names);
+                }
+            }
+        }
+        
+        if let Some(idx) = sample_paths_idx {
+            if let Some(paths) = row.get(idx) {
+                let display_paths = if paths.len() > 80 {
+                    format!("{}...", &paths[..77])
+                } else {
+                    paths.to_string()
+                };
+                println!("   Sample Paths: {}", display_paths);
+            }
+        }
+        
+        println!();
+    }
+
+    println!("{}", "-".repeat(70));
+    println!("Report complete. Analyzed {} KV paths.\n", total_paths);
+
+    Ok(())
+}

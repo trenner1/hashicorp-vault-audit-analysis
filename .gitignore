@@ -22,5 +22,5 @@ data/
 docs/
 
 # Rust build artifacts
-vault-audit-kv-analyzer-rs/target/
+vault-audit-tools/target/
 *.lock

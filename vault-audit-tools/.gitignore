@@ -1,0 +1,18 @@
+# Rust build artifacts
+/target/
+
+# Cargo.lock for binaries (keep it)
+# Cargo.lock
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Test outputs
+*.test
