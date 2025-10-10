@@ -91,7 +91,7 @@ pub fn run(
     output: Option<&str>,
     entity_csv: Option<&str>,
 ) -> Result<()> {
-    let output_file = output.unwrap_or("data/kv_usage_by_client.csv");
+    let output_file = output.unwrap_or("kv_usage_by_client.csv");
 
     eprintln!("Processing: {}", log_file);
 
