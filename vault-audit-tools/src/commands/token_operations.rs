@@ -47,9 +47,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         };
         let operation = entry.operation().unwrap_or("");
 
-        let ops = token_ops
-            .entry(entity_id.to_string())
-            .or_default();
+        let ops = token_ops.entry(entity_id.to_string()).or_default();
 
         // Categorize operation
         if path.contains("lookup-self") {

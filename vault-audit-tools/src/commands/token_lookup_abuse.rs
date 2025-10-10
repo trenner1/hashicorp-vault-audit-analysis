@@ -78,9 +78,7 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
 
         lookup_lines += 1;
 
-        let entity_map = patterns
-            .entry(entity_id.to_string())
-            .or_default();
+        let entity_map = patterns.entry(entity_id.to_string()).or_default();
 
         entity_map
             .entry(accessor.clone())
