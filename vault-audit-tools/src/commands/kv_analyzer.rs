@@ -205,7 +205,7 @@ pub fn run(
         sample_paths.sort();
         sample_paths.truncate(5);
 
-        writer.write_record(&[
+        writer.write_record([
             kv_path,
             &unique_clients.to_string(),
             &operations.to_string(),
