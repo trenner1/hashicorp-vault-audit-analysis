@@ -22,7 +22,6 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
     
     steps:
@@ -40,53 +39,49 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          release_name: Release ${{ steps.get_version.outputs.version }}
-          draft: false
-          prerelease: false
-          body: |
-            # Vault Audit Tools ${{ steps.get_version.outputs.version }}
-            
-            High-performance Rust CLI for HashiCorp Vault audit log analysis.
-            
-            ## Features
-            - 12 comprehensive analysis commands
-            - 3x faster than Python implementation
-            - 10x less memory usage
-            - Single static binary
-            
-            ## Installation
-            
-            ### Linux (x86_64)
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-unknown-linux-gnu.tar.gz
-            tar -xzf vault-audit-x86_64-unknown-linux-gnu.tar.gz
-            sudo mv vault-audit /usr/local/bin/
-            ```
-            
-            ### macOS (Intel)
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-apple-darwin.tar.gz
-            tar -xzf vault-audit-x86_64-apple-darwin.tar.gz
-            sudo mv vault-audit /usr/local/bin/
-            ```
-            
-            ### macOS (Apple Silicon)
-            ```bash
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-aarch64-apple-darwin.tar.gz
-            tar -xzf vault-audit-aarch64-apple-darwin.tar.gz
-            sudo mv vault-audit /usr/local/bin/
-            ```
-            
-            ### Windows
-            Download `vault-audit-x86_64-pc-windows-msvc.zip` and extract to your PATH.
-            
-            ## Checksums
-            See `checksums.txt` for SHA256 hashes of all artifacts.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.get_version.outputs.version }} \
+            --title "Release ${{ steps.get_version.outputs.version }}" \
+            --notes "# Vault Audit Tools ${{ steps.get_version.outputs.version }}
+          
+          High-performance Rust CLI for HashiCorp Vault audit log analysis.
+          
+          ## Features
+          - 12 comprehensive analysis commands
+          - 3x faster than Python implementation
+          - 10x less memory usage
+          - Single static binary
+          
+          ## Installation
+          
+          ### Linux (x86_64)
+          \`\`\`bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzf vault-audit-x86_64-unknown-linux-gnu.tar.gz
+          sudo mv vault-audit /usr/local/bin/
+          \`\`\`
+          
+          ### macOS (Intel)
+          \`\`\`bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-apple-darwin.tar.gz
+          tar -xzf vault-audit-x86_64-apple-darwin.tar.gz
+          sudo mv vault-audit /usr/local/bin/
+          \`\`\`
+          
+          ### macOS (Apple Silicon)
+          \`\`\`bash
+          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-aarch64-apple-darwin.tar.gz
+          tar -xzf vault-audit-aarch64-apple-darwin.tar.gz
+          sudo mv vault-audit /usr/local/bin/
+          \`\`\`
+          
+          ### Windows
+          Download \`vault-audit-x86_64-pc-windows-msvc.zip\` and extract to your PATH.
+          
+          ## Checksums
+          See \`checksums.txt\` for SHA256 hashes of all artifacts."
 
   build-release:
     name: Build Release Binary
@@ -170,26 +165,13 @@ jobs:
           cd ../../../../
           certutil -hashfile ${{ matrix.archive_name }} SHA256 >> checksums.txt
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload Release Assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.archive_name }}
-          asset_name: ${{ matrix.archive_name }}
-          asset_content_type: application/octet-stream
-
-      - name: Upload checksums
-        if: matrix.os == 'ubuntu-latest' && matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./checksums.txt
-          asset_name: checksums.txt
-          asset_content_type: text/plain
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ needs.create-release.outputs.version }} \
+            ${{ matrix.archive_name }} \
+            checksums.txt
 
   publish-crates:
     name: Publish to crates.io
@@ -205,7 +187,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Publish to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           cd vault-audit-tools
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
+          cargo publish --token $CARGO_REGISTRY_TOKEN
