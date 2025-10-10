@@ -138,21 +138,6 @@ cargo build --release
 cargo test
 ```
 
-### Run Directly
-
-```bash
-cargo run --release -- system-overview ../vault_audit.log
-```
-
-## Documentation
-
-See `docs/` directory for:
-- `AUDIT_LOG_SCHEMA.md` - Vault audit log format reference
-- `TOOL_REFERENCE.md` - Detailed command documentation
-- `VAULT_AUDIT_ANALYSIS_REPORT.md` - Sample analysis report
-- `ENTITY_CHURN_FINDINGS.md` - Entity churn analysis findings
-- `EXECUTIVE_SUMMARY.md` - Executive summary template
-
 ## License
 
 MIT
