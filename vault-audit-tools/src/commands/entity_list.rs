@@ -223,7 +223,7 @@ pub async fn run(
             .with_context(|| format!("Failed to create output file: {}", output_path))?;
         let mut writer = csv::Writer::from_writer(file);
 
-        writer.write_record(&[
+        writer.write_record([
             "entity_id",
             "entity_name",
             "entity_disabled",
@@ -240,7 +240,7 @@ pub async fn run(
         ])?;
 
         for row in &output_rows {
-            writer.write_record(&[
+            writer.write_record([
                 &row.entity_id,
                 &row.entity_name,
                 &row.entity_disabled.to_string(),
@@ -267,9 +267,7 @@ pub async fn run(
     Ok(())
 }
 
-async fn fetch_auth_mount_map(
-    client: &VaultClient,
-) -> Result<HashMap<String, (String, String)>> {
+async fn fetch_auth_mount_map(client: &VaultClient) -> Result<HashMap<String, (String, String)>> {
     let mut map = HashMap::new();
 
     if let Ok(auth_data) = client.get_json("/v1/sys/auth").await {
@@ -278,7 +276,10 @@ async fn fetch_auth_mount_map(
                 if let Some(accessor) = info.accessor {
                     map.insert(
                         accessor,
-                        (path, info.mount_type.unwrap_or_else(|| "unknown".to_string())),
+                        (
+                            path,
+                            info.mount_type.unwrap_or_else(|| "unknown".to_string()),
+                        ),
                     );
                 }
             }

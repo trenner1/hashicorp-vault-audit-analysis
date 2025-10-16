@@ -89,7 +89,10 @@ pub async fn run(
         return Ok(());
     }
 
-    eprintln!("Processing {} activity records...", format_number(records.len()));
+    eprintln!(
+        "Processing {} activity records...",
+        format_number(records.len())
+    );
 
     // Group by mount and count unique clients
     let mut mount_activities: HashMap<String, MountActivityData> = HashMap::new();
@@ -105,24 +108,32 @@ pub async fn run(
             (info.0.clone(), info.1.clone())
         } else {
             (
-                record.mount_path.clone().unwrap_or_else(|| "unknown".to_string()),
-                record.mount_type.clone().unwrap_or_else(|| "unknown".to_string()),
+                record
+                    .mount_path
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string()),
+                record
+                    .mount_type
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string()),
             )
         };
 
         let key = format!("{}|{}|{}", mount_path, mount_type, accessor);
 
-        let activity = mount_activities.entry(key).or_insert_with(|| MountActivityData {
-            mount: mount_path,
-            mount_type,
-            accessor,
-            total_clients: std::collections::HashSet::new(),
-            entity_clients: std::collections::HashSet::new(),
-            non_entity_clients: std::collections::HashSet::new(),
-        });
+        let activity = mount_activities
+            .entry(key)
+            .or_insert_with(|| MountActivityData {
+                mount: mount_path,
+                mount_type,
+                accessor,
+                total_clients: std::collections::HashSet::new(),
+                entity_clients: std::collections::HashSet::new(),
+                non_entity_clients: std::collections::HashSet::new(),
+            });
 
         activity.total_clients.insert(record.client_id.clone());
-        
+
         if record.client_type.as_deref() == Some("entity") {
             activity.entity_clients.insert(record.client_id.clone());
         } else {
@@ -132,8 +143,8 @@ pub async fn run(
 
     // Convert to output format
     let mut results: Vec<MountActivity> = mount_activities
-        .into_iter()
-        .map(|(_, data)| MountActivity {
+        .into_values()
+        .map(|data| MountActivity {
             mount: data.mount,
             mount_type: data.mount_type,
             accessor: data.accessor,
@@ -165,9 +176,9 @@ pub async fn run(
             .with_context(|| format!("Failed to create output file: {}", output_path))?;
         let mut writer = csv::Writer::from_writer(file);
 
-        writer.write_record(&["mount", "type", "accessor", "total", "entity", "non_entity"])?;
+        writer.write_record(["mount", "type", "accessor", "total", "entity", "non_entity"])?;
         for result in &results {
-            writer.write_record(&[
+            writer.write_record([
                 &result.mount,
                 &result.mount_type,
                 &result.accessor,
@@ -207,7 +218,10 @@ async fn fetch_mount_map(client: &VaultClient) -> Result<HashMap<String, (String
                 if let Some(accessor) = info.accessor {
                     map.insert(
                         accessor,
-                        (path, info.mount_type.unwrap_or_else(|| "unknown".to_string())),
+                        (
+                            path,
+                            info.mount_type.unwrap_or_else(|| "unknown".to_string()),
+                        ),
                     );
                 }
             }
@@ -221,7 +235,10 @@ async fn fetch_mount_map(client: &VaultClient) -> Result<HashMap<String, (String
                 if let Some(accessor) = info.accessor {
                     map.insert(
                         accessor,
-                        (path, info.mount_type.unwrap_or_else(|| "unknown".to_string())),
+                        (
+                            path,
+                            info.mount_type.unwrap_or_else(|| "unknown".to_string()),
+                        ),
                     );
                 }
             }
