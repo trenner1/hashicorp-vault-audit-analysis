@@ -31,8 +31,7 @@ impl VaultClient {
     /// Create a client from environment variables
     #[allow(dead_code)]
     pub fn from_env() -> Result<Self> {
-        let addr = env::var("VAULT_ADDR")
-            .unwrap_or_else(|_| "http://127.0.0.1:8200".to_string());
+        let addr = env::var("VAULT_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8200".to_string());
 
         let token = if let Ok(token) = env::var("VAULT_TOKEN") {
             token
