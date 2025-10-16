@@ -1,5 +1,7 @@
 pub mod airflow_polling;
+pub mod client_activity;
 pub mod entity_gaps;
+pub mod entity_list;
 pub mod entity_timeline;
 pub mod k8s_auth;
 pub mod kv_analyzer;
