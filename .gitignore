@@ -24,3 +24,13 @@ docs/
 # Rust build artifacts
 vault-audit-tools/target/
 *.lock
+
+# Release binaries and tarballs
+*.tar.gz
+*.tar.gz.*
+
+# Test outputs
+test_*.csv
+
+# Shell script sources (reference only, not committed)
+new_files/
