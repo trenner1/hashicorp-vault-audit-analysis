@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 mod audit;
 mod commands;
 mod utils;
+mod vault_api;
 
 #[derive(Parser)]
 #[command(name = "vault-audit")]
@@ -150,9 +151,52 @@ enum Commands {
         #[arg(long)]
         path_pattern: Option<String>,
     },
+
+    /// Get Vault client activity by mount (queries Vault API)
+    ClientActivity {
+        /// Start time in RFC3339 UTC format (e.g., 2025-10-01T00:00:00Z)
+        #[arg(long)]
+        start: String,
+
+        /// End time in RFC3339 UTC format (e.g., 2025-11-01T00:00:00Z)
+        #[arg(long)]
+        end: String,
+
+        /// Vault address (default: $VAULT_ADDR or http://127.0.0.1:8200)
+        #[arg(long)]
+        vault_addr: Option<String>,
+
+        /// Vault token (default: $VAULT_TOKEN or $VAULT_TOKEN_FILE)
+        #[arg(long)]
+        vault_token: Option<String>,
+
+        /// Output CSV file path
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// List Vault entities and aliases (queries Vault API)
+    EntityList {
+        /// Vault address (default: $VAULT_ADDR or http://127.0.0.1:8200)
+        #[arg(long)]
+        vault_addr: Option<String>,
+
+        /// Vault token (default: $VAULT_TOKEN or $VAULT_TOKEN_FILE)
+        #[arg(long)]
+        vault_token: Option<String>,
+
+        /// Output CSV file path
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Filter by specific mount path (e.g., "auth/kubernetes/")
+        #[arg(short, long)]
+        mount: Option<String>,
+    },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -203,5 +247,35 @@ fn main() -> Result<()> {
             log_file,
             path_pattern,
         } => commands::airflow_polling::run(&log_file, path_pattern.as_deref()),
+        Commands::ClientActivity {
+            start,
+            end,
+            vault_addr,
+            vault_token,
+            output,
+        } => {
+            commands::client_activity::run(
+                &start,
+                &end,
+                vault_addr.as_deref(),
+                vault_token.as_deref(),
+                output.as_deref(),
+            )
+            .await
+        }
+        Commands::EntityList {
+            vault_addr,
+            vault_token,
+            output,
+            mount,
+        } => {
+            commands::entity_list::run(
+                vault_addr.as_deref(),
+                vault_token.as_deref(),
+                output.as_deref(),
+                mount.as_deref(),
+            )
+            .await
+        }
     }
 }
