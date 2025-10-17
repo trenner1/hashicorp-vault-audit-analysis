@@ -1,4 +1,4 @@
-use crate::vault_api::{extract_data, VaultClient};
+use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -48,13 +48,18 @@ pub async fn run(
     end_time: &str,
     vault_addr: Option<&str>,
     vault_token: Option<&str>,
+    insecure: bool,
     output: Option<&str>,
 ) -> Result<()> {
-    let client = VaultClient::from_options(vault_addr, vault_token)?;
+    let skip_verify = should_skip_verify(insecure);
+    let client = VaultClient::from_options(vault_addr, vault_token, skip_verify)?;
 
     eprintln!("=== Vault Client Activity Analysis ===");
     eprintln!("Vault Address: {}", client.addr());
     eprintln!("Time Window: {} to {}", start_time, end_time);
+    if skip_verify {
+        eprintln!("⚠️  TLS certificate verification is DISABLED");
+    }
     eprintln!();
 
     // Build mount lookup map
