@@ -10,17 +10,19 @@ pub fn should_skip_verify(insecure_flag: bool) -> bool {
     if insecure_flag {
         return true;
     }
-    
+
     // Check VAULT_SKIP_VERIFY environment variable
     env::var("VAULT_SKIP_VERIFY")
         .ok()
-        .and_then(|v| v.parse::<bool>().ok().or_else(|| {
-            // Also accept "1", "true", "yes" (case-insensitive)
-            match v.to_lowercase().as_str() {
-                "1" | "true" | "yes" => Some(true),
-                _ => Some(false),
-            }
-        }))
+        .and_then(|v| {
+            v.parse::<bool>().ok().or_else(|| {
+                // Also accept "1", "true", "yes" (case-insensitive)
+                match v.to_lowercase().as_str() {
+                    "1" | "true" | "yes" => Some(true),
+                    _ => Some(false),
+                }
+            })
+        })
         .unwrap_or(false)
 }
 
