@@ -170,6 +170,10 @@ enum Commands {
         #[arg(long)]
         vault_token: Option<String>,
 
+        /// Skip TLS certificate verification (insecure)
+        #[arg(long)]
+        insecure: bool,
+
         /// Output CSV file path
         #[arg(short, long)]
         output: Option<String>,
@@ -184,6 +188,10 @@ enum Commands {
         /// Vault token (default: $VAULT_TOKEN or $VAULT_TOKEN_FILE)
         #[arg(long)]
         vault_token: Option<String>,
+
+        /// Skip TLS certificate verification (insecure)
+        #[arg(long)]
+        insecure: bool,
 
         /// Output CSV file path
         #[arg(short, long)]
@@ -252,6 +260,7 @@ async fn main() -> Result<()> {
             end,
             vault_addr,
             vault_token,
+            insecure,
             output,
         } => {
             commands::client_activity::run(
@@ -259,6 +268,7 @@ async fn main() -> Result<()> {
                 &end,
                 vault_addr.as_deref(),
                 vault_token.as_deref(),
+                insecure,
                 output.as_deref(),
             )
             .await
@@ -266,12 +276,14 @@ async fn main() -> Result<()> {
         Commands::EntityList {
             vault_addr,
             vault_token,
+            insecure,
             output,
             mount,
         } => {
             commands::entity_list::run(
                 vault_addr.as_deref(),
                 vault_token.as_deref(),
+                insecure,
                 output.as_deref(),
                 mount.as_deref(),
             )
