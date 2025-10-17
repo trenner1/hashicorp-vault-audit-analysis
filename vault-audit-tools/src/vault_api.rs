@@ -5,6 +5,27 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 
+/// Check if TLS verification should be skipped based on environment or flag
+pub fn should_skip_verify(insecure_flag: bool) -> bool {
+    if insecure_flag {
+        return true;
+    }
+
+    // Check VAULT_SKIP_VERIFY environment variable
+    env::var("VAULT_SKIP_VERIFY")
+        .ok()
+        .and_then(|v| {
+            v.parse::<bool>().ok().or_else(|| {
+                // Also accept "1", "true", "yes" (case-insensitive)
+                match v.to_lowercase().as_str() {
+                    "1" | "true" | "yes" => Some(true),
+                    _ => Some(false),
+                }
+            })
+        })
+        .unwrap_or(false)
+}
+
 /// Vault API client configuration
 #[derive(Debug, Clone)]
 pub struct VaultClient {
@@ -16,8 +37,13 @@ pub struct VaultClient {
 impl VaultClient {
     /// Create a new Vault client from address and token
     pub fn new(addr: String, token: String) -> Result<Self> {
+        Self::new_with_skip_verify(addr, token, false)
+    }
+
+    /// Create a new Vault client with option to skip TLS verification
+    pub fn new_with_skip_verify(addr: String, token: String, skip_verify: bool) -> Result<Self> {
         let client = Client::builder()
-            .danger_accept_invalid_certs(false) // Can be made configurable
+            .danger_accept_invalid_certs(skip_verify)
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -52,7 +78,11 @@ impl VaultClient {
     }
 
     /// Create a client with optional parameters (for CLI)
-    pub fn from_options(vault_addr: Option<&str>, vault_token: Option<&str>) -> Result<Self> {
+    pub fn from_options(
+        vault_addr: Option<&str>,
+        vault_token: Option<&str>,
+        skip_verify: bool,
+    ) -> Result<Self> {
         let addr = vault_addr
             .map(|s| s.to_string())
             .or_else(|| env::var("VAULT_ADDR").ok())
@@ -76,7 +106,7 @@ impl VaultClient {
             ));
         };
 
-        Self::new(addr, token)
+        Self::new_with_skip_verify(addr, token, skip_verify)
     }
 
     /// Make a GET request to a Vault API endpoint

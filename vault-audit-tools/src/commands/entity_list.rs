@@ -1,4 +1,4 @@
-use crate::vault_api::{extract_data, VaultClient};
+use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -68,15 +68,20 @@ fn format_number(n: usize) -> String {
 pub async fn run(
     vault_addr: Option<&str>,
     vault_token: Option<&str>,
+    insecure: bool,
     output: Option<&str>,
     filter_mount: Option<&str>,
 ) -> Result<()> {
-    let client = VaultClient::from_options(vault_addr, vault_token)?;
+    let skip_verify = should_skip_verify(insecure);
+    let client = VaultClient::from_options(vault_addr, vault_token, skip_verify)?;
 
     eprintln!("=== Vault Entity Analysis ===");
     eprintln!("Vault Address: {}", client.addr());
     if let Some(mount) = filter_mount {
         eprintln!("Filtering by mount: {}", mount);
+    }
+    if skip_verify {
+        eprintln!("⚠️  TLS certificate verification is DISABLED");
     }
     eprintln!();
 
