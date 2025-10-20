@@ -162,6 +162,39 @@ enum Commands {
         output: String,
     },
 
+    /// Analyze entity creation by authentication path
+    EntityCreation {
+        /// Path to audit log file
+        log_file: String,
+
+        /// Optional entity mappings JSON file for display name enrichment
+        #[arg(long)]
+        entity_map: Option<String>,
+
+        /// Output JSON file path for detailed entity creation data
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
+    /// Multi-day entity churn analysis - tracks entity lifecycle across multiple log files
+    EntityChurn {
+        /// Paths to audit log files (in chronological order)
+        #[arg(required = true, num_args = 2..)]
+        log_files: Vec<String>,
+
+        /// Optional entity mappings JSON file for display name enrichment
+        #[arg(long)]
+        entity_map: Option<String>,
+
+        /// Baseline entity list JSON (from entity-list command) to identify pre-existing entities
+        #[arg(long)]
+        baseline: Option<String>,
+
+        /// Output JSON file path for detailed entity churn data
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+
     /// Get Vault client activity by mount (queries Vault API)
     ClientActivity {
         /// Start time in RFC3339 UTC format (e.g., 2025-10-01T00:00:00Z)
@@ -276,6 +309,22 @@ async fn main() -> Result<()> {
         Commands::PreprocessEntities { log_file, output } => {
             commands::preprocess_entities::run(&log_file, &output)
         }
+        Commands::EntityCreation {
+            log_file,
+            entity_map,
+            output,
+        } => commands::entity_creation::run(&log_file, entity_map.as_deref(), output.as_deref()),
+        Commands::EntityChurn {
+            log_files,
+            entity_map,
+            baseline,
+            output,
+        } => commands::entity_churn::run(
+            &log_files,
+            entity_map.as_deref(),
+            baseline.as_deref(),
+            output.as_deref(),
+        ),
         Commands::ClientActivity {
             start,
             end,
