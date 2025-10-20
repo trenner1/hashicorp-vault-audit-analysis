@@ -37,6 +37,7 @@ struct EntityChurnRecord {
 
 #[derive(Debug)]
 struct DailyStats {
+    #[allow(dead_code)]
     file_name: String,
     new_entities: usize,
     returning_entities: usize,

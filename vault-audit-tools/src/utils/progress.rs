@@ -54,6 +54,7 @@ impl ProgressBar {
     }
 
     /// Increment progress by 1
+    #[allow(dead_code)]
     pub fn inc(&mut self) {
         self.update(self.current + 1);
     }

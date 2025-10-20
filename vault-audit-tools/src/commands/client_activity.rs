@@ -25,6 +25,7 @@ struct ActivityRecord {
 #[derive(Debug, Deserialize)]
 struct EntityMapping {
     display_name: String,
+    #[allow(dead_code)]
     mount_path: String,
     #[allow(dead_code)]
     mount_accessor: String,
@@ -63,6 +64,7 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     start_time: &str,
     end_time: &str,
