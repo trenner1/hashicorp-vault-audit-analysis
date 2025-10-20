@@ -168,7 +168,9 @@ pub async fn run(
                 Some(alias_name.clone())
             } else if let Some(ref entity_map) = entity_map {
                 // Fallback to entity map (Vault 1.16 or when alias_name is missing)
-                entity_map.get(&record.client_id).map(|e| e.display_name.clone())
+                entity_map
+                    .get(&record.client_id)
+                    .map(|e| e.display_name.clone())
             } else {
                 None
             }
@@ -220,12 +222,12 @@ pub async fn run(
             } else {
                 data.mount.clone()
             };
-            
+
             MountActivity {
                 mount: mount_display,
                 mount_type: data.mount_type,
                 accessor: data.accessor,
-                role: None,  // Don't include role as separate field anymore
+                role: None, // Don't include role as separate field anymore
                 total: data.total_clients.len(),
                 entity: data.entity_clients.len(),
                 non_entity: data.non_entity_clients.len(),

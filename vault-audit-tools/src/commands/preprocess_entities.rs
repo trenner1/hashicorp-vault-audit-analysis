@@ -1,4 +1,5 @@
 use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -21,6 +22,9 @@ pub fn run(log_file: &str, output: &str) -> Result<()> {
     eprintln!("Preprocessing audit log: {}", log_file);
     eprintln!("Extracting entity → display_name mappings from login events...\n");
 
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+
     let file = File::open(log_file)
         .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
     let reader = BufReader::new(file);
@@ -29,14 +33,26 @@ pub fn run(log_file: &str, output: &str) -> Result<()> {
     let mut login_events = 0;
     let mut lines_processed = 0;
 
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
+    let mut bytes_read = 0;
+
     for line in reader.lines() {
         lines_processed += 1;
-        if lines_processed % 100_000 == 0 {
-            eprintln!("Processed {} lines, found {} login events, tracking {} entities...", 
-                     lines_processed, login_events, entity_map.len());
-        }
-
         let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
+
+        // Update progress every 10k lines for smooth animation
+        if lines_processed % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size)); // Cap at file size
+            } else {
+                progress.update(lines_processed);
+            }
+        }
         let entry: AuditEntry = match serde_json::from_str(&line) {
             Ok(e) => e,
             Err(_) => continue,
@@ -87,7 +103,9 @@ pub fn run(log_file: &str, output: &str) -> Result<()> {
             .to_string();
 
         let mount_accessor = auth.accessor.clone().unwrap_or_default();
-        let username = auth.metadata.as_ref()
+        let username = auth
+            .metadata
+            .as_ref()
             .and_then(|m| m.get("username"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
@@ -114,10 +132,19 @@ pub fn run(log_file: &str, output: &str) -> Result<()> {
             });
     }
 
-    eprintln!("\nProcessing complete!");
-    eprintln!("  Total lines processed: {}", lines_processed);
-    eprintln!("  Login events found: {}", login_events);
-    eprintln!("  Unique entities: {}", entity_map.len());
+    // Ensure we show 100% complete
+    if let Some(size) = file_size {
+        progress.update(size);
+    } else {
+        progress.update(lines_processed);
+    }
+
+    progress.finish_with_message(&format!(
+        "Processed {} lines, found {} login events, tracked {} entities",
+        lines_processed,
+        login_events,
+        entity_map.len()
+    ));
 
     // Write output as JSON
     eprintln!("\nWriting entity mappings to: {}", output);
@@ -126,14 +153,17 @@ pub fn run(log_file: &str, output: &str) -> Result<()> {
     let mut writer = std::io::BufWriter::new(output_file);
 
     // Write as pretty JSON for readability
-    let json = serde_json::to_string_pretty(&entity_map)
-        .context("Failed to serialize entity mappings")?;
+    let json =
+        serde_json::to_string_pretty(&entity_map).context("Failed to serialize entity mappings")?;
     writer.write_all(json.as_bytes())?;
     writer.flush()?;
 
     eprintln!("✓ Entity mapping file created successfully!\n");
     eprintln!("Usage with client-activity command:");
-    eprintln!("  vault-audit client-activity --start <START> --end <END> --entity-map {}", output);
+    eprintln!(
+        "  vault-audit client-activity --start <START> --end <END> --entity-map {}",
+        output
+    );
 
     Ok(())
 }
