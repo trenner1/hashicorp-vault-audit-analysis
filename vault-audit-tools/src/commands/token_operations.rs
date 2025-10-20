@@ -8,6 +8,7 @@ struct TokenOps {
     renew_self: usize,
     revoke_self: usize,
     create: usize,
+    login: usize,
     other: usize,
     display_name: Option<String>,
     username: Option<String>,
@@ -36,21 +37,28 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     while let Some(entry) = reader.next_entry()? {
         total_lines += 1;
 
-        // Filter for token operations
-        let Some(path) = entry.path() else { continue };
-        if !path.starts_with("auth/token/") {
-            continue;
-        }
-
+        // Get entity_id first
         let Some(entity_id) = entry.entity_id() else {
             continue;
         };
+
+        // Filter for token operations OR login operations
+        let Some(path) = entry.path() else { continue };
+        let is_token_op = path.starts_with("auth/token/");
+        let is_login = path.starts_with("auth/") && path.contains("/login");
+
+        if !is_token_op && !is_login {
+            continue;
+        }
+
         let operation = entry.operation().unwrap_or("");
 
         let ops = token_ops.entry(entity_id.to_string()).or_default();
 
         // Categorize operation
-        if path.contains("lookup-self") {
+        if is_login {
+            ops.login += 1;
+        } else if path.contains("lookup-self") {
             ops.lookup_self += 1;
         } else if path.contains("renew-self") {
             ops.renew_self += 1;
@@ -81,7 +89,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     let mut entity_totals: Vec<_> = token_ops
         .iter()
         .map(|(entity_id, ops)| {
-            let total = ops.lookup_self + ops.renew_self + ops.revoke_self + ops.create + ops.other;
+            let total = ops.lookup_self + ops.renew_self + ops.revoke_self + ops.create + ops.login + ops.other;
             (
                 entity_id.clone(),
                 total,
@@ -92,6 +100,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
                 ops.renew_self,
                 ops.revoke_self,
                 ops.create,
+                ops.login,
                 ops.other,
                 ops.username.clone().unwrap_or_default(),
             )
@@ -104,15 +113,15 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
 
     // Display results
     let top = 50;
-    println!("\n{}", "=".repeat(140));
+    println!("\n{}", "=".repeat(150));
     println!(
-        "{:<30} {:<25} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}",
-        "Display Name", "Username", "Total", "Lookup", "Renew", "Revoke", "Create", "Other"
+        "{:<30} {:<25} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}",
+        "Display Name", "Username", "Total", "Lookup", "Renew", "Revoke", "Create", "Login", "Other"
     );
-    println!("{}", "=".repeat(140));
+    println!("{}", "=".repeat(150));
 
     let mut grand_total = 0;
-    for (_, total, display_name, lookup, renew, revoke, create, other, username) in
+    for (_, total, display_name, lookup, renew, revoke, create, login, other, username) in
         entity_totals.iter().take(top)
     {
         let display_name_trunc = if display_name.len() > 29 {
@@ -127,7 +136,7 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         };
 
         println!(
-            "{:<30} {:<25} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}",
+            "{:<30} {:<25} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}",
             display_name_trunc,
             username_trunc,
             format_number(*total),
@@ -135,12 +144,13 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
             format_number(*renew),
             format_number(*revoke),
             format_number(*create),
+            format_number(*login),
             format_number(*other)
         );
         grand_total += total;
     }
 
-    println!("{}", "=".repeat(140));
+    println!("{}", "=".repeat(150));
     println!(
         "{:<55} {:<10}",
         format!("TOTAL (top {})", entity_totals.len().min(top)),
@@ -151,15 +161,16 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         "TOTAL ENTITIES",
         format_number(entity_totals.len())
     );
-    println!("{}", "=".repeat(140));
+    println!("{}", "=".repeat(150));
 
     // Summary by operation type
     let total_lookup: usize = entity_totals.iter().map(|x| x.3).sum();
     let total_renew: usize = entity_totals.iter().map(|x| x.4).sum();
     let total_revoke: usize = entity_totals.iter().map(|x| x.5).sum();
     let total_create: usize = entity_totals.iter().map(|x| x.6).sum();
-    let total_other: usize = entity_totals.iter().map(|x| x.7).sum();
-    let overall_total = total_lookup + total_renew + total_revoke + total_create + total_other;
+    let total_login: usize = entity_totals.iter().map(|x| x.7).sum();
+    let total_other: usize = entity_totals.iter().map(|x| x.8).sum();
+    let overall_total = total_lookup + total_renew + total_revoke + total_create + total_login + total_other;
 
     println!("\nOperation Type Breakdown:");
     println!("{}", "-".repeat(60));
@@ -179,9 +190,14 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         (total_revoke as f64 / overall_total as f64) * 100.0
     );
     println!(
-        "Create:                {:>12}  ({:>5.1}%)",
+        "Create (child token):  {:>12}  ({:>5.1}%)",
         format_number(total_create),
         (total_create as f64 / overall_total as f64) * 100.0
+    );
+    println!(
+        "Login (auth token):    {:>12}  ({:>5.1}%)",
+        format_number(total_login),
+        (total_login as f64 / overall_total as f64) * 100.0
     );
     println!(
         "Other:                 {:>12}  ({:>5.1}%)",
