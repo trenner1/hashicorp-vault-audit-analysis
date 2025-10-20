@@ -174,6 +174,10 @@ enum Commands {
         #[arg(long)]
         insecure: bool,
 
+        /// Group by role/appcode within each mount (uses entity_alias_name)
+        #[arg(long)]
+        group_by_role: bool,
+
         /// Output CSV file path
         #[arg(short, long)]
         output: Option<String>,
@@ -261,6 +265,7 @@ async fn main() -> Result<()> {
             vault_addr,
             vault_token,
             insecure,
+            group_by_role,
             output,
         } => {
             commands::client_activity::run(
@@ -269,6 +274,7 @@ async fn main() -> Result<()> {
                 vault_addr.as_deref(),
                 vault_token.as_deref(),
                 insecure,
+                group_by_role,
                 output.as_deref(),
             )
             .await

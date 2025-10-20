@@ -18,6 +18,7 @@ struct ActivityRecord {
     mount_accessor: Option<String>,
     mount_path: Option<String>,
     mount_type: Option<String>,
+    entity_alias_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -26,6 +27,8 @@ struct MountActivity {
     #[serde(rename = "type")]
     mount_type: String,
     accessor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    role: Option<String>,
     total: usize,
     entity: usize,
     non_entity: usize,
@@ -49,6 +52,7 @@ pub async fn run(
     vault_addr: Option<&str>,
     vault_token: Option<&str>,
     insecure: bool,
+    group_by_role: bool,
     output: Option<&str>,
 ) -> Result<()> {
     let skip_verify = should_skip_verify(insecure);
@@ -124,7 +128,25 @@ pub async fn run(
             )
         };
 
-        let key = format!("{}|{}|{}", mount_path, mount_type, accessor);
+        // Extract role/appcode if grouping by role
+        let role = if group_by_role {
+            record.entity_alias_name.clone()
+        } else {
+            None
+        };
+
+        // Create unique key based on grouping mode
+        let key = if group_by_role {
+            format!(
+                "{}|{}|{}|{}",
+                mount_path,
+                mount_type,
+                accessor,
+                role.as_deref().unwrap_or("unknown")
+            )
+        } else {
+            format!("{}|{}|{}", mount_path, mount_type, accessor)
+        };
 
         let activity = mount_activities
             .entry(key)
@@ -132,6 +154,7 @@ pub async fn run(
                 mount: mount_path,
                 mount_type,
                 accessor,
+                role: role.clone(),
                 total_clients: std::collections::HashSet::new(),
                 entity_clients: std::collections::HashSet::new(),
                 non_entity_clients: std::collections::HashSet::new(),
@@ -153,6 +176,7 @@ pub async fn run(
             mount: data.mount,
             mount_type: data.mount_type,
             accessor: data.accessor,
+            role: data.role,
             total: data.total_clients.len(),
             entity: data.entity_clients.len(),
             non_entity: data.non_entity_clients.len(),
@@ -208,6 +232,7 @@ struct MountActivityData {
     mount: String,
     mount_type: String,
     accessor: String,
+    role: Option<String>,
     total_clients: std::collections::HashSet<String>,
     entity_clients: std::collections::HashSet<String>,
     non_entity_clients: std::collections::HashSet<String>,
