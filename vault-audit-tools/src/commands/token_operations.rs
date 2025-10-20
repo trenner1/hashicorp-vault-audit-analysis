@@ -1,6 +1,9 @@
-use crate::audit::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use anyhow::Result;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Default)]
 struct TokenOps {
@@ -29,21 +32,58 @@ fn format_number(n: usize) -> String {
 pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     eprintln!("Processing: {}", log_file);
 
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
+
     let mut token_ops: HashMap<String, TokenOps> = HashMap::new();
     let mut total_lines = 0;
+    let mut bytes_read = 0;
 
-    let mut reader = AuditLogReader::new(log_file)?;
+    let file = File::open(log_file)?;
+    let reader = BufReader::new(file);
 
-    while let Some(entry) = reader.next_entry()? {
+    for line in reader.lines() {
         total_lines += 1;
+        let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
+
+        // Update progress every 10k lines for smooth animation
+        if total_lines % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size));
+            } else {
+                progress.update(total_lines);
+            }
+        }
+
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
 
         // Get entity_id first
-        let Some(entity_id) = entry.entity_id() else {
-            continue;
+        let entity_id = match &entry.auth {
+            Some(auth) => match &auth.entity_id {
+                Some(id) => id.as_str(),
+                None => continue,
+            },
+            None => continue,
         };
 
         // Filter for token operations OR login operations
-        let Some(path) = entry.path() else { continue };
+        let path = match &entry.request {
+            Some(r) => match &r.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            },
+            None => continue,
+        };
+
         let is_token_op = path.starts_with("auth/token/");
         let is_login = path.starts_with("auth/") && path.contains("/login");
 
@@ -51,7 +91,11 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
             continue;
         }
 
-        let operation = entry.operation().unwrap_or("");
+        let operation = entry
+            .request
+            .as_ref()
+            .and_then(|r| r.operation.as_deref())
+            .unwrap_or("");
 
         let ops = token_ops.entry(entity_id.to_string()).or_default();
 
@@ -72,7 +116,11 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
 
         // Capture display name and metadata (first occurrence)
         if ops.display_name.is_none() {
-            ops.display_name = entry.display_name().map(|s| s.to_string());
+            ops.display_name = entry
+                .auth
+                .as_ref()
+                .and_then(|a| a.display_name.as_deref())
+                .map(|s| s.to_string());
             if let Some(auth) = &entry.auth {
                 if let Some(metadata) = &auth.metadata {
                     if let Some(username) = metadata.get("username") {
@@ -83,13 +131,23 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
         }
     }
 
-    eprintln!("[INFO] Processed {} lines", format_number(total_lines));
+    // Ensure 100% progress
+    if let Some(size) = file_size {
+        progress.update(size);
+    }
+
+    progress.finish_with_message(&format!("Processed {} lines", format_number(total_lines)));
 
     // Calculate totals per entity
     let mut entity_totals: Vec<_> = token_ops
         .iter()
         .map(|(entity_id, ops)| {
-            let total = ops.lookup_self + ops.renew_self + ops.revoke_self + ops.create + ops.login + ops.other;
+            let total = ops.lookup_self
+                + ops.renew_self
+                + ops.revoke_self
+                + ops.create
+                + ops.login
+                + ops.other;
             (
                 entity_id.clone(),
                 total,
@@ -116,7 +174,15 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     println!("\n{}", "=".repeat(150));
     println!(
         "{:<30} {:<25} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}",
-        "Display Name", "Username", "Total", "Lookup", "Renew", "Revoke", "Create", "Login", "Other"
+        "Display Name",
+        "Username",
+        "Total",
+        "Lookup",
+        "Renew",
+        "Revoke",
+        "Create",
+        "Login",
+        "Other"
     );
     println!("{}", "=".repeat(150));
 
@@ -170,7 +236,8 @@ pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
     let total_create: usize = entity_totals.iter().map(|x| x.6).sum();
     let total_login: usize = entity_totals.iter().map(|x| x.7).sum();
     let total_other: usize = entity_totals.iter().map(|x| x.8).sum();
-    let overall_total = total_lookup + total_renew + total_revoke + total_create + total_login + total_other;
+    let overall_total =
+        total_lookup + total_renew + total_revoke + total_create + total_login + total_other;
 
     println!("\nOperation Type Breakdown:");
     println!("{}", "-".repeat(60));

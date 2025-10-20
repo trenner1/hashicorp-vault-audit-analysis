@@ -1,7 +1,10 @@
-use crate::audit::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use crate::utils::time::parse_timestamp;
 use anyhow::Result;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug)]
 struct TokenData {
@@ -43,37 +46,70 @@ fn format_number(n: usize) -> String {
 }
 
 pub fn run(log_file: &str, threshold: usize) -> Result<()> {
-    eprintln!("Analyzing: {}", log_file);
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
+
+    let file = File::open(log_file)?;
+    let reader = BufReader::new(file);
 
     // entity_id -> accessor -> TokenData
     let mut patterns: HashMap<String, HashMap<String, TokenData>> = HashMap::new();
     let mut total_lines = 0;
     let mut lookup_lines = 0;
+    let mut bytes_read = 0;
 
-    let mut reader = AuditLogReader::new(log_file)?;
-
-    while let Some(entry) = reader.next_entry()? {
+    for line in reader.lines() {
         total_lines += 1;
+        let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
 
-        if total_lines % 100_000 == 0 {
-            eprintln!(
-                "[INFO] Processed {} lines, found {} lookups",
-                format_number(total_lines),
-                format_number(lookup_lines)
-            );
+        // Update progress every 10k lines for smooth animation
+        if total_lines % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size)); // Cap at file size
+            } else {
+                progress.update(total_lines);
+            }
         }
+
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
 
         // Filter for token lookup-self operations
-        if entry.path() != Some("auth/token/lookup-self") {
+        let request = match &entry.request {
+            Some(r) => r,
+            None => continue,
+        };
+
+        let path = match &request.path {
+            Some(p) => p.as_str(),
+            None => continue,
+        };
+
+        if path != "auth/token/lookup-self" {
             continue;
         }
 
-        let Some(entity_id) = entry.entity_id() else {
-            continue;
+        let auth = match &entry.auth {
+            Some(a) => a,
+            None => continue,
         };
-        let Some(auth) = &entry.auth else { continue };
-        let Some(accessor) = &auth.accessor else {
-            continue;
+
+        let entity_id = match &auth.entity_id {
+            Some(id) => id.as_str(),
+            None => continue,
+        };
+
+        let accessor = match &auth.accessor {
+            Some(a) => a.clone(),
+            None => continue,
         };
 
         lookup_lines += 1;
@@ -81,7 +117,7 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
         let entity_map = patterns.entry(entity_id.to_string()).or_default();
 
         entity_map
-            .entry(accessor.clone())
+            .entry(accessor)
             .and_modify(|data| {
                 data.lookups += 1;
                 data.last_seen = entry.time.clone();
@@ -89,14 +125,16 @@ pub fn run(log_file: &str, threshold: usize) -> Result<()> {
             .or_insert_with(|| TokenData::new(entry.time.clone()));
     }
 
-    eprintln!(
-        "[INFO] Processed {} total lines",
-        format_number(total_lines)
-    );
-    eprintln!(
-        "[INFO] Found {} token lookup operations",
+    // Ensure 100% progress
+    if let Some(size) = file_size {
+        progress.update(size);
+    }
+
+    progress.finish_with_message(&format!(
+        "Processed {} lines, found {} token lookups",
+        format_number(total_lines),
         format_number(lookup_lines)
-    );
+    ));
 
     // Find entities with excessive lookups
     let mut excessive_patterns = Vec::new();

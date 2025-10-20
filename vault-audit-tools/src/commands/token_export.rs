@@ -1,7 +1,9 @@
-use crate::audit::parser::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Default)]
 struct TokenData {
@@ -43,44 +45,73 @@ fn calculate_time_span_hours(first: &str, last: &str) -> f64 {
 }
 
 pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
-    eprintln!("Processing: {}", log_file);
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
 
-    let mut reader = AuditLogReader::new(log_file)?;
+    let file = File::open(log_file)?;
+    let reader = BufReader::new(file);
+
     let mut entities: HashMap<String, EntityData> = HashMap::new();
     let mut total_lines = 0;
     let mut lookup_count = 0;
+    let mut bytes_read = 0;
 
-    while let Some(entry) = reader.next_entry()? {
+    for line in reader.lines() {
         total_lines += 1;
+        let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
 
-        if total_lines % 100_000 == 0 {
-            eprintln!(
-                "[INFO] Processed {} lines, found {} token lookups",
-                format_number(total_lines),
-                format_number(lookup_count)
-            );
+        // Update progress every 10k lines for smooth animation
+        if total_lines % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size)); // Cap at file size
+            } else {
+                progress.update(total_lines);
+            }
         }
 
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
         // Filter for token lookup operations
-        if let Some(path) = entry.path() {
-            if !path.starts_with("auth/token/lookup") {
-                continue;
-            }
-        } else {
+        let request = match &entry.request {
+            Some(r) => r,
+            None => continue,
+        };
+
+        let path = match &request.path {
+            Some(p) => p.as_str(),
+            None => continue,
+        };
+
+        if !path.starts_with("auth/token/lookup") {
             continue;
         }
 
-        let entity_id = match entry.entity_id() {
+        let entity_id = match entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) {
             Some(id) => id,
             None => continue,
         };
 
         lookup_count += 1;
 
+        let display_name = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.display_name.as_deref())
+            .unwrap_or("N/A");
+
         let entity_data = entities
             .entry(entity_id.to_string())
             .or_insert_with(|| EntityData {
-                display_name: entry.display_name().unwrap_or("N/A").to_string(),
+                display_name: display_name.to_string(),
                 tokens: HashMap::new(),
             });
 
@@ -102,18 +133,17 @@ pub fn run(log_file: &str, output: &str, min_lookups: usize) -> Result<()> {
         token_data.last_seen = timestamp;
     }
 
-    eprintln!(
-        "[INFO] Processed {} total lines",
-        format_number(total_lines)
-    );
-    eprintln!(
-        "[INFO] Found {} token lookup operations",
-        format_number(lookup_count)
-    );
-    eprintln!(
-        "[INFO] Found {} unique entities",
+    // Ensure 100% progress
+    if let Some(size) = file_size {
+        progress.update(size);
+    }
+
+    progress.finish_with_message(&format!(
+        "Processed {} lines, found {} token lookups from {} entities",
+        format_number(total_lines),
+        format_number(lookup_count),
         format_number(entities.len())
-    );
+    ));
 
     // Prepare CSV rows
     let mut rows: Vec<_> = entities
