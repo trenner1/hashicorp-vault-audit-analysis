@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::Read;
 
 #[derive(Debug, Deserialize)]
 struct MountInfo {
@@ -19,6 +20,22 @@ struct ActivityRecord {
     mount_path: Option<String>,
     mount_type: Option<String>,
     entity_alias_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct EntityMapping {
+    display_name: String,
+    mount_path: String,
+    #[allow(dead_code)]
+    mount_accessor: String,
+    #[allow(dead_code)]
+    username: Option<String>,
+    #[allow(dead_code)]
+    login_count: usize,
+    #[allow(dead_code)]
+    first_seen: String,
+    #[allow(dead_code)]
+    last_seen: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +70,7 @@ pub async fn run(
     vault_token: Option<&str>,
     insecure: bool,
     group_by_role: bool,
+    entity_map_path: Option<&str>,
     output: Option<&str>,
 ) -> Result<()> {
     let skip_verify = should_skip_verify(insecure);
@@ -65,6 +83,21 @@ pub async fn run(
         eprintln!("⚠️  TLS certificate verification is DISABLED");
     }
     eprintln!();
+
+    // Load entity mappings if provided
+    let entity_map: Option<HashMap<String, EntityMapping>> = if let Some(path) = entity_map_path {
+        eprintln!("Loading entity mappings from: {}", path);
+        let mut file = File::open(path)
+            .with_context(|| format!("Failed to open entity map file: {}", path))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        let map: HashMap<String, EntityMapping> = serde_json::from_str(&contents)
+            .with_context(|| format!("Failed to parse entity map JSON: {}", path))?;
+        eprintln!("Loaded {} entity mappings", map.len());
+        Some(map)
+    } else {
+        None
+    };
 
     // Build mount lookup map
     eprintln!("Fetching mount information...");
@@ -130,7 +163,15 @@ pub async fn run(
 
         // Extract role/appcode if grouping by role
         let role = if group_by_role {
-            record.entity_alias_name.clone()
+            // Try entity_alias_name from export first (Vault 1.20+)
+            if let Some(alias_name) = &record.entity_alias_name {
+                Some(alias_name.clone())
+            } else if let Some(ref entity_map) = entity_map {
+                // Fallback to entity map (Vault 1.16 or when alias_name is missing)
+                entity_map.get(&record.client_id).map(|e| e.display_name.clone())
+            } else {
+                None
+            }
         } else {
             None
         };
@@ -172,14 +213,23 @@ pub async fn run(
     // Convert to output format
     let mut results: Vec<MountActivity> = mount_activities
         .into_values()
-        .map(|data| MountActivity {
-            mount: data.mount,
-            mount_type: data.mount_type,
-            accessor: data.accessor,
-            role: data.role,
-            total: data.total_clients.len(),
-            entity: data.entity_clients.len(),
-            non_entity: data.non_entity_clients.len(),
+        .map(|data| {
+            // Concatenate mount + role for the mount field if role exists
+            let mount_display = if let Some(ref role) = data.role {
+                format!("{}{}", data.mount, role)
+            } else {
+                data.mount.clone()
+            };
+            
+            MountActivity {
+                mount: mount_display,
+                mount_type: data.mount_type,
+                accessor: data.accessor,
+                role: None,  // Don't include role as separate field anymore
+                total: data.total_clients.len(),
+                entity: data.entity_clients.len(),
+                non_entity: data.non_entity_clients.len(),
+            }
         })
         .collect();
 

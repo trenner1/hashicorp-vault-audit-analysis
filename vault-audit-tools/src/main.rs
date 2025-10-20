@@ -152,6 +152,16 @@ enum Commands {
         path_pattern: Option<String>,
     },
 
+    /// Preprocess audit logs to extract entity mappings
+    PreprocessEntities {
+        /// Path to audit log file
+        log_file: String,
+
+        /// Output JSON file path
+        #[arg(short, long, default_value = "entity_mappings.json")]
+        output: String,
+    },
+
     /// Get Vault client activity by mount (queries Vault API)
     ClientActivity {
         /// Start time in RFC3339 UTC format (e.g., 2025-10-01T00:00:00Z)
@@ -177,6 +187,10 @@ enum Commands {
         /// Group by role/appcode within each mount (uses entity_alias_name)
         #[arg(long)]
         group_by_role: bool,
+
+        /// Path to entity mappings JSON file (for Vault 1.16 compatibility)
+        #[arg(long)]
+        entity_map: Option<String>,
 
         /// Output CSV file path
         #[arg(short, long)]
@@ -259,6 +273,9 @@ async fn main() -> Result<()> {
             log_file,
             path_pattern,
         } => commands::airflow_polling::run(&log_file, path_pattern.as_deref()),
+        Commands::PreprocessEntities { log_file, output } => {
+            commands::preprocess_entities::run(&log_file, &output)
+        }
         Commands::ClientActivity {
             start,
             end,
@@ -266,6 +283,7 @@ async fn main() -> Result<()> {
             vault_token,
             insecure,
             group_by_role,
+            entity_map,
             output,
         } => {
             commands::client_activity::run(
@@ -275,6 +293,7 @@ async fn main() -> Result<()> {
                 vault_token.as_deref(),
                 insecure,
                 group_by_role,
+                entity_map.as_deref(),
                 output.as_deref(),
             )
             .await
