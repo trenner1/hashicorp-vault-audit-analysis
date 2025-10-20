@@ -8,6 +8,7 @@ pub mod kv_analyzer;
 pub mod kv_compare;
 pub mod kv_summary;
 pub mod path_hotspots;
+pub mod preprocess_entities;
 pub mod system_overview;
 pub mod token_export;
 pub mod token_lookup_abuse;
