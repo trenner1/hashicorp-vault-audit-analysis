@@ -1,9 +1,12 @@
-use crate::audit::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use crate::utils::time::parse_timestamp;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug)]
 struct PathStats {
@@ -39,29 +42,63 @@ fn format_number(n: usize) -> String {
 }
 
 pub fn run(log_file: &str, top: usize) -> Result<()> {
-    println!("Analyzing path hot spots in {}...", log_file);
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
 
     let mut path_stats: HashMap<String, PathStats> = HashMap::new();
     let mut total_lines = 0;
     let mut total_operations = 0;
+    let mut bytes_read = 0;
 
-    let mut reader = AuditLogReader::new(log_file)?;
+    let file = File::open(log_file)?;
+    let reader = BufReader::new(file);
 
-    while let Some(entry) = reader.next_entry()? {
+    for line in reader.lines() {
         total_lines += 1;
+        let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
 
-        if total_lines % 500_000 == 0 {
-            println!("  Processed {} lines...", format_number(total_lines));
+        if total_lines % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size));
+            } else {
+                progress.update(total_lines);
+            }
         }
 
-        let Some(path) = entry.path() else { continue };
-        let Some(operation) = entry.operation() else {
-            continue;
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+
+        let path = match &entry.request {
+            Some(r) => match &r.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            },
+            None => continue,
+        };
+
+        let operation = match &entry.request {
+            Some(r) => match &r.operation {
+                Some(o) => o.as_str(),
+                None => continue,
+            },
+            None => continue,
         };
 
         total_operations += 1;
 
-        let entity_id = entry.entity_id().unwrap_or("no-entity");
+        let entity_id = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.entity_id.as_deref())
+            .unwrap_or("no-entity");
 
         // Parse timestamp
         let ts = parse_timestamp(&entry.time).ok();
@@ -85,12 +122,17 @@ pub fn run(log_file: &str, top: usize) -> Result<()> {
         }
     }
 
-    println!("\nProcessed {} total lines", format_number(total_lines));
-    println!(
-        "Found {} operations across {} unique paths",
+    // Ensure 100% progress
+    if let Some(size) = file_size {
+        progress.update(size);
+    }
+
+    progress.finish_with_message(&format!(
+        "Processed {} lines, found {} operations across {} paths",
+        format_number(total_lines),
         format_number(total_operations),
         format_number(path_stats.len())
-    );
+    ));
 
     // Sort paths by operation count
     let mut sorted_paths: Vec<_> = path_stats.iter().collect();

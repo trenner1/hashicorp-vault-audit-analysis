@@ -1,6 +1,9 @@
-use crate::audit::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug)]
 struct PathData {
@@ -32,7 +35,16 @@ fn format_number(n: usize) -> String {
 }
 
 pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
-    eprintln!("Analyzing: {}", log_file);
+    // Get file size for progress tracking
+    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+    let mut progress = if let Some(size) = file_size {
+        ProgressBar::new(size, "Processing")
+    } else {
+        ProgressBar::new_spinner("Processing")
+    };
+
+    let file = File::open(log_file)?;
+    let reader = BufReader::new(file);
 
     let mut path_operations: HashMap<String, PathData> = HashMap::new();
     let mut operation_types: HashMap<String, usize> = HashMap::new();
@@ -40,22 +52,53 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
     let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::new();
     let mut entity_names: HashMap<String, String> = HashMap::new();
     let mut total_lines = 0;
+    let mut bytes_read = 0;
 
-    let mut reader = AuditLogReader::new(log_file)?;
-
-    while let Some(entry) = reader.next_entry()? {
+    for line in reader.lines() {
         total_lines += 1;
+        let line = line?;
+        bytes_read += line.len() + 1; // +1 for newline
 
-        if total_lines % 100_000 == 0 {
-            eprintln!("[INFO] Processed {} lines", format_number(total_lines));
+        // Update progress every 10k lines for smooth animation
+        if total_lines % 10_000 == 0 {
+            if let Some(size) = file_size {
+                progress.update(bytes_read.min(size)); // Cap at file size
+            } else {
+                progress.update(total_lines);
+            }
         }
 
-        let Some(path) = entry.path() else { continue };
-        let Some(operation) = entry.operation() else {
-            continue;
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(e) => e,
+            Err(_) => continue,
         };
-        let entity_id = entry.entity_id().unwrap_or("no-entity");
-        let display_name = entry.display_name().unwrap_or("N/A");
+
+        let request = match &entry.request {
+            Some(r) => r,
+            None => continue,
+        };
+
+        let path = match &request.path {
+            Some(p) => p.as_str(),
+            None => continue,
+        };
+
+        let operation = match &request.operation {
+            Some(o) => o.as_str(),
+            None => continue,
+        };
+
+        let entity_id = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.entity_id.as_deref())
+            .unwrap_or("no-entity");
+
+        let display_name = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.display_name.as_deref())
+            .unwrap_or("N/A");
 
         if path.is_empty() || operation.is_empty() {
             continue;
@@ -95,10 +138,12 @@ pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
             .or_insert_with(|| display_name.to_string());
     }
 
-    eprintln!(
-        "[INFO] Processed {} total lines",
-        format_number(total_lines)
-    );
+    // Ensure 100% progress
+    if let Some(size) = file_size {
+        progress.update(size);
+    }
+
+    progress.finish_with_message(&format!("Processed {} lines", format_number(total_lines)));
 
     let total_operations: usize = operation_types.values().sum();
 
