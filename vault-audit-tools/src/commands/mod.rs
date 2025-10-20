@@ -1,5 +1,7 @@
 pub mod airflow_polling;
 pub mod client_activity;
+pub mod entity_churn;
+pub mod entity_creation;
 pub mod entity_gaps;
 pub mod entity_list;
 pub mod entity_timeline;
@@ -8,6 +10,7 @@ pub mod kv_analyzer;
 pub mod kv_compare;
 pub mod kv_summary;
 pub mod path_hotspots;
+pub mod preprocess_entities;
 pub mod system_overview;
 pub mod token_export;
 pub mod token_lookup_abuse;
