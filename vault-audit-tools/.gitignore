@@ -16,3 +16,13 @@
 
 # Test outputs
 *.test
+*_test.json
+
+# Generated shell completion files
+*.bash
+*.fish
+*.zsh
+*.elv
+*.ps1
+_vault-audit
+

@@ -19,8 +19,9 @@ struct Cli {
 enum Commands {
     /// Analyze KV usage by path and entity
     KvAnalyzer {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// KV mount prefix to filter (e.g., "kv/", leave empty for all KV mounts)
         #[arg(long, default_value = "")]
@@ -52,8 +53,9 @@ enum Commands {
 
     /// System overview - identify high-volume operations
     SystemOverview {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Number of top operations to show
         #[arg(long, default_value = "30")]
@@ -66,8 +68,9 @@ enum Commands {
 
     /// Analyze token operations by entity
     TokenOperations {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Output CSV file path
         #[arg(short, long)]
@@ -76,8 +79,9 @@ enum Commands {
 
     /// Export token lookup patterns to CSV
     TokenExport {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Output CSV file
         #[arg(short, long, default_value = "token_lookups.csv")]
@@ -90,8 +94,9 @@ enum Commands {
 
     /// Detect token lookup abuse patterns
     TokenLookupAbuse {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Minimum lookups to flag as suspicious
         #[arg(long, default_value = "1000")]
@@ -100,8 +105,9 @@ enum Commands {
 
     /// Analyze entity creation/deletion gaps
     EntityGaps {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Time window in seconds for gap detection
         #[arg(long, default_value = "300")]
@@ -110,8 +116,9 @@ enum Commands {
 
     /// Show timeline of operations for a specific entity
     EntityTimeline {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Entity ID to analyze
         #[arg(long)]
@@ -124,8 +131,9 @@ enum Commands {
 
     /// Identify path access hotspots
     PathHotspots {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Number of top paths to show
         #[arg(long, default_value = "50")]
@@ -134,8 +142,9 @@ enum Commands {
 
     /// Analyze Kubernetes auth patterns and entity churn
     K8sAuth {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Output CSV file for service account analysis
         #[arg(short, long)]
@@ -144,8 +153,9 @@ enum Commands {
 
     /// Analyze Airflow polling patterns
     AirflowPolling {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Path pattern to analyze (e.g., "airflow")
         #[arg(long)]
@@ -154,8 +164,9 @@ enum Commands {
 
     /// Preprocess audit logs to extract entity mappings
     PreprocessEntities {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Output JSON file path
         #[arg(short, long, default_value = "entity_mappings.json")]
@@ -164,8 +175,9 @@ enum Commands {
 
     /// Analyze entity creation by authentication path
     EntityCreation {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// Optional entity mappings JSON file for display name enrichment
         #[arg(long)]
@@ -267,12 +279,12 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::KvAnalyzer {
-            log_file,
+            log_files,
             kv_prefix,
             output,
             entity_csv,
         } => commands::kv_analyzer::run(
-            &log_file,
+            &log_files,
             &kv_prefix,
             output.as_deref(),
             entity_csv.as_deref(),
@@ -280,47 +292,47 @@ async fn main() -> Result<()> {
         Commands::KvCompare { csv1, csv2 } => commands::kv_compare::run(&csv1, &csv2),
         Commands::KvSummary { csv_file } => commands::kv_summary::run(&csv_file),
         Commands::SystemOverview {
-            log_file,
+            log_files,
             top,
             min_operations,
-        } => commands::system_overview::run(&log_file, top, min_operations),
-        Commands::TokenOperations { log_file, output } => {
-            commands::token_operations::run(&log_file, output.as_deref())
+        } => commands::system_overview::run(&log_files, top, min_operations),
+        Commands::TokenOperations { log_files, output } => {
+            commands::token_operations::run(&log_files, output.as_deref())
         }
         Commands::TokenExport {
-            log_file,
+            log_files,
             output,
             min_lookups,
-        } => commands::token_export::run(&log_file, &output, min_lookups),
+        } => commands::token_export::run(&log_files, &output, min_lookups),
         Commands::TokenLookupAbuse {
-            log_file,
+            log_files,
             threshold,
-        } => commands::token_lookup_abuse::run(&log_file, threshold),
+        } => commands::token_lookup_abuse::run(&log_files, threshold),
         Commands::EntityGaps {
-            log_file,
+            log_files,
             window_seconds,
-        } => commands::entity_gaps::run(&log_file, window_seconds),
+        } => commands::entity_gaps::run(&log_files, window_seconds),
         Commands::EntityTimeline {
-            log_file,
+            log_files,
             entity_id,
             display_name,
-        } => commands::entity_timeline::run(&log_file, &entity_id, &display_name),
-        Commands::PathHotspots { log_file, top } => commands::path_hotspots::run(&log_file, top),
-        Commands::K8sAuth { log_file, output } => {
-            commands::k8s_auth::run(&log_file, output.as_deref())
+        } => commands::entity_timeline::run(&log_files, &entity_id, &display_name),
+        Commands::PathHotspots { log_files, top } => commands::path_hotspots::run(&log_files, top),
+        Commands::K8sAuth { log_files, output } => {
+            commands::k8s_auth::run(&log_files, output.as_deref())
         }
         Commands::AirflowPolling {
-            log_file,
+            log_files,
             path_pattern,
-        } => commands::airflow_polling::run(&log_file, path_pattern.as_deref()),
-        Commands::PreprocessEntities { log_file, output } => {
-            commands::preprocess_entities::run(&log_file, &output)
+        } => commands::airflow_polling::run(&log_files, path_pattern.as_deref()),
+        Commands::PreprocessEntities { log_files, output } => {
+            commands::preprocess_entities::run(&log_files, &output)
         }
         Commands::EntityCreation {
-            log_file,
+            log_files,
             entity_map,
             output,
-        } => commands::entity_creation::run(&log_file, entity_map.as_deref(), output.as_deref()),
+        } => commands::entity_creation::run(&log_files, entity_map.as_deref(), output.as_deref()),
         Commands::EntityChurn {
             log_files,
             entity_map,
