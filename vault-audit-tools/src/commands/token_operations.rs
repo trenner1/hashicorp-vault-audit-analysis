@@ -2,11 +2,16 @@
 //!
 //! Tracks token-related operations to understand token usage patterns
 //! and identify entities performing high volumes of token operations.
+//! Supports multi-file analysis for long-term trending.
 //!
 //! # Usage
 //!
 //! ```bash
-//! vault-audit token-operations audit.log
+//! # Single file analysis
+//! vault-audit token-operations vault_audit.log
+//!
+//! # Week-long analysis
+//! vault-audit token-operations logs/vault_audit.2025-10-*.log
 //! ```
 //!
 //! # Output

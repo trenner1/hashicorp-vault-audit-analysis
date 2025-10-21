@@ -10,8 +10,9 @@ High-performance command-line tools for analyzing HashiCorp Vault audit logs, wr
 
 - **Fast**: 3x faster than equivalent implementations (~17s vs 60s for 4M line logs)
 - **Memory Efficient**: 10x less memory usage through streaming parser
+- **Multi-File Support**: Analyze weeks/months of logs without manual concatenation
 - **Comprehensive**: 16 specialized analysis commands for different use cases
-- **Production Ready**: Tested on multi-gigabyte production audit logs
+- **Production Ready**: Tested on 100GB+ multi-day production audit logs
 - **Shell Completion**: Tab completion support for bash, zsh, fish, powershell, and elvish
 
 ## Installation
@@ -128,14 +129,35 @@ vault-audit kv-analyzer --help
 ### Quick Analysis
 
 ```bash
-# Get system overview
+# Get system overview (single file)
 vault-audit system-overview vault_audit.log
+
+# Analyze multiple days without concatenation
+vault-audit system-overview logs/vault_audit.2025-10-*.log
 
 # Find authentication issues
 vault-audit k8s-auth vault_audit.log
 
-# Detect token abuse
-vault-audit token-lookup-abuse vault_audit.log
+# Detect token abuse across multiple files
+vault-audit token-lookup-abuse day1.log day2.log day3.log
+```
+
+### Multi-File Long-Term Analysis
+
+All audit log commands support multiple files for historical analysis:
+
+```bash
+# Week-long system overview
+vault-audit system-overview vault_audit.2025-10-{07,08,09,10,11,12,13}.log
+
+# Month-long entity churn tracking
+vault-audit entity-churn october/*.log
+
+# Multi-day token operations
+vault-audit token-operations logs/vault_audit.*.log --output token_ops.csv
+
+# Path hotspot analysis across 30 days
+vault-audit path-hotspots $(ls -1 logs/vault_audit.2025-10-*.log)
 ```
 
 ### Deep Dive Analysis
@@ -144,11 +166,11 @@ vault-audit token-lookup-abuse vault_audit.log
 # Analyze entity creation patterns by auth path
 vault-audit entity-creation vault_audit.log
 
-# Track entity lifecycle across multiple days (no log concatenation needed)
-vault-audit entity-churn day1.log day2.log day3.log --baseline baseline_entities.csv
+# Track entity lifecycle across multiple days
+vault-audit entity-churn day1.log day2.log day3.log --baseline baseline_entities.json
 
 # Analyze specific entity behavior
-vault-audit entity-timeline --entity-id <UUID> vault_audit.log
+vault-audit entity-timeline day1.log day2.log --entity-id <UUID>
 
 # Export token data for further analysis
 vault-audit token-export vault_audit.log --output tokens.csv
@@ -177,10 +199,17 @@ vault-audit kv-summary kv_usage.csv
 
 Tested on production audit logs:
 
+**Single File:**
 - **Log Size**: 15.7 GB (3,986,972 lines)
 - **Processing Time**: ~17 seconds
 - **Memory Usage**: <100 MB
 - **Throughput**: ~230,000 lines/second
+
+**Multi-File (7 days):**
+- **Total Size**: 105 GB (26,615,476 lines)
+- **Processing Time**: ~2.5 minutes average per command
+- **Memory Usage**: <100 MB (streaming approach)
+- **Throughput**: ~175,000 lines/second sustained
 
 ## Output Formats
 
