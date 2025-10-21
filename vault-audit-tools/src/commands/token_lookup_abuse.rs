@@ -2,15 +2,16 @@
 //!
 //! Identifies entities performing excessive token lookup operations,
 //! which can indicate misconfigured applications or potential security issues.
+//! Supports multi-file analysis for pattern detection over time.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Default threshold (100 lookups per entity)
+//! # Single file with default threshold (100 lookups per entity)
 //! vault-audit token-lookup-abuse audit.log
 //!
-//! # Custom threshold
-//! vault-audit token-lookup-abuse audit.log --threshold 500
+//! # Multi-day analysis with custom threshold
+//! vault-audit token-lookup-abuse logs/*.log --threshold 500
 //! ```
 //!
 //! # Output

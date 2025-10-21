@@ -1,12 +1,17 @@
-//! Token metadata export command.
+//! Token lookup pattern exporter.
 //!
-//! Exports detailed token information to CSV for external analysis
-//! or visualization in tools like Excel, Tableau, or pandas.
+//! Exports token lookup patterns to CSV for further analysis.
+//! Identifies entities with high token lookup volumes and their patterns.
+//! Supports multi-file analysis for historical trending.
 //!
 //! # Usage
 //!
 //! ```bash
-//! vault-audit token-export audit.log --output tokens.csv
+//! # Single file export
+//! vault-audit token-export audit.log --output lookups.csv
+//!
+//! # Multi-day export with filtering
+//! vault-audit token-export *.log --output lookups.csv --min-lookups 100
 //! ```
 //!
 //! # Output

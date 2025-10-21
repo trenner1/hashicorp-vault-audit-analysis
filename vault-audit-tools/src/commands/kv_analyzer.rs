@@ -1,19 +1,20 @@
 //! KV secrets engine usage analyzer.
 //!
-//! Analyzes access patterns for HashiCorp Vault KV (Key-Value) secrets engine,
-//! supporting both KV v1 and KV v2.
+//! Analyzes KV mount access patterns from audit logs and generates
+//! detailed usage statistics per path and entity. Supports multi-file
+//! analysis for long-term trend tracking.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Analyze all KV usage
-//! vault-audit kv-analyzer audit.log
+//! # Single file analysis
+//! vault-audit kv-analyzer audit.log --output kv_usage.csv
 //!
-//! # Filter by mount point
-//! vault-audit kv-analyzer audit.log --mount secret
+//! # Multi-day analysis
+//! vault-audit kv-analyzer day1.log day2.log day3.log --output kv_usage.csv
 //!
-//! # Export to CSV
-//! vault-audit kv-analyzer audit.log --output kv-usage.csv
+//! # Filter specific KV mount
+//! vault-audit kv-analyzer *.log --kv-prefix "appcodes/" --output appcodes.csv
 //! ```
 //!
 //! # Output

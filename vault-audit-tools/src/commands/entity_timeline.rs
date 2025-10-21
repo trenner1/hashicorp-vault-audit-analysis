@@ -2,11 +2,16 @@
 //!
 //! Generates a detailed timeline of all operations performed by a specific entity,
 //! useful for understanding entity behavior and troubleshooting issues.
+//! Supports multi-file analysis to track entities across multiple days.
 //!
 //! # Usage
 //!
 //! ```bash
+//! # Single file
 //! vault-audit entity-timeline audit.log --entity-id abc-123-def
+//!
+//! # Multi-day timeline
+//! vault-audit entity-timeline day1.log day2.log day3.log --entity-id abc-123-def
 //! ```
 //!
 //! # Output

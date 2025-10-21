@@ -1,12 +1,17 @@
 //! Entity mapping preprocessor.
 //!
-//! Extracts entity-to-alias mappings from audit logs and exports to CSV,
+//! Extracts entity-to-alias mappings from audit logs and exports to JSON,
 //! creating a baseline for subsequent entity analysis.
+//! Supports multi-file processing for comprehensive entity mapping.
 //!
 //! # Usage
 //!
 //! ```bash
-//! vault-audit preprocess-entities audit.log --output entity-mappings.csv
+//! # Single file preprocessing
+//! vault-audit preprocess-entities audit.log --output entity-mappings.json
+//!
+//! # Multi-day comprehensive mapping
+//! vault-audit preprocess-entities logs/*.log --output entity-mappings.json
 //! ```
 //!
 //! # Output
