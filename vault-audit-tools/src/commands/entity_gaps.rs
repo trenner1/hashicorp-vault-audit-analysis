@@ -2,11 +2,16 @@
 //!
 //! Identifies operations that occur without an associated entity ID,
 //! which can indicate unauthenticated requests or system operations.
+//! Supports multi-file analysis for comprehensive coverage.
 //!
 //! # Usage
 //!
 //! ```bash
+//! # Single file
 //! vault-audit entity-gaps audit.log
+//!
+//! # Multi-day analysis
+//! vault-audit entity-gaps logs/vault_audit.*.log
 //! ```
 //!
 //! # Output
