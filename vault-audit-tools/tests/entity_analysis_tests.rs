@@ -36,7 +36,7 @@ fn create_entity_creation_log() -> (TempDir, PathBuf) {
 /// Helper to create multiple day logs for churn analysis
 fn create_multi_day_logs() -> (TempDir, Vec<PathBuf>) {
     let dir = TempDir::new().unwrap();
-    
+
     // Day 1 log
     let day1_path = dir.path().join("day1.log");
     let mut day1 = fs::File::create(&day1_path).unwrap();
@@ -91,13 +91,9 @@ fn create_baseline_csv() -> NamedTempFile {
 #[test]
 fn test_entity_creation_basic() {
     let (_dir, log_path) = create_entity_creation_log();
-    
+
     // Run entity-creation command
-    let result = entity_creation::run(
-        log_path.to_str().unwrap(),
-        None,
-        None,
-    );
+    let result = entity_creation::run(log_path.to_str().unwrap(), None, None);
 
     assert!(result.is_ok(), "entity-creation should succeed");
 }
@@ -106,7 +102,7 @@ fn test_entity_creation_basic() {
 fn test_entity_creation_with_output() {
     let (_dir, log_path) = create_entity_creation_log();
     let output_file = NamedTempFile::new().unwrap();
-    
+
     // Run entity-creation with JSON output
     let result = entity_creation::run(
         log_path.to_str().unwrap(),
@@ -115,39 +111,45 @@ fn test_entity_creation_with_output() {
     );
 
     assert!(result.is_ok(), "entity-creation with output should succeed");
-    
+
     // Verify output file was created and contains JSON
     let contents = fs::read_to_string(output_file.path()).unwrap();
-    assert!(contents.contains("entity_id"), "Output should contain entity data");
-    assert!(contents.contains("mount_path"), "Output should contain mount_path data");
+    assert!(
+        contents.contains("entity_id"),
+        "Output should contain entity data"
+    );
+    assert!(
+        contents.contains("mount_path"),
+        "Output should contain mount_path data"
+    );
 }
 
 #[test]
 fn test_entity_churn_multi_day() {
     let (_dir, log_paths) = create_multi_day_logs();
-    let log_files: Vec<String> = log_paths.iter()
+    let log_files: Vec<String> = log_paths
+        .iter()
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    
-    // Run entity-churn command
-    let result = entity_churn::run(
-        &log_files,
-        None,
-        None,
-        None,
-    );
 
-    assert!(result.is_ok(), "entity-churn should succeed with multiple files");
+    // Run entity-churn command
+    let result = entity_churn::run(&log_files, None, None, None);
+
+    assert!(
+        result.is_ok(),
+        "entity-churn should succeed with multiple files"
+    );
 }
 
 #[test]
 fn test_entity_churn_with_baseline() {
     let (_dir, log_paths) = create_multi_day_logs();
     let baseline_csv = create_baseline_csv();
-    let log_files: Vec<String> = log_paths.iter()
+    let log_files: Vec<String> = log_paths
+        .iter()
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    
+
     // Run entity-churn with baseline
     let result = entity_churn::run(
         &log_files,
@@ -163,10 +165,11 @@ fn test_entity_churn_with_baseline() {
 fn test_entity_churn_with_json_output() {
     let (_dir, log_paths) = create_multi_day_logs();
     let output_file = NamedTempFile::new().unwrap();
-    let log_files: Vec<String> = log_paths.iter()
+    let log_files: Vec<String> = log_paths
+        .iter()
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    
+
     // Run entity-churn with JSON output
     let result = entity_churn::run(
         &log_files,
@@ -176,29 +179,31 @@ fn test_entity_churn_with_json_output() {
     );
 
     assert!(result.is_ok(), "entity-churn with output should succeed");
-    
+
     // Verify output file contains expected data
     let contents = fs::read_to_string(output_file.path()).unwrap();
-    assert!(contents.contains("entity_id"), "Output should contain entity_id");
-    assert!(contents.contains("lifecycle"), "Output should contain lifecycle classification");
+    assert!(
+        contents.contains("entity_id"),
+        "Output should contain entity_id"
+    );
+    assert!(
+        contents.contains("lifecycle"),
+        "Output should contain lifecycle classification"
+    );
 }
 
 #[test]
 fn test_entity_churn_minimum_files() {
     let (_dir, log_paths) = create_multi_day_logs();
-    
+
     // Test with only 2 files (minimum required)
-    let log_files: Vec<String> = log_paths.iter()
+    let log_files: Vec<String> = log_paths
+        .iter()
         .take(2)
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    
-    let result = entity_churn::run(
-        &log_files,
-        None,
-        None,
-        None,
-    );
+
+    let result = entity_churn::run(&log_files, None, None, None);
 
     assert!(result.is_ok(), "entity-churn should work with 2 files");
 }
@@ -206,20 +211,19 @@ fn test_entity_churn_minimum_files() {
 #[test]
 fn test_entity_churn_single_file() {
     let (_dir, log_paths) = create_multi_day_logs();
-    
+
     // Test with only 1 file (should work for single-day analysis)
-    let log_files: Vec<String> = log_paths.iter()
+    let log_files: Vec<String> = log_paths
+        .iter()
         .take(1)
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
-    
-    let result = entity_churn::run(
-        &log_files,
-        None,
-        None,
-        None,
-    );
+
+    let result = entity_churn::run(&log_files, None, None, None);
 
     // Single file is allowed (useful for baseline analysis)
-    assert!(result.is_ok(), "entity-churn should work with 1 file for baseline analysis");
+    assert!(
+        result.is_ok(),
+        "entity-churn should work with 1 file for baseline analysis"
+    );
 }

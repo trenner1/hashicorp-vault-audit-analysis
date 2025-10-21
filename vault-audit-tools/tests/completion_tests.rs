@@ -9,19 +9,40 @@ fn test_generate_completion_bash() {
         .expect("Failed to execute command");
 
     assert!(output.status.success(), "Command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify bash completion script structure
-    assert!(stdout.contains("_vault-audit()"), "Should contain bash completion function");
-    assert!(stdout.contains("COMPREPLY"), "Should contain bash completion COMPREPLY");
-    assert!(stdout.contains("complete -F _vault-audit"), "Should contain completion registration");
-    
+    assert!(
+        stdout.contains("_vault-audit()"),
+        "Should contain bash completion function"
+    );
+    assert!(
+        stdout.contains("COMPREPLY"),
+        "Should contain bash completion COMPREPLY"
+    );
+    assert!(
+        stdout.contains("complete -F _vault-audit"),
+        "Should contain completion registration"
+    );
+
     // Verify all major commands are present
-    assert!(stdout.contains("entity-churn"), "Should include entity-churn command");
-    assert!(stdout.contains("entity-creation"), "Should include entity-creation command");
-    assert!(stdout.contains("generate-completion"), "Should include generate-completion command");
-    assert!(stdout.contains("kv-analyzer"), "Should include kv-analyzer command");
+    assert!(
+        stdout.contains("entity-churn"),
+        "Should include entity-churn command"
+    );
+    assert!(
+        stdout.contains("entity-creation"),
+        "Should include entity-creation command"
+    );
+    assert!(
+        stdout.contains("generate-completion"),
+        "Should include generate-completion command"
+    );
+    assert!(
+        stdout.contains("kv-analyzer"),
+        "Should include kv-analyzer command"
+    );
 }
 
 #[test]
@@ -32,17 +53,29 @@ fn test_generate_completion_zsh() {
         .expect("Failed to execute command");
 
     assert!(output.status.success(), "Command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify zsh completion script structure
-    assert!(stdout.contains("#compdef vault-audit"), "Should contain zsh compdef header");
-    assert!(stdout.contains("_vault-audit()"), "Should contain zsh completion function");
+    assert!(
+        stdout.contains("#compdef vault-audit"),
+        "Should contain zsh compdef header"
+    );
+    assert!(
+        stdout.contains("_vault-audit()"),
+        "Should contain zsh completion function"
+    );
     assert!(stdout.contains("_arguments"), "Should use zsh _arguments");
-    
+
     // Verify commands are present
-    assert!(stdout.contains("entity-churn"), "Should include entity-churn command");
-    assert!(stdout.contains("entity-creation"), "Should include entity-creation command");
+    assert!(
+        stdout.contains("entity-churn"),
+        "Should include entity-churn command"
+    );
+    assert!(
+        stdout.contains("entity-creation"),
+        "Should include entity-creation command"
+    );
 }
 
 #[test]
@@ -53,15 +86,24 @@ fn test_generate_completion_fish() {
         .expect("Failed to execute command");
 
     assert!(output.status.success(), "Command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify fish completion script structure
-    assert!(stdout.contains("complete -c vault-audit"), "Should contain fish completion commands");
-    
+    assert!(
+        stdout.contains("complete -c vault-audit"),
+        "Should contain fish completion commands"
+    );
+
     // Verify commands are present
-    assert!(stdout.contains("entity-churn"), "Should include entity-churn command");
-    assert!(stdout.contains("entity-creation"), "Should include entity-creation command");
+    assert!(
+        stdout.contains("entity-churn"),
+        "Should include entity-churn command"
+    );
+    assert!(
+        stdout.contains("entity-creation"),
+        "Should include entity-creation command"
+    );
 }
 
 #[test]
@@ -72,13 +114,18 @@ fn test_generate_completion_powershell() {
         .expect("Failed to execute command");
 
     assert!(output.status.success(), "Command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify powershell completion script contains expected content
-    assert!(!stdout.is_empty(), "PowerShell completion should not be empty");
-    assert!(stdout.contains("vault-audit") || stdout.contains("Register-ArgumentCompleter"), 
-            "Should contain PowerShell completion content");
+    assert!(
+        !stdout.is_empty(),
+        "PowerShell completion should not be empty"
+    );
+    assert!(
+        stdout.contains("vault-audit") || stdout.contains("Register-ArgumentCompleter"),
+        "Should contain PowerShell completion content"
+    );
 }
 
 #[test]
@@ -89,13 +136,15 @@ fn test_generate_completion_elvish() {
         .expect("Failed to execute command");
 
     assert!(output.status.success(), "Command should succeed");
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify elvish completion script contains expected content
     assert!(!stdout.is_empty(), "Elvish completion should not be empty");
-    assert!(stdout.contains("vault-audit") || stdout.contains("edit:completion:arg-completer"), 
-            "Should contain Elvish completion content");
+    assert!(
+        stdout.contains("vault-audit") || stdout.contains("edit:completion:arg-completer"),
+        "Should contain Elvish completion content"
+    );
 }
 
 #[test]
@@ -106,9 +155,9 @@ fn test_all_commands_in_completion() {
         .expect("Failed to execute command");
 
     assert!(output.status.success());
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
-    
+
     // Verify all 16 commands are present in completion
     let commands = vec![
         "kv-analyzer",
@@ -130,8 +179,12 @@ fn test_all_commands_in_completion() {
         "entity-list",
         "generate-completion",
     ];
-    
+
     for cmd in commands {
-        assert!(stdout.contains(cmd), "Completion should include command: {}", cmd);
+        assert!(
+            stdout.contains(cmd),
+            "Completion should include command: {}",
+            cmd
+        );
     }
 }
