@@ -39,7 +39,7 @@ jobs:
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: snyk.sarif
+          sarif_file: vault-audit-tools/snyk.sarif
 
       - name: Monitor dependencies with Snyk
         working-directory: vault-audit-tools
