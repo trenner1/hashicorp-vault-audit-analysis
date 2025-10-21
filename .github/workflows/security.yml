@@ -39,3 +39,10 @@ jobs:
       - name: Display audit results
         working-directory: vault-audit-tools
         run: cargo audit
+
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-results
+          path: vault-audit-tools/audit-results.json
