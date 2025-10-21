@@ -157,8 +157,9 @@ fn test_kv_analyzer_command() {
     let output_path = output.path().join("kv_output.csv");
 
     use vault_audit_tools::commands::kv_analyzer;
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
     let result = kv_analyzer::run(
-        log_path.to_str().unwrap(),
+        &log_files,
         "kv/",
         Some(output_path.to_str().unwrap()),
         None,
