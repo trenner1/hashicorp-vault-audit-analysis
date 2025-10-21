@@ -165,7 +165,16 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
+        continue-on-error: true
         with:
           files: vault-audit-tools/cobertura.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+          slug: trenner1/hashicorp-vault-audit-analysis
+          verbose: true
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: vault-audit-tools/cobertura.xml
