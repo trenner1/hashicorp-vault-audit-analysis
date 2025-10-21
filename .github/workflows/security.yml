@@ -42,7 +42,7 @@ jobs:
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk test --severity-threshold=high --sarif-file-output=snyk.sarif
+        run: snyk test --all-projects --detection-depth=1 --severity-threshold=high --sarif-file-output=snyk.sarif
 
       - name: Upload SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
