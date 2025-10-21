@@ -6,8 +6,9 @@ High-performance command-line tools for analyzing HashiCorp Vault audit logs, wr
 
 - **Fast**: 3x faster than equivalent implementations (~17s vs 60s for 4M line logs)
 - **Memory Efficient**: 10x less memory usage through streaming parser
-- **Comprehensive**: 12 specialized analysis commands for different use cases
+- **Comprehensive**: 16 specialized analysis commands for different use cases
 - **Production Ready**: Tested on multi-gigabyte production audit logs
+- **Shell Completion**: Tab completion support for bash, zsh, fish, powershell, and elvish
 
 ## Installation
 
@@ -24,6 +25,23 @@ This installs the `vault-audit` binary to `~/.cargo/bin/`.
 
 Download from the [Releases](https://github.com/trenner1/hashicorp-vault-audit-analysis/releases) page.
 
+### Shell Completion
+
+After installation, enable tab completion for your shell:
+
+```bash
+# Bash
+vault-audit generate-completion bash > /usr/local/etc/bash_completion.d/vault-audit
+
+# Zsh
+mkdir -p ~/.zsh/completions
+vault-audit generate-completion zsh > ~/.zsh/completions/_vault-audit
+# Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)
+
+# Fish
+vault-audit generate-completion fish > ~/.config/fish/completions/vault-audit.fish
+```
+
 ## Commands
 
 ### System Analysis
@@ -38,6 +56,18 @@ Download from the [Releases](https://github.com/trenner1/hashicorp-vault-audit-a
 - **`token-operations`** - Track token lifecycle operations (create, renew, revoke)
 - **`token-lookup-abuse`** - Detect excessive token lookup patterns
 
+### Entity Analysis
+
+- **`entity-creation`** - Analyze entity creation patterns by authentication path
+- **`entity-churn`** - Multi-day entity lifecycle tracking across log files
+- **`entity-timeline`** - Generate detailed timeline for a specific entity
+- **`preprocess-entities`** - Extract entity mappings from audit logs
+
+### Vault API Integration
+
+- **`client-activity`** - Query Vault for client activity metrics by mount
+- **`entity-list`** - Export complete entity list from Vault (for baseline analysis)
+
 ### KV Secrets Analysis
 
 - **`kv-summary`** - Summarize KV secret usage from CSV exports
@@ -51,7 +81,10 @@ Download from the [Releases](https://github.com/trenner1/hashicorp-vault-audit-a
 ### Data Export
 
 - **`token-export`** - Export token lookup patterns to CSV
-- **`entity-timeline`** - Generate detailed timeline for a specific entity
+
+### Utilities
+
+- **`generate-completion`** - Generate shell completion scripts
 
 ## Usage Examples
 
@@ -71,6 +104,12 @@ vault-audit token-lookup-abuse vault_audit.log
 ### Deep Dive Analysis
 
 ```bash
+# Analyze entity creation patterns by auth path
+vault-audit entity-creation vault_audit.log
+
+# Track entity lifecycle across multiple days (no log concatenation needed)
+vault-audit entity-churn day1.log day2.log day3.log --baseline baseline_entities.csv
+
 # Analyze specific entity behavior
 vault-audit entity-timeline --entity-id <UUID> vault_audit.log
 
@@ -79,6 +118,9 @@ vault-audit token-export vault_audit.log --output tokens.csv
 
 # Analyze Airflow polling with burst detection
 vault-audit airflow-polling vault_audit.log
+
+# Query Vault API for client activity metrics
+vault-audit client-activity --start 2025-10-01T00:00:00Z --end 2025-11-01T00:00:00Z
 ```
 
 ### KV Usage Analysis
