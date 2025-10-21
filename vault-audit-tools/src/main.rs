@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 mod audit;
 mod commands;
@@ -252,6 +252,13 @@ enum Commands {
         #[arg(short, long)]
         mount: Option<String>,
     },
+
+    /// Generate shell completion scripts
+    GenerateCompletion {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
 #[tokio::main]
@@ -362,6 +369,11 @@ async fn main() -> Result<()> {
                 mount.as_deref(),
             )
             .await
+        }
+        Commands::GenerateCompletion { shell } => {
+            let mut cmd = Cli::command();
+            clap_complete::generate(shell, &mut cmd, "vault-audit", &mut std::io::stdout());
+            Ok(())
         }
     }
 }
