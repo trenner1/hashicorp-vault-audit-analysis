@@ -17,10 +17,10 @@
 //! ```no_run
 //! use vault_audit_tools::vault_api::VaultClient;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let client = VaultClient::new()?;
-//! let alias = client.get_entity_alias("entity-123", "alias-456").await?;
-//! println!("Alias name: {}", alias.name);
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let addr = "https://vault.example.com:8200".to_string();
+//! let token = "hvs.secret".to_string();
+//! let client = VaultClient::new(addr, token)?;
 //! # Ok(())
 //! # }
 //! ```
