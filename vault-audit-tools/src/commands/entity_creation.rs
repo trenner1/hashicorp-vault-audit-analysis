@@ -1,3 +1,26 @@
+//! Entity creation analysis command.
+//!
+//! Identifies when entities first appear in audit logs, grouped by
+//! authentication method and mount path.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit entity-creation audit.log
+//! vault-audit entity-creation audit.log --json
+//! ```
+//!
+//! # Output
+//!
+//! Displays entity creation events grouped by authentication path:
+//! - Entity ID
+//! - Display name
+//! - Mount path (authentication method)
+//! - First seen timestamp
+//! - Creation count by auth method
+//!
+//! Use `--json` to output structured data for further processing.
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
@@ -7,6 +30,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Entity mapping data structure for JSON output
 #[derive(Debug, Serialize, Deserialize)]
 struct EntityMapping {
     display_name: String,
@@ -23,6 +47,7 @@ struct EntityMapping {
     last_seen: String,
 }
 
+/// Represents a single entity creation event
 #[derive(Debug)]
 struct EntityCreation {
     entity_id: String,

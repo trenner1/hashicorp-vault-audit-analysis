@@ -1,3 +1,32 @@
+//! Entity churn analysis command.
+//!
+//! Tracks entity lifecycle across multiple days to identify:
+//! - New entities that appeared since baseline
+//! - Churned entities that were active previously but disappeared
+//! - Active entities that persisted across time periods
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Compare today vs yesterday
+//! vault-audit entity-churn audit-today.log --baseline audit-yesterday.log
+//!
+//! # Compare against multiple baseline days
+//! vault-audit entity-churn current.log --baseline day1.log day2.log day3.log
+//!
+//! # Export to JSON
+//! vault-audit entity-churn current.log --baseline old.log --json
+//! ```
+//!
+//! # Output
+//!
+//! Shows three categories of entities:
+//! - **New**: Entities in current file not in baselines
+//! - **Churned**: Entities in baselines but not in current
+//! - **Active**: Entities present in both
+//!
+//! Only tracks entities that performed login operations (paths ending in `/login`).
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
@@ -8,6 +37,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+/// Entity mapping from baseline CSV files
 #[derive(Debug, Serialize, Deserialize)]
 struct EntityMapping {
     display_name: String,
@@ -22,6 +52,7 @@ struct EntityMapping {
     last_seen: String,
 }
 
+/// Represents an entity's churn status
 #[derive(Debug, Serialize)]
 struct EntityChurnRecord {
     entity_id: String,

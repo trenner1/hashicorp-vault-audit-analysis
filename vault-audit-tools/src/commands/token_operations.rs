@@ -1,3 +1,27 @@
+//! Token lifecycle operations analysis.
+//!
+//! Tracks token-related operations to understand token usage patterns
+//! and identify entities performing high volumes of token operations.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit token-operations audit.log
+//! ```
+//!
+//! # Output
+//!
+//! Displays a summary table showing per-entity token operations:
+//! - **lookup-self**: Token self-inspection operations
+//! - **renew-self**: Token renewal operations
+//! - **revoke-self**: Token revocation operations
+//! - **create**: New token creation
+//! - **login**: Authentication operations that create tokens
+//! - **other**: Other token-related operations
+//!
+//! Results are sorted by total operations (descending) to identify
+//! the most active entities.
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::Result;
@@ -5,6 +29,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Token operation statistics for a single entity
 #[derive(Debug, Default)]
 struct TokenOps {
     lookup_self: usize,

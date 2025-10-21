@@ -1,3 +1,44 @@
+//! Airflow polling pattern detection.
+//!
+//! Identifies Apache Airflow instances that are polling Vault connections
+//! excessively, which can cause performance issues.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Detect default Airflow patterns
+//! vault-audit airflow-polling audit.log
+//!
+//! # Custom detection thresholds
+//! vault-audit airflow-polling audit.log --threshold 100
+//! ```
+//!
+//! # Detection Logic
+//!
+//! Identifies entities accessing paths like:
+//! - `database/config/*`
+//! - `database/creds/*`
+//! - Connection-related paths
+//!
+//! With characteristics of polling behavior:
+//! - High frequency access (default: >50 ops)
+//! - Regular time intervals
+//! - Repeated access to same paths
+//!
+//! # Output
+//!
+//! Displays entities with polling patterns:
+//! - Entity ID and display name
+//! - Total operations count
+//! - Polling rate (ops per hour)
+//! - Paths being polled
+//! - Time span of activity
+//!
+//! Helps optimize:
+//! - Airflow connection pooling
+//! - Vault performance
+//! - Database credential caching
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use crate::utils::time::parse_timestamp;

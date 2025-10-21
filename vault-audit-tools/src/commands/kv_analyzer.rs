@@ -1,3 +1,36 @@
+//! KV secrets engine usage analyzer.
+//!
+//! Analyzes access patterns for HashiCorp Vault KV (Key-Value) secrets engine,
+//! supporting both KV v1 and KV v2.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Analyze all KV usage
+//! vault-audit kv-analyzer audit.log
+//!
+//! # Filter by mount point
+//! vault-audit kv-analyzer audit.log --mount secret
+//!
+//! # Export to CSV
+//! vault-audit kv-analyzer audit.log --output kv-usage.csv
+//! ```
+//!
+//! # Output
+//!
+//! Generates a CSV report with:
+//! - Mount point
+//! - Normalized secret path (without /data/ or /metadata/)
+//! - Number of unique entities accessing the secret
+//! - Total operations count
+//! - List of unique paths accessed
+//!
+//! # KV v2 Path Normalization
+//!
+//! Automatically normalizes KV v2 paths:
+//! - `secret/data/myapp/config` → `secret/myapp/config`
+//! - `secret/metadata/myapp/config` → `secret/myapp/config`
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
@@ -17,12 +50,14 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
+/// Tracks KV usage statistics for a specific path
 struct KvUsageData {
     entity_ids: HashSet<String>,
     operations_count: usize,
     paths_accessed: HashSet<String>,
 }
 
+/// Normalizes KV paths by removing KV v2 /data/ and /metadata/ components
 fn normalize_kv_path(path: &str) -> String {
     let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
 

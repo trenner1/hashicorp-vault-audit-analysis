@@ -1,9 +1,41 @@
+//! Entity list export command.
+//!
+//! Queries the Vault API to export a complete list of entities with their
+//! aliases, useful for establishing baselines for entity churn analysis.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Export all entities
+//! vault-audit entity-list --output entities.csv
+//!
+//! # Skip TLS verification (dev/test only)
+//! vault-audit entity-list --output entities.csv --insecure
+//! ```
+//!
+//! # Requirements
+//!
+//! Requires environment variables:
+//! - `VAULT_ADDR`: Vault server URL
+//! - `VAULT_TOKEN`: Token with entity read permissions
+//!
+//! # Output
+//!
+//! Generates CSV with entity information:
+//! - Entity ID
+//! - Display name
+//! - Alias names and mount paths
+//! - Creation timestamp
+//!
+//! This data can be used as a baseline for the `entity-churn` command.
+
 use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 
+/// Authentication mount configuration
 #[derive(Debug, Deserialize)]
 struct AuthMount {
     #[serde(rename = "type")]
@@ -11,11 +43,13 @@ struct AuthMount {
     accessor: Option<String>,
 }
 
+/// Response from entity list API
 #[derive(Debug, Deserialize)]
 struct EntityListResponse {
     keys: Vec<String>,
 }
 
+/// Entity data from Vault API
 #[derive(Debug, Deserialize)]
 struct EntityData {
     id: String,

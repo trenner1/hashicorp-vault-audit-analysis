@@ -1,3 +1,30 @@
+//! Token metadata export command.
+//!
+//! Exports detailed token information to CSV for external analysis
+//! or visualization in tools like Excel, Tableau, or pandas.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit token-export audit.log --output tokens.csv
+//! ```
+//!
+//! # Output
+//!
+//! Generates a CSV file with columns:
+//! - Entity ID
+//! - Display name
+//! - Token accessor
+//! - Lookup count
+//! - First seen timestamp
+//! - Last seen timestamp
+//! - Duration (time between first and last seen)
+//!
+//! Useful for:
+//! - Token usage trending
+//! - Token lifetime analysis
+//! - Identifying long-lived vs short-lived tokens
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
@@ -5,6 +32,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Token activity statistics
 #[derive(Debug, Default)]
 struct TokenData {
     lookups: usize,
@@ -12,6 +40,7 @@ struct TokenData {
     last_seen: String,
 }
 
+/// Entity with associated token data
 #[derive(Debug)]
 struct EntityData {
     display_name: String,

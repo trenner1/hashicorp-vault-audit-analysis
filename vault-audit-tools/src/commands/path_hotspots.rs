@@ -1,3 +1,37 @@
+//! Path hotspot analysis command.
+//!
+//! Identifies the most frequently accessed paths in Vault to help
+//! understand usage patterns and potential performance bottlenecks.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Show top 20 hotspots (default)
+//! vault-audit path-hotspots audit.log
+//!
+//! # Show top 50 hotspots
+//! vault-audit path-hotspots audit.log --top 50
+//!
+//! # Filter by mount point
+//! vault-audit path-hotspots audit.log --mount secret
+//! ```
+//!
+//! # Output
+//!
+//! Displays top accessed paths with:
+//! - Path name
+//! - Total operations
+//! - Unique entities accessing
+//! - Operation breakdown (read/write/list/delete)
+//! - Access rate (ops per hour)
+//! - Top entity contributors
+//!
+//! Helps identify:
+//! - Performance bottlenecks
+//! - Heavily used secrets
+//! - Caching opportunities
+//! - Load distribution
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use crate::utils::time::parse_timestamp;
@@ -8,6 +42,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Statistics for a single path
 #[derive(Debug)]
 struct PathStats {
     operations: usize,

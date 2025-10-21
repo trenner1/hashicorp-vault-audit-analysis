@@ -1,3 +1,30 @@
+//! Kubernetes authentication analysis command.
+//!
+//! Analyzes Kubernetes auth method usage to understand service account
+//! access patterns and identify high-volume K8s clients.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit k8s-auth audit.log
+//! vault-audit k8s-auth audit.log --output k8s-usage.csv
+//! ```
+//!
+//! # Output
+//!
+//! Displays or exports Kubernetes authentication statistics:
+//! - Service account name
+//! - Namespace
+//! - Pod name (if available)
+//! - Authentication count
+//! - Associated entity ID
+//!
+//! Helps identify:
+//! - Most active K8s service accounts
+//! - Service accounts with excessive auth requests
+//! - K8s authentication patterns by namespace
+//! - Pods making frequent Vault requests
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::Result;

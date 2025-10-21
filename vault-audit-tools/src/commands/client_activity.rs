@@ -1,3 +1,40 @@
+//! Client activity metrics from Vault API.
+//!
+//! Queries Vault's activity log API to retrieve client usage metrics
+//! broken down by mount point and authentication method.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Export client activity for a time range
+//! vault-audit client-activity \
+//!   --start-time 2025-10-01T00:00:00Z \
+//!   --end-time 2025-10-31T23:59:59Z \
+//!   --output client-activity.csv
+//!
+//! # Skip TLS verification (dev/test only)
+//! vault-audit client-activity --start-time ... --insecure
+//! ```
+//!
+//! # Requirements
+//!
+//! Requires environment variables:
+//! - `VAULT_ADDR`: Vault server URL
+//! - `VAULT_TOKEN`: Token with activity read permissions
+//!
+//! # Output
+//!
+//! Generates CSV with:
+//! - Client ID
+//! - Client type (entity or non-entity)
+//! - Mount accessor and path
+//! - Namespace (if applicable)
+//!
+//! Useful for:
+//! - License compliance tracking
+//! - Understanding client distribution
+//! - Capacity planning
+
 use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -5,6 +42,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 
+/// Mount point configuration from Vault
 #[derive(Debug, Deserialize)]
 struct MountInfo {
     #[serde(rename = "type")]
@@ -12,6 +50,7 @@ struct MountInfo {
     accessor: Option<String>,
 }
 
+/// Client activity record from Vault API
 #[derive(Debug, Deserialize)]
 struct ActivityRecord {
     client_id: String,

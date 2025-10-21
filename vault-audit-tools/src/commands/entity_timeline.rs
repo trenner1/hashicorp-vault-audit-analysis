@@ -1,3 +1,28 @@
+//! Entity timeline visualization command.
+//!
+//! Generates a detailed timeline of all operations performed by a specific entity,
+//! useful for understanding entity behavior and troubleshooting issues.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit entity-timeline audit.log --entity-id abc-123-def
+//! ```
+//!
+//! # Output
+//!
+//! Displays a chronological view of the entity's activity:
+//! - Timestamp
+//! - Operation type (read, write, list, etc.)
+//! - Path accessed
+//! - Response status
+//!
+//! Also provides:
+//! - Activity summary (operations by type)
+//! - Time-based patterns (hourly distribution)
+//! - Mount point usage
+//! - First and last seen timestamps
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::Result;
