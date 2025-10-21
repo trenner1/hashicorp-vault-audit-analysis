@@ -1,3 +1,27 @@
+//! Entity gaps analysis command.
+//!
+//! Identifies operations that occur without an associated entity ID,
+//! which can indicate unauthenticated requests or system operations.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit entity-gaps audit.log
+//! ```
+//!
+//! # Output
+//!
+//! Displays operations grouped by path that have no entity ID:
+//! - Request path
+//! - Total operations count
+//! - Common operations (read, write, list, etc.)
+//!
+//! Helps identify:
+//! - Public endpoints (health checks, metrics)
+//! - System operations
+//! - Potential authentication issues
+//! - Unauthenticated access patterns
+
 use crate::audit::parser::AuditLogReader;
 use anyhow::Result;
 use std::collections::HashMap;

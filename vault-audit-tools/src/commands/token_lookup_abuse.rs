@@ -1,3 +1,31 @@
+//! Token lookup abuse detection.
+//!
+//! Identifies entities performing excessive token lookup operations,
+//! which can indicate misconfigured applications or potential security issues.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Default threshold (100 lookups per entity)
+//! vault-audit token-lookup-abuse audit.log
+//!
+//! # Custom threshold
+//! vault-audit token-lookup-abuse audit.log --threshold 500
+//! ```
+//!
+//! # Output
+//!
+//! Displays entities exceeding the lookup threshold with:
+//! - Entity ID and display name
+//! - Total lookup operations
+//! - Time range (first seen to last seen)
+//! - Rate (lookups per hour)
+//!
+//! Helps identify:
+//! - Applications polling tokens too frequently
+//! - Misconfigured token renewal logic
+//! - Potential reconnaissance activity
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use crate::utils::time::parse_timestamp;
@@ -6,6 +34,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Tracks token lookup statistics for an entity
 #[derive(Debug)]
 struct TokenData {
     lookups: usize,

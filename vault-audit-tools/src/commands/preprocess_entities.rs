@@ -1,3 +1,29 @@
+//! Entity mapping preprocessor.
+//!
+//! Extracts entity-to-alias mappings from audit logs and exports to CSV,
+//! creating a baseline for subsequent entity analysis.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit preprocess-entities audit.log --output entity-mappings.csv
+//! ```
+//!
+//! # Output
+//!
+//! Generates CSV containing:
+//! - Entity ID
+//! - Display name
+//! - Mount path and accessor
+//! - Username (if available)
+//! - Login count
+//! - First and last seen timestamps
+//!
+//! This output can be used as a baseline for:
+//! - `entity-churn` command
+//! - External analysis tools
+//! - Historical trending
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::{Context, Result};
@@ -6,6 +32,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
+/// Entity mapping with login statistics
 #[derive(Debug, Serialize, Deserialize)]
 struct EntityMapping {
     display_name: String,

@@ -1,3 +1,33 @@
+//! System-wide audit log overview.
+//!
+//! Provides high-level statistics and insights about Vault usage
+//! across the entire audit log.
+//!
+//! # Usage
+//!
+//! ```bash
+//! vault-audit system-overview audit.log
+//! ```
+//!
+//! # Output
+//!
+//! Displays comprehensive statistics:
+//! - Total entries processed
+//! - Unique entities
+//! - Unique paths accessed
+//! - Operation breakdown (read, write, list, delete)
+//! - Top paths by access count
+//! - Mount point usage
+//! - Authentication method breakdown
+//! - Time range covered
+//! - Error rate
+//!
+//! Useful for:
+//! - Understanding overall Vault usage
+//! - Capacity planning
+//! - Identifying hotspots
+//! - Security audits
+
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
 use anyhow::Result;
@@ -5,6 +35,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+/// Path access statistics
 #[derive(Debug)]
 struct PathData {
     count: usize,

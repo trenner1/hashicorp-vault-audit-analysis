@@ -1,3 +1,33 @@
+//! KV usage comparison across time periods.
+//!
+//! Compares KV secrets engine usage between two CSV exports to identify
+//! changes in access patterns over time.
+//!
+//! # Usage
+//!
+//! ```bash
+//! # Generate two CSV files from different time periods
+//! vault-audit kv-analyzer old-audit.log --output old-usage.csv
+//! vault-audit kv-analyzer new-audit.log --output new-usage.csv
+//!
+//! # Compare them
+//! vault-audit kv-compare old-usage.csv new-usage.csv
+//! ```
+//!
+//! # Output
+//!
+//! Displays comparison metrics by mount point:
+//! - Change in total operations
+//! - Change in unique secrets accessed
+//! - Change in entity count
+//! - Percentage changes
+//!
+//! Helps identify:
+//! - Growing or shrinking KV usage
+//! - New secrets being accessed
+//! - Secrets no longer used
+//! - Changes in access patterns
+
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::fs::File;
@@ -14,6 +44,7 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
+/// Mount point usage statistics
 struct MountData {
     operations: usize,
     paths: usize,
