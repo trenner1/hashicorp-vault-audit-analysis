@@ -21,6 +21,10 @@ data/
 # Analysis findings and reports (contain sensitive customer data)
 docs/
 
+# Entity maps (may contain sensitive customer data)
+*entity_map*.json
+*entity_churn*.json
+
 # Rust build artifacts
 vault-audit-tools/target/
 *.lock
