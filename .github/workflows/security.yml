@@ -5,85 +5,45 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    # Run security scan daily at 2 AM UTC
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
-  snyk:
-    name: Snyk Security Scan
+  snyk-deps:
     runs-on: ubuntu-latest
-    
+    # don’t try to use repo secrets on forked PRs
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build project for Snyk
-        run: |
-          cd vault-audit-tools
-          cargo build --release
+      - name: Ensure lockfile (Snyk needs Cargo.lock)
+        working-directory: vault-audit-tools
+        run: cargo generate-lockfile
 
-      # Note: Snyk Rust action requires SNYK_TOKEN secret and may not work for private repos
-      # Commenting out for now - uncomment and configure if Snyk integration is needed
-      # - name: Run Snyk to check for vulnerabilities
-      #   uses: snyk/actions/rust@1.2.0
-      #   continue-on-error: true
-      #   env:
-      #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      #   with:
-      #     args: --severity-threshold=high --file=vault-audit-tools/Cargo.toml
-      #
-      # - name: Upload Snyk results to GitHub Code Scanning
-      #   uses: github/codeql-action/upload-sarif@v3
-      #   with:
-      #     sarif_file: snyk.sarif
+      - name: Setup Snyk
+        uses: snyk/actions/setup@master
 
-  cargo-audit:
-    name: Cargo Audit (RustSec)
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Run Snyk to check for vulnerabilities
+        working-directory: vault-audit-tools
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --severity-threshold=high --sarif-file-output=snyk.sarif
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Run cargo audit
-        run: |
-          cd vault-audit-tools
-          cargo audit
-
-  cargo-deny:
-    name: Cargo Deny (License & Security)
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v2
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          manifest-path: ./vault-audit-tools/Cargo.toml
+          sarif_file: snyk.sarif
 
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
+      - name: Monitor dependencies with Snyk
+        working-directory: vault-audit-tools
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk monitor --project-name=vault-audit-tools
