@@ -74,96 +74,114 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, threshold: usize) -> Result<()> {
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
-
+pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
     // entity_id -> accessor -> TokenData
     let mut patterns: HashMap<String, HashMap<String, TokenData>> = HashMap::new();
     let mut total_lines = 0;
     let mut lookup_lines = 0;
-    let mut bytes_read = 0;
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-        // Update progress every 10k lines for smooth animation
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size)); // Cap at file size
-            } else {
-                progress.update(total_lines);
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            // Update progress every 10k lines for smooth animation
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size)); // Cap at file size
+                } else {
+                    progress.update(file_lines);
+                }
             }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            // Filter for token lookup-self operations
+            let request = match &entry.request {
+                Some(r) => r,
+                None => continue,
+            };
+
+            let path = match &request.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            };
+
+            if path != "auth/token/lookup-self" {
+                continue;
+            }
+
+            let auth = match &entry.auth {
+                Some(a) => a,
+                None => continue,
+            };
+
+            let entity_id = match &auth.entity_id {
+                Some(id) => id.as_str(),
+                None => continue,
+            };
+
+            let accessor = match &auth.accessor {
+                Some(a) => a.clone(),
+                None => continue,
+            };
+
+            lookup_lines += 1;
+
+            let entity_map = patterns.entry(entity_id.to_string()).or_default();
+
+            entity_map
+                .entry(accessor)
+                .and_modify(|data| {
+                    data.lookups += 1;
+                    data.last_seen = entry.time.clone();
+                })
+                .or_insert_with(|| TokenData::new(entry.time.clone()));
         }
 
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        // Filter for token lookup-self operations
-        let request = match &entry.request {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let path = match &request.path {
-            Some(p) => p.as_str(),
-            None => continue,
-        };
-
-        if path != "auth/token/lookup-self" {
-            continue;
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
         }
 
-        let auth = match &entry.auth {
-            Some(a) => a,
-            None => continue,
-        };
-
-        let entity_id = match &auth.entity_id {
-            Some(id) => id.as_str(),
-            None => continue,
-        };
-
-        let accessor = match &auth.accessor {
-            Some(a) => a.clone(),
-            None => continue,
-        };
-
-        lookup_lines += 1;
-
-        let entity_map = patterns.entry(entity_id.to_string()).or_default();
-
-        entity_map
-            .entry(accessor)
-            .and_modify(|data| {
-                data.lookups += 1;
-                data.last_seen = entry.time.clone();
-            })
-            .or_insert_with(|| TokenData::new(entry.time.clone()));
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!(
-        "Processed {} lines, found {} token lookups",
+    eprintln!(
+        "\nTotal: Processed {} lines, found {} lookup-self operations",
         format_number(total_lines),
         format_number(lookup_lines)
-    ));
+    );
 
     // Find entities with excessive lookups
     let mut excessive_patterns = Vec::new();

@@ -93,7 +93,8 @@ fn test_entity_creation_basic() {
     let (_dir, log_path) = create_entity_creation_log();
 
     // Run entity-creation command
-    let result = entity_creation::run(log_path.to_str().unwrap(), None, None);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = entity_creation::run(&log_files, None, None);
 
     assert!(result.is_ok(), "entity-creation should succeed");
 }
@@ -104,11 +105,8 @@ fn test_entity_creation_with_output() {
     let output_file = NamedTempFile::new().unwrap();
 
     // Run entity-creation with JSON output
-    let result = entity_creation::run(
-        log_path.to_str().unwrap(),
-        None,
-        Some(output_file.path().to_str().unwrap()),
-    );
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = entity_creation::run(&log_files, None, Some(output_file.path().to_str().unwrap()));
 
     assert!(result.is_ok(), "entity-creation with output should succeed");
 
