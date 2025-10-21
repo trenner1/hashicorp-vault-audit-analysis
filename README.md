@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml)
 [![Security](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml)
-[![codecov](https://codecov.io/gh/trenner1/hashicorp-vault-audit-analysis/branch/main/graph/badge.svg)](https://codecov.io/gh/trenner1/hashicorp-vault-audit-analysis)
+[![codecov](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis/graph/badge.svg?token=QYMT1SKDQ6)](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis)
 
 High-performance command-line tools for analyzing HashiCorp Vault audit logs, written in Rust.
 
