@@ -12,46 +12,30 @@ permissions:
   security-events: write
 
 jobs:
-  snyk-deps:
+  security-audit:
     runs-on: ubuntu-latest
-    # don’t try to use repo secrets on forked PRs
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Verify Cargo files
-        working-directory: vault-audit-tools
-        run: |
-          echo "Checking for Cargo files..."
-          ls -la Cargo.*
-          echo "Current directory:"
-          pwd
-
-      - name: Ensure lockfile (Snyk needs Cargo.lock)
-        working-directory: vault-audit-tools
-        run: cargo generate-lockfile
-
-      - name: Setup Snyk
-        uses: snyk/actions/setup@master
-
-      - name: Run Snyk to check for vulnerabilities
-        working-directory: vault-audit-tools
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk test --all-projects --detection-depth=1 --severity-threshold=high --sarif-file-output=snyk.sarif
-
-      - name: Upload SARIF to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Cache cargo registry
+        uses: actions/cache@v4
         with:
-          sarif_file: vault-audit-tools/snyk.sarif
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            vault-audit-tools/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Monitor dependencies with Snyk
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run cargo audit
         working-directory: vault-audit-tools
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk monitor --project-name=vault-audit-tools
+        run: cargo audit --json > audit-results.json || true
+
+      - name: Display audit results
+        working-directory: vault-audit-tools
+        run: cargo audit
