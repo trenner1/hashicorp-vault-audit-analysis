@@ -19,8 +19,9 @@ struct Cli {
 enum Commands {
     /// Analyze KV usage by path and entity
     KvAnalyzer {
-        /// Path to audit log file
-        log_file: String,
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
 
         /// KV mount prefix to filter (e.g., "kv/", leave empty for all KV mounts)
         #[arg(long, default_value = "")]
@@ -267,12 +268,12 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::KvAnalyzer {
-            log_file,
+            log_files,
             kv_prefix,
             output,
             entity_csv,
         } => commands::kv_analyzer::run(
-            &log_file,
+            &log_files,
             &kv_prefix,
             output.as_deref(),
             entity_csv.as_deref(),
