@@ -22,6 +22,14 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Verify Cargo files
+        working-directory: vault-audit-tools
+        run: |
+          echo "Checking for Cargo files..."
+          ls -la Cargo.*
+          echo "Current directory:"
+          pwd
+
       - name: Ensure lockfile (Snyk needs Cargo.lock)
         working-directory: vault-audit-tools
         run: cargo generate-lockfile
