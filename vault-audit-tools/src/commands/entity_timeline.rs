@@ -51,113 +51,131 @@ struct Operation {
     operation: String,
 }
 
-pub fn run(log_file: &str, entity_id: &str, display_name: &Option<String>) -> Result<()> {
+pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>) -> Result<()> {
     println!("Analyzing timeline for entity: {}", entity_id);
     if let Some(name) = display_name {
         println!("Display name: {}", name);
     }
     println!();
 
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
     let mut operations_by_hour: HashMap<String, HashMap<String, usize>> = HashMap::new();
     let mut operations_by_type: HashMap<String, usize> = HashMap::new();
     let mut paths_accessed: HashMap<String, usize> = HashMap::new();
     let mut operations_timeline: Vec<Operation> = Vec::new();
-
     let mut total_lines = 0;
     let mut entity_operations = 0;
-    let mut bytes_read = 0;
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size));
-            } else {
-                progress.update(total_lines);
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size));
+                } else {
+                    progress.update(file_lines);
+                }
             }
-        }
 
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
 
-        // Check if this is our entity
-        let entry_entity_id = match &entry.auth {
-            Some(auth) => match &auth.entity_id {
-                Some(id) => id.as_str(),
+            // Check if this is our entity
+            let entry_entity_id = match &entry.auth {
+                Some(auth) => match &auth.entity_id {
+                    Some(id) => id.as_str(),
+                    None => continue,
+                },
                 None => continue,
-            },
-            None => continue,
-        };
+            };
 
-        if entry_entity_id != entity_id {
-            continue;
+            if entry_entity_id != entity_id {
+                continue;
+            }
+
+            entity_operations += 1;
+
+            let path = entry
+                .request
+                .as_ref()
+                .and_then(|r| r.path.as_deref())
+                .unwrap_or("")
+                .to_string();
+            let operation = entry
+                .request
+                .as_ref()
+                .and_then(|r| r.operation.as_deref())
+                .unwrap_or("")
+                .to_string();
+
+            if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&entry.time) {
+                let ts_utc = ts.with_timezone(&Utc);
+
+                // Track by hour
+                let hour_key = ts_utc.format("%Y-%m-%d %H:00").to_string();
+                let hour_ops = operations_by_hour.entry(hour_key).or_default();
+                *hour_ops.entry("total".to_string()).or_insert(0) += 1;
+                *hour_ops.entry(operation.clone()).or_insert(0) += 1;
+
+                // Store operation for timeline
+                operations_timeline.push(Operation {
+                    timestamp: ts_utc,
+                    path: path.clone(),
+                    operation: operation.clone(),
+                });
+            }
+
+            // Track operation types
+            *operations_by_type.entry(operation).or_insert(0) += 1;
+
+            // Track paths
+            *paths_accessed.entry(path).or_insert(0) += 1;
         }
 
-        entity_operations += 1;
-
-        let path = entry
-            .request
-            .as_ref()
-            .and_then(|r| r.path.as_deref())
-            .unwrap_or("")
-            .to_string();
-        let operation = entry
-            .request
-            .as_ref()
-            .and_then(|r| r.operation.as_deref())
-            .unwrap_or("")
-            .to_string();
-
-        if let Ok(ts) = chrono::DateTime::parse_from_rfc3339(&entry.time) {
-            let ts_utc = ts.with_timezone(&Utc);
-
-            // Track by hour
-            let hour_key = ts_utc.format("%Y-%m-%d %H:00").to_string();
-            let hour_ops = operations_by_hour.entry(hour_key).or_default();
-            *hour_ops.entry("total".to_string()).or_insert(0) += 1;
-            *hour_ops.entry(operation.clone()).or_insert(0) += 1;
-
-            // Store operation for timeline
-            operations_timeline.push(Operation {
-                timestamp: ts_utc,
-                path: path.clone(),
-                operation: operation.clone(),
-            });
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
         }
 
-        // Track operation types
-        *operations_by_type.entry(operation).or_insert(0) += 1;
-
-        // Track paths
-        *paths_accessed.entry(path).or_insert(0) += 1;
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!(
-        "Processed {} lines, found {} operations for entity: {}",
+    eprintln!(
+        "\nTotal: Processed {} lines, found {} operations for entity: {}",
         format_number(total_lines),
         format_number(entity_operations),
         entity_id
-    ));
+    );
 
     if entity_operations == 0 {
         println!("\nNo operations found for this entity!");

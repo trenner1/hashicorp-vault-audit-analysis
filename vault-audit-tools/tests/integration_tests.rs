@@ -64,7 +64,8 @@ fn test_system_overview_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::system_overview;
-    let result = system_overview::run(log_path.to_str().unwrap(), 10, 1);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = system_overview::run(&log_files, 10, 1);
 
     assert!(result.is_ok());
 }
@@ -74,7 +75,8 @@ fn test_token_lookup_abuse_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::token_lookup_abuse;
-    let result = token_lookup_abuse::run(log_path.to_str().unwrap(), 2);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = token_lookup_abuse::run(&log_files, 2);
 
     assert!(result.is_ok());
 }
@@ -105,7 +107,8 @@ fn test_token_operations_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::token_operations;
-    let result = token_operations::run(log_path.to_str().unwrap(), None);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = token_operations::run(&log_files, None);
 
     assert!(result.is_ok());
 }
@@ -115,7 +118,8 @@ fn test_path_hotspots_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::path_hotspots;
-    let result = path_hotspots::run(log_path.to_str().unwrap(), 10);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = path_hotspots::run(&log_files, 10);
 
     assert!(result.is_ok());
 }
@@ -125,7 +129,8 @@ fn test_entity_gaps_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::entity_gaps;
-    let result = entity_gaps::run(log_path.to_str().unwrap(), 300);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = entity_gaps::run(&log_files, 300);
 
     assert!(result.is_ok());
 }
@@ -135,7 +140,8 @@ fn test_entity_timeline_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::entity_timeline;
-    let result = entity_timeline::run(log_path.to_str().unwrap(), "entity-1", &None);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = entity_timeline::run(&log_files, "entity-1", &None);
 
     assert!(result.is_ok());
 }
@@ -145,7 +151,8 @@ fn test_k8s_auth_command() {
     let (_dir, log_path) = create_sample_audit_log();
 
     use vault_audit_tools::commands::k8s_auth;
-    let result = k8s_auth::run(log_path.to_str().unwrap(), None);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = k8s_auth::run(&log_files, None);
 
     assert!(result.is_ok());
 }
@@ -158,12 +165,7 @@ fn test_kv_analyzer_command() {
 
     use vault_audit_tools::commands::kv_analyzer;
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = kv_analyzer::run(
-        &log_files,
-        "kv/",
-        Some(output_path.to_str().unwrap()),
-        None,
-    );
+    let result = kv_analyzer::run(&log_files, "kv/", Some(output_path.to_str().unwrap()), None);
 
     assert!(result.is_ok());
     assert!(output_path.exists());
@@ -176,7 +178,8 @@ fn test_token_export_command() {
     let output_path = output.path().join("token_export.csv");
 
     use vault_audit_tools::commands::token_export;
-    let result = token_export::run(log_path.to_str().unwrap(), output_path.to_str().unwrap(), 1);
+    let log_files = vec![log_path.to_str().unwrap().to_string()];
+    let result = token_export::run(&log_files, output_path.to_str().unwrap(), 1);
 
     assert!(result.is_ok());
     assert!(output_path.exists());

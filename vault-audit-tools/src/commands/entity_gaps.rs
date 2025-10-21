@@ -22,9 +22,12 @@
 //! - Potential authentication issues
 //! - Unauthenticated access patterns
 
-use crate::audit::parser::AuditLogReader;
+use crate::audit::types::AuditEntry;
+use crate::utils::progress::ProgressBar;
 use anyhow::Result;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 fn format_number(n: usize) -> String {
     let s = n.to_string();
@@ -38,50 +41,79 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
-    println!("Analyzing no-entity operations in {}...", log_file);
-
-    let mut reader = AuditLogReader::new(log_file)?;
+pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
     let mut operations_by_type: HashMap<String, usize> = HashMap::new();
     let mut paths_accessed: HashMap<String, usize> = HashMap::new();
-    let mut display_names: HashMap<String, usize> = HashMap::new();
-
     let mut total_lines = 0;
     let mut no_entity_operations = 0;
 
-    while let Some(entry) = reader.next_entry()? {
-        total_lines += 1;
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-        if total_lines % 500_000 == 0 {
-            eprintln!(
-                "  Processed {} lines, found {} no-entity operations...",
-                format_number(total_lines),
-                format_number(no_entity_operations)
-            );
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            // Update progress every 10k lines for smooth animation
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size));
+                } else {
+                    progress.update(file_lines);
+                }
+            }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            // Check for no entity
+            if entry.entity_id().is_some() {
+                continue;
+            }
+
+            no_entity_operations += 1;
+
+            // Track data
+            if let Some(op) = entry.operation() {
+                *operations_by_type.entry(op.to_string()).or_insert(0) += 1;
+            }
+
+            if let Some(path) = entry.path() {
+                *paths_accessed.entry(path.to_string()).or_insert(0) += 1;
+            }
         }
 
-        // Check for no entity
-        if entry.entity_id().is_some() {
-            continue;
-        }
-
-        no_entity_operations += 1;
-
-        // Track data
-        if let Some(op) = entry.operation() {
-            *operations_by_type.entry(op.to_string()).or_insert(0) += 1;
-        }
-
-        if let Some(path) = entry.path() {
-            *paths_accessed.entry(path.to_string()).or_insert(0) += 1;
-        }
-
-        if let Some(name) = entry.display_name() {
-            *display_names.entry(name.to_string()).or_insert(0) += 1;
-        }
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    eprintln!("\nProcessed {} total lines", format_number(total_lines));
+    eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
     eprintln!(
         "Found {} operations with no entity ID",
         format_number(no_entity_operations)
@@ -143,32 +175,6 @@ pub fn run(log_file: &str, _window_seconds: u64) -> Result<()> {
         println!(
             "{:<70} {:<15} {:<15.2}%",
             display_path,
-            format_number(**count),
-            percentage
-        );
-    }
-
-    println!("\n4. TOP 30 DISPLAY NAMES");
-    println!("{}", "-".repeat(100));
-    println!(
-        "{:<60} {:<20} {:<15}",
-        "Display Name", "Count", "Percentage"
-    );
-    println!("{}", "-".repeat(100));
-
-    let mut sorted_names: Vec<_> = display_names.iter().collect();
-    sorted_names.sort_by(|a, b| b.1.cmp(a.1));
-
-    for (name, count) in sorted_names.iter().take(30) {
-        let percentage = (**count as f64 / no_entity_operations as f64) * 100.0;
-        let display_name = if name.len() > 58 {
-            format!("{}...", &name[..55])
-        } else {
-            name.to_string()
-        };
-        println!(
-            "{:<60} {:<20} {:<15.2}%",
-            display_name,
             format_number(**count),
             percentage
         );

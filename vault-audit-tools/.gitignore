@@ -16,6 +16,7 @@
 
 # Test outputs
 *.test
+*_test.json
 
 # Generated shell completion files
 *.bash

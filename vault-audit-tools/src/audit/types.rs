@@ -110,6 +110,7 @@ impl AuditEntry {
     }
 
     /// Get the display name from this entry
+    #[allow(dead_code)]
     pub fn display_name(&self) -> Option<&str> {
         self.auth.as_ref()?.display_name.as_deref()
     }
