@@ -27,7 +27,6 @@ docs/
 
 # Rust build artifacts
 vault-audit-tools/target/
-*.lock
 
 # Release binaries and tarballs
 *.tar.gz
