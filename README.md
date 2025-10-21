@@ -78,6 +78,39 @@ vault-audit generate-completion fish > ~/.config/fish/completions/vault-audit.fi
 - **`kv-analyzer`** - Analyze KV usage by path and entity (generates CSV)
 - **`kv-compare`** - Compare KV usage between two time periods
 
+## Documentation
+
+### API Documentation
+
+View the full API documentation with detailed module and function descriptions:
+
+```bash
+# Generate and open documentation in your browser
+cd vault-audit-tools
+cargo doc --no-deps --open
+```
+
+The documentation includes:
+- Comprehensive crate overview and architecture
+- Module-level documentation for all components
+- Function-level documentation with examples
+- Type definitions and their usage
+
+Once published to crates.io, the documentation will be automatically available at [docs.rs/vault-audit-tools](https://docs.rs/vault-audit-tools).
+
+### Command Help
+
+Get detailed help for any command:
+
+```bash
+# General help
+vault-audit --help
+
+# Command-specific help
+vault-audit entity-churn --help
+vault-audit kv-analyzer --help
+```
+
 ### Application-Specific
 
 - **`airflow-polling`** - Analyze Airflow secret polling patterns with burst rate detection

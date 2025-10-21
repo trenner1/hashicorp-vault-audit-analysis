@@ -1,7 +1,24 @@
+//! Data structures representing HashiCorp Vault audit log entries.
+//!
+//! These types closely mirror the JSON structure of Vault audit logs,
+//! enabling efficient deserialization with serde.
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Top-level audit log entry
+/// Top-level audit log entry.
+///
+/// Each line in a Vault audit log is a JSON object that deserializes
+/// into this structure. Entries can be either requests or responses.
+///
+/// # Fields
+///
+/// - `entry_type`: Either "request" or "response"
+/// - `time`: ISO 8601 timestamp of when the operation occurred
+/// - `auth`: Authentication context (may be None for unauthenticated requests)
+/// - `request`: Request details (present for request entries)
+/// - `response`: Response details (present for response entries)
+/// - `error`: Error message if the operation failed
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuditEntry {
     #[serde(rename = "type")]
@@ -13,12 +30,16 @@ pub struct AuditEntry {
     pub error: Option<String>,
 }
 
-/// Authentication information
+/// Authentication information from the audit log.
+///
+/// Contains details about the token used to make the request,
+/// including the associated entity, policies, and metadata.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthInfo {
     pub accessor: Option<String>,
     pub client_token: Option<String>,
     pub display_name: Option<String>,
+    /// Vault identity entity ID that made this request
     pub entity_id: Option<String>,
     pub metadata: Option<HashMap<String, serde_json::Value>>,
     pub policies: Option<Vec<String>>,
@@ -28,14 +49,21 @@ pub struct AuthInfo {
     pub token_issue_time: Option<String>,
 }
 
-/// Request information
+/// Request information from the audit log.
+///
+/// Describes the operation being performed, including the path,
+/// operation type, and mount point details.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RequestInfo {
     pub id: Option<String>,
     pub client_id: Option<String>,
+    /// Operation type (e.g., "read", "write", "delete", "list")
     pub operation: Option<String>,
+    /// Path being accessed (e.g., "secret/data/myapp/config")
     pub path: Option<String>,
+    /// Type of secrets engine (e.g., "kv", "database", "pki")
     pub mount_type: Option<String>,
+    /// Mount point where the secrets engine is mounted
     pub mount_point: Option<String>,
     pub mount_class: Option<String>,
     pub mount_running_version: Option<String>,
@@ -46,7 +74,10 @@ pub struct RequestInfo {
     pub client_token_accessor: Option<String>,
 }
 
-/// Response information
+/// Response information from the audit log.
+///
+/// Contains the result of the operation, including any data returned
+/// and metadata about the secrets engine that handled the request.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ResponseInfo {
     pub auth: Option<AuthInfo>,
