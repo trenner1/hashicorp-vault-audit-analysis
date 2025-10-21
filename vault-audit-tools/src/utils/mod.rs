@@ -15,14 +15,6 @@
 //! let timestamp = parse_timestamp("2025-10-20T10:30:00.000Z").unwrap();
 //! println!("Parsed: {}", timestamp);
 //! ```
-//!
-//! ## Formatting numbers with commas
-//!
-//! ```
-//! use vault_audit_tools::utils::progress::format_number;
-//!
-//! assert_eq!(format_number(1000000), "1,000,000");
-//! ```
 
 pub mod progress;
 pub mod time;

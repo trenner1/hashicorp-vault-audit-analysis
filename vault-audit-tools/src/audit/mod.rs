@@ -11,11 +11,15 @@
 //! ## Example
 //!
 //! ```no_run
-//! use vault_audit_tools::audit::parser::parse_audit_file;
+//! use vault_audit_tools::audit::parser::AuditLogReader;
 //!
-//! let entries = parse_audit_file("audit.log").unwrap();
-//! for entry in entries {
-//!     println!("Operation: {}", entry.request.operation);
+//! let mut reader = AuditLogReader::new("audit.log").unwrap();
+//! while let Some(entry) = reader.next_entry().unwrap() {
+//!     if let Some(request) = &entry.request {
+//!         if let Some(operation) = &request.operation {
+//!             println!("Operation: {}", operation);
+//!         }
+//!     }
 //! }
 //! ```
 
