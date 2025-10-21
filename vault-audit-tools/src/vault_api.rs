@@ -1,3 +1,30 @@
+//! Vault API client for entity enrichment.
+//!
+//! This module provides a client for interacting with the HashiCorp Vault API
+//! to enrich audit log data with additional entity information.
+//!
+//! # Environment Variables
+//!
+//! The client respects standard Vault environment variables:
+//!
+//! - `VAULT_ADDR` - Vault server address (e.g., `https://vault.example.com:8200`)
+//! - `VAULT_TOKEN` - Authentication token for API access
+//! - `VAULT_SKIP_VERIFY` - Skip TLS certificate verification (set to `1`, `true`, or `yes`)
+//! - `VAULT_CACERT` - Path to CA certificate for TLS verification
+//!
+//! # Examples
+//!
+//! ```no_run
+//! use vault_audit_tools::vault_api::VaultClient;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let client = VaultClient::new()?;
+//! let alias = client.get_entity_alias("entity-123", "alias-456").await?;
+//! println!("Alias name: {}", alias.name);
+//! # Ok(())
+//! # }
+//! ```
+
 use anyhow::{anyhow, Context, Result};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
@@ -5,7 +32,11 @@ use serde_json::Value;
 use std::env;
 use std::fs;
 
-/// Check if TLS verification should be skipped based on environment or flag
+/// Check if TLS verification should be skipped based on environment or flag.
+///
+/// Returns `true` if either the `insecure_flag` parameter is true, or if
+/// the `VAULT_SKIP_VERIFY` environment variable is set to a truthy value
+/// (`1`, `true`, `yes`, case-insensitive).
 pub fn should_skip_verify(insecure_flag: bool) -> bool {
     if insecure_flag {
         return true;
@@ -26,7 +57,9 @@ pub fn should_skip_verify(insecure_flag: bool) -> bool {
         .unwrap_or(false)
 }
 
-/// Vault API client configuration
+/// Vault API client configuration.
+///
+/// Provides methods to interact with Vault's identity and secrets engines.
 #[derive(Debug, Clone)]
 pub struct VaultClient {
     addr: String,
