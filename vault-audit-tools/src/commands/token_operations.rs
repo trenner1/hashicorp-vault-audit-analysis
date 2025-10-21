@@ -54,114 +54,130 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
-    eprintln!("Processing: {}", log_file);
-
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
+pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
     let mut token_ops: HashMap<String, TokenOps> = HashMap::new();
     let mut total_lines = 0;
-    let mut bytes_read = 0;
 
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
-
-        // Update progress every 10k lines for smooth animation
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size));
-            } else {
-                progress.update(total_lines);
-            }
-        }
-
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        // Get entity_id first
-        let entity_id = match &entry.auth {
-            Some(auth) => match &auth.entity_id {
-                Some(id) => id.as_str(),
-                None => continue,
-            },
-            None => continue,
-        };
-
-        // Filter for token operations OR login operations
-        let path = match &entry.request {
-            Some(r) => match &r.path {
-                Some(p) => p.as_str(),
-                None => continue,
-            },
-            None => continue,
-        };
-
-        let is_token_op = path.starts_with("auth/token/");
-        let is_login = path.starts_with("auth/") && path.contains("/login");
-
-        if !is_token_op && !is_login {
-            continue;
-        }
-
-        let operation = entry
-            .request
-            .as_ref()
-            .and_then(|r| r.operation.as_deref())
-            .unwrap_or("");
-
-        let ops = token_ops.entry(entity_id.to_string()).or_default();
-
-        // Categorize operation
-        if is_login {
-            ops.login += 1;
-        } else if path.contains("lookup-self") {
-            ops.lookup_self += 1;
-        } else if path.contains("renew-self") {
-            ops.renew_self += 1;
-        } else if path.contains("revoke-self") {
-            ops.revoke_self += 1;
-        } else if path.contains("create") || operation == "create" {
-            ops.create += 1;
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
         } else {
-            ops.other += 1;
-        }
+            ProgressBar::new_spinner("Processing")
+        };
 
-        // Capture display name and metadata (first occurrence)
-        if ops.display_name.is_none() {
-            ops.display_name = entry
-                .auth
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            // Update progress every 10k lines for smooth animation
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size));
+                } else {
+                    progress.update(file_lines);
+                }
+            }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            // Get entity_id first
+            let entity_id = match &entry.auth {
+                Some(auth) => match &auth.entity_id {
+                    Some(id) => id.as_str(),
+                    None => continue,
+                },
+                None => continue,
+            };
+
+            // Filter for token operations OR login operations
+            let path = match &entry.request {
+                Some(r) => match &r.path {
+                    Some(p) => p.as_str(),
+                    None => continue,
+                },
+                None => continue,
+            };
+
+            let is_token_op = path.starts_with("auth/token/");
+            let is_login = path.starts_with("auth/") && path.contains("/login");
+
+            if !is_token_op && !is_login {
+                continue;
+            }
+
+            let operation = entry
+                .request
                 .as_ref()
-                .and_then(|a| a.display_name.as_deref())
-                .map(|s| s.to_string());
-            if let Some(auth) = &entry.auth {
-                if let Some(metadata) = &auth.metadata {
-                    if let Some(username) = metadata.get("username") {
-                        ops.username = username.as_str().map(|s| s.to_string());
+                .and_then(|r| r.operation.as_deref())
+                .unwrap_or("");
+
+            let ops = token_ops.entry(entity_id.to_string()).or_default();
+
+            // Categorize operation
+            if is_login {
+                ops.login += 1;
+            } else if path.contains("lookup-self") {
+                ops.lookup_self += 1;
+            } else if path.contains("renew-self") {
+                ops.renew_self += 1;
+            } else if path.contains("revoke-self") {
+                ops.revoke_self += 1;
+            } else if path.contains("create") || operation == "create" {
+                ops.create += 1;
+            } else {
+                ops.other += 1;
+            }
+
+            // Capture display name and metadata (first occurrence)
+            if ops.display_name.is_none() {
+                ops.display_name = entry
+                    .auth
+                    .as_ref()
+                    .and_then(|a| a.display_name.as_deref())
+                    .map(|s| s.to_string());
+                if let Some(auth) = &entry.auth {
+                    if let Some(metadata) = &auth.metadata {
+                        if let Some(username) = metadata.get("username") {
+                            ops.username = username.as_str().map(|s| s.to_string());
+                        }
                     }
                 }
             }
         }
+
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
+        }
+
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!("Processed {} lines", format_number(total_lines)));
+    eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
 
     // Calculate totals per entity
     let mut entity_totals: Vec<_> = token_ops

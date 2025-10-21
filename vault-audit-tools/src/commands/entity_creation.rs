@@ -79,7 +79,11 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, entity_map_file: Option<&str>, output: Option<&str>) -> Result<()> {
+pub fn run(
+    log_files: &[String],
+    entity_map_file: Option<&str>,
+    output: Option<&str>,
+) -> Result<()> {
     eprintln!("Analyzing entity creation by authentication path...\n");
 
     // Load entity mappings if provided
@@ -100,133 +104,147 @@ pub fn run(log_file: &str, entity_map_file: Option<&str>, output: Option<&str>) 
         );
     }
 
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-
-    let file = File::open(log_file)
-        .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
-    let reader = BufReader::new(file);
-
     let mut entity_creations: HashMap<String, EntityCreation> = HashMap::new();
     let mut seen_entities: HashSet<String> = HashSet::new();
     let mut lines_processed = 0;
     let mut login_events = 0;
     let mut new_entities_found = 0;
 
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-    let mut bytes_read = 0;
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-    for line in reader.lines() {
-        lines_processed += 1;
-        let line = line?;
-        bytes_read += line.len() + 1;
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
 
-        if lines_processed % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size));
-            } else {
-                progress.update(lines_processed);
+        let file = File::open(log_file)
+            .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
+        let reader = BufReader::new(file);
+
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
+        let mut bytes_read = 0;
+        let mut file_lines = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            lines_processed += 1;
+            let line = line?;
+            bytes_read += line.len() + 1;
+
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size));
+                } else {
+                    progress.update(file_lines);
+                }
             }
-        }
 
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        // Look for login events in auth paths
-        let request = match &entry.request {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let path = match &request.path {
-            Some(p) => p.as_str(),
-            None => continue,
-        };
-
-        if !path.starts_with("auth/") || !path.contains("/login") {
-            continue;
-        }
-
-        let auth = match &entry.auth {
-            Some(a) => a,
-            None => continue,
-        };
-
-        let entity_id = match &auth.entity_id {
-            Some(id) if !id.is_empty() => id.clone(),
-            _ => continue,
-        };
-
-        login_events += 1;
-
-        // Check if this is the first time we've seen this entity
-        let is_new_entity = seen_entities.insert(entity_id.clone());
-
-        if is_new_entity {
-            new_entities_found += 1;
-
-            let display_name = auth
-                .display_name
-                .clone()
-                .or_else(|| {
-                    entity_mappings
-                        .get(&entity_id)
-                        .map(|m| m.display_name.clone())
-                })
-                .unwrap_or_else(|| "unknown".to_string());
-
-            let mount_path = path
-                .trim_end_matches("/login")
-                .trim_end_matches(&format!("/{}", display_name))
-                .to_string();
-
-            let mount_type = request
-                .mount_type
-                .clone()
-                .unwrap_or_else(|| "unknown".to_string());
-
-            let first_seen = match chrono::DateTime::parse_from_rfc3339(&entry.time) {
-                Ok(dt) => dt.with_timezone(&Utc),
-                Err(_) => Utc::now(),
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
             };
 
-            entity_creations.insert(
-                entity_id.clone(),
-                EntityCreation {
-                    entity_id,
-                    display_name,
-                    mount_path,
-                    mount_type,
-                    first_seen,
-                    login_count: 1,
-                },
-            );
-        } else {
-            // Increment login count for existing entity
-            if let Some(creation) = entity_creations.get_mut(&entity_id) {
-                creation.login_count += 1;
+            // Look for login events in auth paths
+            let request = match &entry.request {
+                Some(r) => r,
+                None => continue,
+            };
+
+            let path = match &request.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            };
+
+            if !path.starts_with("auth/") || !path.contains("/login") {
+                continue;
+            }
+
+            let auth = match &entry.auth {
+                Some(a) => a,
+                None => continue,
+            };
+
+            let entity_id = match &auth.entity_id {
+                Some(id) if !id.is_empty() => id.clone(),
+                _ => continue,
+            };
+
+            login_events += 1;
+
+            // Check if this is the first time we've seen this entity
+            let is_new_entity = seen_entities.insert(entity_id.clone());
+
+            if is_new_entity {
+                new_entities_found += 1;
+
+                let display_name = auth
+                    .display_name
+                    .clone()
+                    .or_else(|| {
+                        entity_mappings
+                            .get(&entity_id)
+                            .map(|m| m.display_name.clone())
+                    })
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                let mount_path = path
+                    .trim_end_matches("/login")
+                    .trim_end_matches(&format!("/{}", display_name))
+                    .to_string();
+
+                let mount_type = request
+                    .mount_type
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                let first_seen = match chrono::DateTime::parse_from_rfc3339(&entry.time) {
+                    Ok(dt) => dt.with_timezone(&Utc),
+                    Err(_) => Utc::now(),
+                };
+
+                entity_creations.insert(
+                    entity_id.clone(),
+                    EntityCreation {
+                        entity_id,
+                        display_name,
+                        mount_path,
+                        mount_type,
+                        first_seen,
+                        login_count: 1,
+                    },
+                );
+            } else {
+                // Increment login count for existing entity
+                if let Some(creation) = entity_creations.get_mut(&entity_id) {
+                    creation.login_count += 1;
+                }
             }
         }
+
+        if let Some(size) = file_size {
+            progress.update(size);
+        } else {
+            progress.update(file_lines);
+        }
+
+        progress.finish_with_message(&format!("Processed {} lines from this file", file_lines));
     }
 
-    if let Some(size) = file_size {
-        progress.update(size);
-    } else {
-        progress.update(lines_processed);
-    }
-
-    progress.finish_with_message(&format!(
-        "Processed {} lines, found {} login events, discovered {} new entities",
+    eprintln!(
+        "\nTotal: Processed {} lines, {} login events, {} new entities created",
         format_number(lines_processed),
         format_number(login_events),
         format_number(new_entities_found)
-    ));
+    );
 
     // Aggregate by mount path
     let mut mount_stats: HashMap<String, MountStats> = HashMap::new();

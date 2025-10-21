@@ -78,90 +78,108 @@ impl PathData {
     }
 }
 
-pub fn run(log_file: &str, output: Option<&str>) -> Result<()> {
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
-
+pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
     let mut airflow_operations = 0;
     let mut airflow_paths: HashMap<String, PathData> = HashMap::new();
     let mut total_lines = 0;
-    let mut bytes_read = 0;
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-        // Update progress every 10k lines for smooth animation
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size)); // Cap at file size
-            } else {
-                progress.update(total_lines);
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            // Update progress every 10k lines for smooth animation
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size)); // Cap at file size
+                } else {
+                    progress.update(file_lines);
+                }
+            }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            // Filter for Airflow-related paths (case-insensitive)
+            let request = match &entry.request {
+                Some(r) => r,
+                None => continue,
+            };
+
+            let path = match &request.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            };
+
+            if path.to_lowercase().contains("airflow") {
+                airflow_operations += 1;
+
+                let entity_id = entry
+                    .auth
+                    .as_ref()
+                    .and_then(|a| a.entity_id.as_deref())
+                    .unwrap_or("no-entity");
+
+                // Track path statistics
+                let path_data = airflow_paths
+                    .entry(path.to_string())
+                    .or_insert_with(PathData::new);
+                path_data.operations += 1;
+                path_data.entities.insert(entity_id.to_string());
+                *path_data
+                    .operations_by_entity
+                    .entry(entity_id.to_string())
+                    .or_insert(0) += 1;
+
+                // Track timestamp if available
+                if let Ok(ts) = parse_timestamp(&entry.time) {
+                    path_data.timestamps.push(ts);
+                }
             }
         }
 
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        // Filter for Airflow-related paths (case-insensitive)
-        let request = match &entry.request {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let path = match &request.path {
-            Some(p) => p.as_str(),
-            None => continue,
-        };
-
-        if path.to_lowercase().contains("airflow") {
-            airflow_operations += 1;
-
-            let entity_id = entry
-                .auth
-                .as_ref()
-                .and_then(|a| a.entity_id.as_deref())
-                .unwrap_or("no-entity");
-
-            // Track path statistics
-            let path_data = airflow_paths
-                .entry(path.to_string())
-                .or_insert_with(PathData::new);
-            path_data.operations += 1;
-            path_data.entities.insert(entity_id.to_string());
-            *path_data
-                .operations_by_entity
-                .entry(entity_id.to_string())
-                .or_insert(0) += 1;
-
-            // Track timestamp if available
-            if let Ok(ts) = parse_timestamp(&entry.time) {
-                path_data.timestamps.push(ts);
-            }
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
         }
+
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!(
-        "Processed {} lines, found {} Airflow operations",
+    eprintln!(
+        "\nTotal: Processed {} lines, found {} Airflow operations",
         format_number(total_lines),
         format_number(airflow_operations)
-    ));
+    );
 
     println!("\nSummary:");
     println!("  Total lines processed: {}", format_number(total_lines));

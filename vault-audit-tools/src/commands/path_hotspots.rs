@@ -76,98 +76,115 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, top: usize) -> Result<()> {
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
+pub fn run(log_files: &[String], top: usize) -> Result<()> {
     let mut path_stats: HashMap<String, PathStats> = HashMap::new();
     let mut total_lines = 0;
     let mut total_operations = 0;
-    let mut bytes_read = 0;
 
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
+        } else {
+            ProgressBar::new_spinner("Processing")
+        };
 
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size));
-            } else {
-                progress.update(total_lines);
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size));
+                } else {
+                    progress.update(file_lines);
+                }
+            }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            let path = match &entry.request {
+                Some(r) => match &r.path {
+                    Some(p) => p.as_str(),
+                    None => continue,
+                },
+                None => continue,
+            };
+
+            let operation = match &entry.request {
+                Some(r) => match &r.operation {
+                    Some(o) => o.as_str(),
+                    None => continue,
+                },
+                None => continue,
+            };
+
+            total_operations += 1;
+
+            let entity_id = entry
+                .auth
+                .as_ref()
+                .and_then(|a| a.entity_id.as_deref())
+                .unwrap_or("no-entity");
+
+            // Parse timestamp
+            let ts = parse_timestamp(&entry.time).ok();
+
+            // Track path statistics
+            let stats = path_stats
+                .entry(path.to_string())
+                .or_insert_with(PathStats::new);
+            stats.operations += 1;
+            stats.entities.insert(entity_id.to_string());
+            *stats
+                .operations_by_type
+                .entry(operation.to_string())
+                .or_insert(0) += 1;
+            *stats
+                .entity_operations
+                .entry(entity_id.to_string())
+                .or_insert(0) += 1;
+            if let Some(t) = ts {
+                stats.timestamps.push(t);
             }
         }
 
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        let path = match &entry.request {
-            Some(r) => match &r.path {
-                Some(p) => p.as_str(),
-                None => continue,
-            },
-            None => continue,
-        };
-
-        let operation = match &entry.request {
-            Some(r) => match &r.operation {
-                Some(o) => o.as_str(),
-                None => continue,
-            },
-            None => continue,
-        };
-
-        total_operations += 1;
-
-        let entity_id = entry
-            .auth
-            .as_ref()
-            .and_then(|a| a.entity_id.as_deref())
-            .unwrap_or("no-entity");
-
-        // Parse timestamp
-        let ts = parse_timestamp(&entry.time).ok();
-
-        // Track path statistics
-        let stats = path_stats
-            .entry(path.to_string())
-            .or_insert_with(PathStats::new);
-        stats.operations += 1;
-        stats.entities.insert(entity_id.to_string());
-        *stats
-            .operations_by_type
-            .entry(operation.to_string())
-            .or_insert(0) += 1;
-        *stats
-            .entity_operations
-            .entry(entity_id.to_string())
-            .or_insert(0) += 1;
-        if let Some(t) = ts {
-            stats.timestamps.push(t);
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
         }
+
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!(
-        "Processed {} lines, found {} operations across {} paths",
+    eprintln!(
+        "\nTotal: Processed {} lines, {} operations",
         format_number(total_lines),
-        format_number(total_operations),
-        format_number(path_stats.len())
-    ));
+        format_number(total_operations)
+    );
 
     // Sort paths by operation count
     let mut sorted_paths: Vec<_> = path_stats.iter().collect();

@@ -1,27 +1,32 @@
 //! Core audit log parsing and data structures.
 //!
-//! This module provides the fundamental types and parsing logic for
-//! working with HashiCorp Vault audit logs.
+//! This module provides the fundamental types for working with
+//! HashiCorp Vault audit logs.
 //!
 //! ## Key Components
 //!
 //! - [`types`] - Data structures representing audit log entries
-//! - [`parser`] - Streaming JSON parser for audit logs
 //!
 //! ## Example
 //!
 //! ```no_run
-//! use vault_audit_tools::audit::parser::AuditLogReader;
+//! use vault_audit_tools::audit::types::AuditEntry;
+//! use std::fs::File;
+//! use std::io::{BufRead, BufReader};
 //!
-//! let mut reader = AuditLogReader::new("audit.log").unwrap();
-//! while let Some(entry) = reader.next_entry().unwrap() {
-//!     if let Some(request) = &entry.request {
-//!         if let Some(operation) = &request.operation {
-//!             println!("Operation: {}", operation);
+//! let file = File::open("audit.log").unwrap();
+//! let reader = BufReader::new(file);
+//!
+//! for line in reader.lines() {
+//!     let line = line.unwrap();
+//!     if let Ok(entry) = serde_json::from_str::<AuditEntry>(&line) {
+//!         if let Some(request) = &entry.request {
+//!             if let Some(operation) = &request.operation {
+//!                 println!("Operation: {}", operation);
+//!             }
 //!         }
 //!     }
 //! }
 //! ```
 
-pub mod parser;
 pub mod types;

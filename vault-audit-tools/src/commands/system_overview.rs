@@ -65,116 +65,134 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
-pub fn run(log_file: &str, top: usize, min_operations: usize) -> Result<()> {
-    // Get file size for progress tracking
-    let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-    let mut progress = if let Some(size) = file_size {
-        ProgressBar::new(size, "Processing")
-    } else {
-        ProgressBar::new_spinner("Processing")
-    };
-
-    let file = File::open(log_file)?;
-    let reader = BufReader::new(file);
-
+pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()> {
     let mut path_operations: HashMap<String, PathData> = HashMap::new();
     let mut operation_types: HashMap<String, usize> = HashMap::new();
     let mut path_prefixes: HashMap<String, usize> = HashMap::new();
     let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::new();
     let mut entity_names: HashMap<String, String> = HashMap::new();
     let mut total_lines = 0;
-    let mut bytes_read = 0;
 
-    for line in reader.lines() {
-        total_lines += 1;
-        let line = line?;
-        bytes_read += line.len() + 1; // +1 for newline
+    // Process each log file sequentially
+    for (file_idx, log_file) in log_files.iter().enumerate() {
+        eprintln!(
+            "[{}/{}] Processing: {}",
+            file_idx + 1,
+            log_files.len(),
+            log_file
+        );
 
-        // Update progress every 10k lines for smooth animation
-        if total_lines % 10_000 == 0 {
-            if let Some(size) = file_size {
-                progress.update(bytes_read.min(size)); // Cap at file size
-            } else {
-                progress.update(total_lines);
-            }
-        }
-
-        let entry: AuditEntry = match serde_json::from_str(&line) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        let request = match &entry.request {
-            Some(r) => r,
-            None => continue,
-        };
-
-        let path = match &request.path {
-            Some(p) => p.as_str(),
-            None => continue,
-        };
-
-        let operation = match &request.operation {
-            Some(o) => o.as_str(),
-            None => continue,
-        };
-
-        let entity_id = entry
-            .auth
-            .as_ref()
-            .and_then(|a| a.entity_id.as_deref())
-            .unwrap_or("no-entity");
-
-        let display_name = entry
-            .auth
-            .as_ref()
-            .and_then(|a| a.display_name.as_deref())
-            .unwrap_or("N/A");
-
-        if path.is_empty() || operation.is_empty() {
-            continue;
-        }
-
-        // Track by full path
-        let path_data = path_operations
-            .entry(path.to_string())
-            .or_insert_with(PathData::new);
-        path_data.count += 1;
-        *path_data
-            .operations
-            .entry(operation.to_string())
-            .or_insert(0) += 1;
-        // Track all entities including "no-entity" to match Python behavior
-        path_data.entities.insert(entity_id.to_string());
-
-        // Track by operation type
-        *operation_types.entry(operation.to_string()).or_insert(0) += 1;
-
-        // Track by path prefix
-        let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
-        let prefix = if parts.len() >= 2 {
-            format!("{}/{}", parts[0], parts[1])
-        } else if !parts.is_empty() {
-            parts[0].to_string()
+        // Get file size for progress tracking
+        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        let mut progress = if let Some(size) = file_size {
+            ProgressBar::new(size, "Processing")
         } else {
-            "root".to_string()
+            ProgressBar::new_spinner("Processing")
         };
-        *path_prefixes.entry(prefix).or_insert(0) += 1;
 
-        // Track entity usage for all entities (including "no-entity")
-        let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
-        *entity_map.entry(path.to_string()).or_insert(0) += 1;
-        entity_names
-            .entry(entity_id.to_string())
-            .or_insert_with(|| display_name.to_string());
+        let file = File::open(log_file)?;
+        let reader = BufReader::new(file);
+
+        let mut file_lines = 0;
+        let mut bytes_read = 0;
+
+        for line in reader.lines() {
+            file_lines += 1;
+            total_lines += 1;
+            let line = line?;
+            bytes_read += line.len() + 1; // +1 for newline
+
+            // Update progress every 10k lines for smooth animation
+            if file_lines % 10_000 == 0 {
+                if let Some(size) = file_size {
+                    progress.update(bytes_read.min(size)); // Cap at file size
+                } else {
+                    progress.update(file_lines);
+                }
+            }
+
+            let entry: AuditEntry = match serde_json::from_str(&line) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            let request = match &entry.request {
+                Some(r) => r,
+                None => continue,
+            };
+
+            let path = match &request.path {
+                Some(p) => p.as_str(),
+                None => continue,
+            };
+
+            let operation = match &request.operation {
+                Some(o) => o.as_str(),
+                None => continue,
+            };
+
+            let entity_id = entry
+                .auth
+                .as_ref()
+                .and_then(|a| a.entity_id.as_deref())
+                .unwrap_or("no-entity");
+
+            let display_name = entry
+                .auth
+                .as_ref()
+                .and_then(|a| a.display_name.as_deref())
+                .unwrap_or("N/A");
+
+            if path.is_empty() || operation.is_empty() {
+                continue;
+            }
+
+            // Track by full path
+            let path_data = path_operations
+                .entry(path.to_string())
+                .or_insert_with(PathData::new);
+            path_data.count += 1;
+            *path_data
+                .operations
+                .entry(operation.to_string())
+                .or_insert(0) += 1;
+            // Track all entities including "no-entity" to match Python behavior
+            path_data.entities.insert(entity_id.to_string());
+
+            // Track by operation type
+            *operation_types.entry(operation.to_string()).or_insert(0) += 1;
+
+            // Track by path prefix
+            let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+            let prefix = if parts.len() >= 2 {
+                format!("{}/{}", parts[0], parts[1])
+            } else if !parts.is_empty() {
+                parts[0].to_string()
+            } else {
+                "root".to_string()
+            };
+            *path_prefixes.entry(prefix).or_insert(0) += 1;
+
+            // Track entity usage for all entities (including "no-entity")
+            let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
+            *entity_map.entry(path.to_string()).or_insert(0) += 1;
+            entity_names
+                .entry(entity_id.to_string())
+                .or_insert_with(|| display_name.to_string());
+        }
+
+        // Ensure 100% progress for this file
+        if let Some(size) = file_size {
+            progress.update(size);
+        }
+
+        progress.finish_with_message(&format!(
+            "Processed {} lines from this file",
+            format_number(file_lines)
+        ));
     }
 
-    // Ensure 100% progress
-    if let Some(size) = file_size {
-        progress.update(size);
-    }
-
-    progress.finish_with_message(&format!("Processed {} lines", format_number(total_lines)));
+    eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
 
     let total_operations: usize = operation_types.values().sum();
 
