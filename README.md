@@ -34,18 +34,58 @@ Download from the [Releases](https://github.com/trenner1/hashicorp-vault-audit-a
 
 After installation, enable tab completion for your shell:
 
+#### Linux/macOS
+
 ```bash
-# Bash
-vault-audit generate-completion bash > /usr/local/etc/bash_completion.d/vault-audit
+# Bash (Linux) - single command
+sudo mkdir -p /usr/local/etc/bash_completion.d && \
+vault-audit generate-completion bash | sudo tee /usr/local/etc/bash_completion.d/vault-audit > /dev/null && \
+echo "Completion installed. Restart your shell or run: source /usr/local/etc/bash_completion.d/vault-audit"
 
-# Zsh
-mkdir -p ~/.zsh/completions
-vault-audit generate-completion zsh > ~/.zsh/completions/_vault-audit
-# Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)
+# Bash (macOS with Homebrew) - single command
+mkdir -p $(brew --prefix)/etc/bash_completion.d && \
+vault-audit generate-completion bash > $(brew --prefix)/etc/bash_completion.d/vault-audit && \
+echo "Completion installed. Restart your shell or run: source $(brew --prefix)/etc/bash_completion.d/vault-audit"
 
-# Fish
-vault-audit generate-completion fish > ~/.config/fish/completions/vault-audit.fish
+# Zsh - single command
+mkdir -p ~/.zsh/completions && \
+vault-audit generate-completion zsh > ~/.zsh/completions/_vault-audit && \
+grep -q 'fpath=(~/.zsh/completions $fpath)' ~/.zshrc || echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc && \
+grep -q 'autoload -Uz compinit && compinit' ~/.zshrc || echo 'autoload -Uz compinit && compinit' >> ~/.zshrc && \
+echo "Completion installed. Restart your shell or run: source ~/.zshrc"
+
+# Fish - single command
+mkdir -p ~/.config/fish/completions && \
+vault-audit generate-completion fish > ~/.config/fish/completions/vault-audit.fish && \
+echo "Completion installed. Restart your shell."
+
+# PowerShell (Windows/Cross-platform) - single command
+$profileDir = Split-Path $PROFILE; New-Item -ItemType Directory -Force -Path $profileDir | Out-Null; vault-audit generate-completion powershell | Out-File -Append -FilePath $PROFILE -Encoding utf8; Write-Host "Completion installed. Restart PowerShell or run: . `$PROFILE"
+
+# Elvish - single command
+mkdir -p ~/.config/elvish/lib && \
+vault-audit generate-completion elvish > ~/.config/elvish/lib/vault-audit.elv && \
+grep -q 'use vault-audit' ~/.config/elvish/rc.elv || echo 'use vault-audit' >> ~/.config/elvish/rc.elv && \
+echo "Completion installed. Restart your shell."
 ```
+
+#### Windows (Git Bash)
+
+Git Bash users need special handling since `~` doesn't expand in output redirection:
+
+```bash
+# Single command installation for Git Bash
+mkdir -p "$HOME/.bash_completions" && \
+vault-audit generate-completion bash > "$HOME/.bash_completions/vault-audit" && \
+grep -q 'source "$HOME/.bash_completions/vault-audit"' ~/.bashrc || echo 'source "$HOME/.bash_completions/vault-audit"' >> ~/.bashrc && \
+echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
+```
+
+**Troubleshooting**:
+- Use `$HOME` variable instead of `~` for paths in Git Bash
+- If completions don't work immediately, open a new terminal window
+- Verify the completion file exists: `ls -la "$HOME/.bash_completions/vault-audit"`
+- Check your shell rc file sources it: `grep vault-audit ~/.bashrc`
 
 ## Commands
 

@@ -168,9 +168,13 @@ enum Commands {
         #[arg(required = true)]
         log_files: Vec<String>,
 
-        /// Output JSON file path
+        /// Output file path
         #[arg(short, long, default_value = "entity_mappings.json")]
         output: String,
+
+        /// Output format: csv or json
+        #[arg(long, default_value = "json")]
+        format: String,
     },
 
     /// Analyze entity creation by authentication path
@@ -256,9 +260,13 @@ enum Commands {
         #[arg(long)]
         insecure: bool,
 
-        /// Output CSV file path
+        /// Output file path
         #[arg(short, long)]
         output: Option<String>,
+
+        /// Output format: csv or json
+        #[arg(long, default_value = "csv")]
+        format: String,
 
         /// Filter by specific mount path (e.g., "auth/kubernetes/")
         #[arg(short, long)]
@@ -325,9 +333,11 @@ async fn main() -> Result<()> {
             log_files,
             path_pattern,
         } => commands::airflow_polling::run(&log_files, path_pattern.as_deref()),
-        Commands::PreprocessEntities { log_files, output } => {
-            commands::preprocess_entities::run(&log_files, &output)
-        }
+        Commands::PreprocessEntities {
+            log_files,
+            output,
+            format,
+        } => commands::preprocess_entities::run(&log_files, &output, format.as_str()),
         Commands::EntityCreation {
             log_files,
             entity_map,
@@ -371,6 +381,7 @@ async fn main() -> Result<()> {
             vault_token,
             insecure,
             output,
+            format,
             mount,
         } => {
             commands::entity_list::run(
@@ -378,6 +389,7 @@ async fn main() -> Result<()> {
                 vault_token.as_deref(),
                 insecure,
                 output.as_deref(),
+                format.as_str(),
                 mount.as_deref(),
             )
             .await
