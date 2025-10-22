@@ -90,7 +90,7 @@ struct EntityOutput {
     alias_metadata: String,
 }
 
-fn format_number(n: usize) -> String {
+pub fn format_number(n: usize) -> String {
     let s = n.to_string();
     let mut result = String::new();
     for (i, c) in s.chars().rev().enumerate() {
