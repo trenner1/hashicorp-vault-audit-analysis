@@ -6,8 +6,11 @@
 //! # Usage
 //!
 //! ```bash
-//! # Export all entities
+//! # Export all entities as CSV (default)
 //! vault-audit entity-list --output entities.csv
+//!
+//! # Export as JSON
+//! vault-audit entity-list --output entities.json --format json
 //!
 //! # Skip TLS verification (dev/test only)
 //! vault-audit entity-list --output entities.csv --insecure
@@ -21,13 +24,13 @@
 //!
 //! # Output
 //!
-//! Generates CSV with entity information:
+//! Generates CSV or JSON with entity information:
 //! - Entity ID
 //! - Display name
 //! - Alias names and mount paths
 //! - Creation timestamp
 //!
-//! This data can be used as a baseline for the `entity-churn` command.
+//! This data can be used as a baseline for the `entity-churn` and `entity-creation` commands.
 
 use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
@@ -104,6 +107,7 @@ pub async fn run(
     vault_token: Option<&str>,
     insecure: bool,
     output: Option<&str>,
+    format: &str,
     filter_mount: Option<&str>,
 ) -> Result<()> {
     let skip_verify = should_skip_verify(insecure);
@@ -260,47 +264,105 @@ pub async fn run(
     if let Some(output_path) = output {
         let file = File::create(output_path)
             .with_context(|| format!("Failed to create output file: {}", output_path))?;
-        let mut writer = csv::Writer::from_writer(file);
 
-        writer.write_record([
-            "entity_id",
-            "entity_name",
-            "entity_disabled",
-            "entity_created",
-            "entity_updated",
-            "alias_id",
-            "alias_name",
-            "mount_path",
-            "mount_type",
-            "mount_accessor",
-            "alias_created",
-            "alias_updated",
-            "alias_metadata",
-        ])?;
+        match format.to_lowercase().as_str() {
+            "json" => {
+                serde_json::to_writer_pretty(file, &output_rows)
+                    .with_context(|| format!("Failed to write JSON to: {}", output_path))?;
+                eprintln!("JSON written to: {}", output_path);
+            }
+            "csv" => {
+                let mut writer = csv::Writer::from_writer(file);
 
-        for row in &output_rows {
-            writer.write_record([
-                &row.entity_id,
-                &row.entity_name,
-                &row.entity_disabled.to_string(),
-                &row.entity_created,
-                &row.entity_updated,
-                &row.alias_id,
-                &row.alias_name,
-                &row.mount_path,
-                &row.mount_type,
-                &row.mount_accessor,
-                &row.alias_created,
-                &row.alias_updated,
-                &row.alias_metadata,
-            ])?;
+                writer.write_record([
+                    "entity_id",
+                    "entity_name",
+                    "entity_disabled",
+                    "entity_created",
+                    "entity_updated",
+                    "alias_id",
+                    "alias_name",
+                    "mount_path",
+                    "mount_type",
+                    "mount_accessor",
+                    "alias_created",
+                    "alias_updated",
+                    "alias_metadata",
+                ])?;
+
+                for row in &output_rows {
+                    writer.write_record([
+                        &row.entity_id,
+                        &row.entity_name,
+                        &row.entity_disabled.to_string(),
+                        &row.entity_created,
+                        &row.entity_updated,
+                        &row.alias_id,
+                        &row.alias_name,
+                        &row.mount_path,
+                        &row.mount_type,
+                        &row.mount_accessor,
+                        &row.alias_created,
+                        &row.alias_updated,
+                        &row.alias_metadata,
+                    ])?;
+                }
+
+                writer.flush()?;
+                eprintln!("CSV written to: {}", output_path);
+            }
+            _ => {
+                anyhow::bail!("Invalid format '{}'. Use 'csv' or 'json'", format);
+            }
         }
-
-        writer.flush()?;
-        eprintln!("CSV written to: {}", output_path);
     } else {
-        // JSON output to stdout
-        println!("{}", serde_json::to_string_pretty(&output_rows)?);
+        // No output file specified - print to stdout based on format
+        match format.to_lowercase().as_str() {
+            "json" => {
+                println!("{}", serde_json::to_string_pretty(&output_rows)?);
+            }
+            "csv" => {
+                let mut writer = csv::Writer::from_writer(std::io::stdout());
+                writer.write_record([
+                    "entity_id",
+                    "entity_name",
+                    "entity_disabled",
+                    "entity_created",
+                    "entity_updated",
+                    "alias_id",
+                    "alias_name",
+                    "mount_path",
+                    "mount_type",
+                    "mount_accessor",
+                    "alias_created",
+                    "alias_updated",
+                    "alias_metadata",
+                ])?;
+
+                for row in &output_rows {
+                    writer.write_record([
+                        &row.entity_id,
+                        &row.entity_name,
+                        &row.entity_disabled.to_string(),
+                        &row.entity_created,
+                        &row.entity_updated,
+                        &row.alias_id,
+                        &row.alias_name,
+                        &row.mount_path,
+                        &row.mount_type,
+                        &row.mount_accessor,
+                        &row.alias_created,
+                        &row.alias_updated,
+                        &row.alias_metadata,
+                    ])?;
+                }
+
+                writer.flush()?;
+            }
+            _ => {
+                anyhow::bail!("Invalid format '{}'. Use 'csv' or 'json'", format);
+            }
+        }
     }
 
     Ok(())
