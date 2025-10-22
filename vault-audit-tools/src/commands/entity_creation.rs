@@ -40,19 +40,19 @@ use std::io::{BufRead, BufReader};
 
 /// Entity mapping data structure for JSON output
 #[derive(Debug, Serialize, Deserialize)]
-struct EntityMapping {
-    display_name: String,
-    mount_path: String,
+pub struct EntityMapping {
+    pub display_name: String,
+    pub mount_path: String,
     #[allow(dead_code)]
-    mount_accessor: String,
+    pub mount_accessor: String,
     #[allow(dead_code)]
-    username: Option<String>,
+    pub username: Option<String>,
     #[allow(dead_code)]
-    login_count: usize,
+    pub login_count: usize,
     #[allow(dead_code)]
-    first_seen: String,
+    pub first_seen: String,
     #[allow(dead_code)]
-    last_seen: String,
+    pub last_seen: String,
 }
 
 /// Represents a single entity creation event
@@ -88,7 +88,7 @@ fn format_number(n: usize) -> String {
 }
 
 /// Load entity mappings from either JSON or CSV format
-fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>> {
+pub fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>> {
     let file =
         File::open(path).with_context(|| format!("Failed to open entity map file: {}", path))?;
 
