@@ -2,15 +2,16 @@
 //!
 //! Identifies Apache Airflow instances that are polling Vault connections
 //! excessively, which can cause performance issues.
+//! Supports multi-file analysis for pattern detection over time.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Detect default Airflow patterns
+//! # Single file - detect default Airflow patterns
 //! vault-audit airflow-polling audit.log
 //!
-//! # Custom detection thresholds
-//! vault-audit airflow-polling audit.log --threshold 100
+//! # Multi-day analysis with custom thresholds
+//! vault-audit airflow-polling logs/*.log --threshold 100
 //! ```
 //!
 //! # Detection Logic

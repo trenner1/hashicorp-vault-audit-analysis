@@ -1,21 +1,22 @@
-//! Entity churn analysis command.
+//! Multi-day entity churn analysis.
 //!
-//! Tracks entity lifecycle across multiple days to identify:
-//! - New entities that appeared since baseline
-//! - Churned entities that were active previously but disappeared
-//! - Active entities that persisted across time periods
+//! Tracks entity lifecycle across multiple audit log files to identify:
+//! - New entities appearing each day
+//! - Returning vs. churned entities
+//! - Entity persistence patterns
+//! - Authentication method usage trends
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Compare today vs yesterday
-//! vault-audit entity-churn audit-today.log --baseline audit-yesterday.log
+//! # Analyze entity churn across a week
+//! vault-audit entity-churn day1.log day2.log day3.log day4.log day5.log day6.log day7.log
 //!
-//! # Compare against multiple baseline days
-//! vault-audit entity-churn current.log --baseline day1.log day2.log day3.log
+//! # With baseline for accurate new entity detection
+//! vault-audit entity-churn *.log --baseline baseline_entities.json
 //!
-//! # Export to JSON
-//! vault-audit entity-churn current.log --baseline old.log --json
+//! # Export detailed churn data
+//! vault-audit entity-churn *.log --output entity_churn.json
 //! ```
 //!
 //! # Output

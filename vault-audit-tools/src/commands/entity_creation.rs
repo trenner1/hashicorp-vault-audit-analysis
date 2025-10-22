@@ -2,12 +2,16 @@
 //!
 //! Identifies when entities first appear in audit logs, grouped by
 //! authentication method and mount path.
+//! Supports multi-file analysis for tracking entity creation over time.
 //!
 //! # Usage
 //!
 //! ```bash
+//! # Single file analysis
 //! vault-audit entity-creation audit.log
-//! vault-audit entity-creation audit.log --json
+//!
+//! # Multi-day analysis
+//! vault-audit entity-creation logs/*.log --output entity-creation.json
 //! ```
 //!
 //! # Output
