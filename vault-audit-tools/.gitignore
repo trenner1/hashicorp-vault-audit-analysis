@@ -26,3 +26,6 @@
 *.ps1
 _vault-audit
 
+test_data/
+churn_test_final.csv
+COMMAND_OVERLAP_ANALYSIS.md
