@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# Pre-commit hook to run cargo fmt and cargo clippy
+# This ensures code is properly formatted and passes linting before committing
+
+echo "Running cargo fmt..."
+cargo fmt -- --check
+FMT_EXIT=$?
+
+if [ $FMT_EXIT -ne 0 ]; then
+    echo "Code formatting check failed!"
+    echo "Run 'cargo fmt' to fix formatting issues."
+    exit 1
+fi
+
+echo "Code formatting passed"
+
+echo "Running cargo clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+CLIPPY_EXIT=$?
+
+if [ $CLIPPY_EXIT -ne 0 ]; then
+    echo "Clippy check failed!"
+    echo "Fix the clippy warnings above before committing."
+    exit 1
+fi
+
+echo "Clippy passed"
+echo "All pre-commit checks passed"
+
+exit 0
