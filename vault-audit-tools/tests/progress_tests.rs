@@ -1,6 +1,6 @@
-use vault_audit_tools::utils::progress::ProgressBar;
 use std::thread;
 use std::time::Duration;
+use vault_audit_tools::utils::progress::ProgressBar;
 
 #[test]
 fn test_progress_bar_new() {
@@ -90,7 +90,7 @@ fn test_progress_bar_rapid_updates() {
 #[test]
 fn test_progress_bar_partial_progress() {
     let mut pb = ProgressBar::new(200, "Partial");
-    pb.update(50);  // 25%
+    pb.update(50); // 25%
     pb.update(100); // 50%
     pb.update(150); // 75%
     pb.finish();
