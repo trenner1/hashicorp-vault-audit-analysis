@@ -201,13 +201,13 @@ impl From<EntityChurnRecord> for EntityChurnRecordCsv {
             historical_display_name: record.historical_display_name.unwrap_or_default(),
             historical_first_seen: record.historical_first_seen.unwrap_or_default(),
             historical_last_seen: record.historical_last_seen.unwrap_or_default(),
-            historical_login_count: record.historical_login_count
+            historical_login_count: record
+                .historical_login_count
                 .map(|n| n.to_string())
                 .unwrap_or_default(),
         }
     }
 }
-
 
 #[derive(Debug)]
 struct DailyStats {
@@ -495,9 +495,7 @@ fn load_baseline_entities(path: &str) -> Result<HashMap<String, BaselineEntity>>
         for result in reader.deserialize() {
             let entity: BaselineEntity = result.context("Failed to parse baseline CSV row")?;
             // Use first occurrence of each entity_id (entities can have multiple aliases)
-            entities
-                .entry(entity.entity_id.clone())
-                .or_insert(entity);
+            entities.entry(entity.entity_id.clone()).or_insert(entity);
         }
 
         Ok(entities)
@@ -526,7 +524,10 @@ pub fn run(
 
     // Load baseline entities if provided
     let baseline = if let Some(path) = baseline_entities {
-        println!("Loading baseline entity list (Vault API metadata) from {}...", path);
+        println!(
+            "Loading baseline entity list (Vault API metadata) from {}...",
+            path
+        );
         let baseline_set = load_baseline_entities(path)?;
         println!(
             "Loaded {} pre-existing entities from Vault API baseline",
@@ -543,7 +544,10 @@ pub fn run(
 
     // Load entity mappings if provided (historical data from audit logs)
     let entity_mappings = if let Some(path) = entity_map {
-        println!("Loading historical entity mappings (audit log enrichment) from {}...", path);
+        println!(
+            "Loading historical entity mappings (audit log enrichment) from {}...",
+            path
+        );
         let mappings = load_entity_mappings(path)?;
         println!(
             "Loaded {} entity mappings with historical audit log data",
@@ -673,31 +677,39 @@ pub fn run(
                 };
 
                 // Get baseline metadata if entity exists in baseline
-                let (baseline_entity_name, baseline_created, baseline_alias_name, baseline_mount_path) =
-                    if let Some(ref baseline_map) = baseline {
-                        if let Some(baseline_entity) = baseline_map.get(entity_id) {
-                            let name = baseline_entity.get_name();
-                            let created = baseline_entity.get_created();
-                            (
-                                if !name.is_empty() { Some(name) } else { None },
-                                if !created.is_empty() { Some(created) } else { None },
-                                if !baseline_entity.alias_name.is_empty() { 
-                                    Some(baseline_entity.alias_name.clone()) 
-                                } else { 
-                                    None 
-                                },
-                                if !baseline_entity.mount_path.is_empty() { 
-                                    Some(baseline_entity.mount_path.clone()) 
-                                } else { 
-                                    None 
-                                },
-                            )
-                        } else {
-                            (None, None, None, None)
-                        }
+                let (
+                    baseline_entity_name,
+                    baseline_created,
+                    baseline_alias_name,
+                    baseline_mount_path,
+                ) = if let Some(ref baseline_map) = baseline {
+                    if let Some(baseline_entity) = baseline_map.get(entity_id) {
+                        let name = baseline_entity.get_name();
+                        let created = baseline_entity.get_created();
+                        (
+                            if !name.is_empty() { Some(name) } else { None },
+                            if !created.is_empty() {
+                                Some(created)
+                            } else {
+                                None
+                            },
+                            if !baseline_entity.alias_name.is_empty() {
+                                Some(baseline_entity.alias_name.clone())
+                            } else {
+                                None
+                            },
+                            if !baseline_entity.mount_path.is_empty() {
+                                Some(baseline_entity.mount_path.clone())
+                            } else {
+                                None
+                            },
+                        )
                     } else {
                         (None, None, None, None)
-                    };
+                    }
+                } else {
+                    (None, None, None, None)
+                };
 
                 // Fetch historical data from entity_mappings
                 let (
