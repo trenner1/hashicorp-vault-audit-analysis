@@ -136,33 +136,30 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            vault-audit-tools/target
+            target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binary
-        run: |
-          cd vault-audit-tools
-          cargo build --release --target ${{ matrix.target }} --verbose
+        run: cargo build --release --target ${{ matrix.target }} --verbose
 
       - name: Strip binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: |
-          strip vault-audit-tools/target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
       - name: Create archive (Unix)
         if: matrix.os != 'windows-latest'
         run: |
-          cd vault-audit-tools/target/${{ matrix.target }}/release
-          tar -czf ../../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
-          cd ../../../../
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
+          cd ../../../
           sha256sum ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
 
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd vault-audit-tools/target/${{ matrix.target }}/release
-          7z a ../../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
-          cd ../../../../
+          cd target/${{ matrix.target }}/release
+          7z a ../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
+          cd ../../../
           certutil -hashfile ${{ matrix.archive_name }} SHA256 > ${{ matrix.archive_name }}.sha256
 
       - name: Upload Release Assets
@@ -187,6 +184,4 @@ jobs:
         if: env.CARGO_REGISTRY_TOKEN != ''
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          cd vault-audit-tools
-          cargo publish --token $CARGO_REGISTRY_TOKEN
+        run: cargo publish --token $CARGO_REGISTRY_TOKEN
