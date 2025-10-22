@@ -62,16 +62,28 @@ fn test_entity_list_format_number_billions() {
 #[test]
 fn test_all_implementations_consistent() {
     let test_values = vec![0, 1, 10, 100, 1000, 10000, 100000, 1000000];
-    
+
     for value in test_values {
         let af_result = airflow_polling::format_number(value);
         let ca_result = client_activity::format_number(value);
         let el_result = entity_list::format_number(value);
         let te_result = token_export::format_number(value);
-        
-        assert_eq!(af_result, ca_result, "Airflow and ClientActivity differ for {}", value);
-        assert_eq!(ca_result, el_result, "ClientActivity and EntityList differ for {}", value);
-        assert_eq!(el_result, te_result, "EntityList and TokenExport differ for {}", value);
+
+        assert_eq!(
+            af_result, ca_result,
+            "Airflow and ClientActivity differ for {}",
+            value
+        );
+        assert_eq!(
+            ca_result, el_result,
+            "ClientActivity and EntityList differ for {}",
+            value
+        );
+        assert_eq!(
+            el_result, te_result,
+            "EntityList and TokenExport differ for {}",
+            value
+        );
     }
 }
 

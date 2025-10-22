@@ -1,5 +1,5 @@
-use vault_audit_tools::vault_api::{should_skip_verify, extract_data, VaultClient};
 use serde_json::json;
+use vault_audit_tools::vault_api::{extract_data, should_skip_verify, VaultClient};
 
 #[test]
 fn test_should_skip_verify_with_flag() {
@@ -19,7 +19,7 @@ fn test_vault_client_new() {
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
-    
+
     let client = client.unwrap();
     assert_eq!(client.addr(), "https://vault.example.com:8200");
 }
@@ -31,7 +31,7 @@ fn test_vault_client_new_with_trailing_slash() {
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
-    
+
     let client = client.unwrap();
     assert_eq!(client.addr(), "https://vault.example.com:8200");
 }
@@ -43,7 +43,7 @@ fn test_vault_client_new_with_multiple_trailing_slashes() {
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
-    
+
     let client = client.unwrap();
     assert_eq!(client.addr(), "https://vault.example.com:8200");
 }
@@ -76,7 +76,7 @@ fn test_vault_client_from_options_with_all_params() {
         false,
     );
     assert!(client.is_ok());
-    
+
     let client = client.unwrap();
     assert_eq!(client.addr(), "https://vault.example.com:8200");
 }
@@ -94,11 +94,7 @@ fn test_vault_client_from_options_default_addr() {
 #[test]
 fn test_vault_client_from_options_no_token_fails() {
     // Must provide token explicitly since we can't rely on env being clean
-    let client = VaultClient::from_options(
-        Some("https://vault.example.com:8200"),
-        None,
-        false,
-    );
+    let client = VaultClient::from_options(Some("https://vault.example.com:8200"), None, false);
     // Might pass or fail depending on environment, so just test it runs
     let _ = client;
 }
@@ -116,16 +112,16 @@ fn test_extract_data_with_data_wrapper() {
             "name": "test-entity"
         }
     });
-    
+
     #[derive(serde::Deserialize, Debug, PartialEq)]
     struct TestData {
         entity_id: String,
         name: String,
     }
-    
+
     let result: Result<TestData, _> = extract_data(response);
     assert!(result.is_ok());
-    
+
     let data = result.unwrap();
     assert_eq!(data.entity_id, "test-123");
     assert_eq!(data.name, "test-entity");
@@ -137,16 +133,16 @@ fn test_extract_data_without_wrapper() {
         "entity_id": "test-456",
         "name": "direct-entity"
     });
-    
+
     #[derive(serde::Deserialize, Debug, PartialEq)]
     struct TestData {
         entity_id: String,
         name: String,
     }
-    
+
     let result: Result<TestData, _> = extract_data(response);
     assert!(result.is_ok());
-    
+
     let data = result.unwrap();
     assert_eq!(data.entity_id, "test-456");
     assert_eq!(data.name, "direct-entity");
@@ -159,15 +155,15 @@ fn test_extract_data_with_nested_data() {
             "keys": ["key1", "key2", "key3"]
         }
     });
-    
+
     #[derive(serde::Deserialize, Debug, PartialEq)]
     struct TestData {
         keys: Vec<String>,
     }
-    
+
     let result: Result<TestData, _> = extract_data(response);
     assert!(result.is_ok());
-    
+
     let data = result.unwrap();
     assert_eq!(data.keys.len(), 3);
     assert_eq!(data.keys[0], "key1");
@@ -181,14 +177,14 @@ fn test_extract_data_invalid_type_fails() {
             "name": "test"
         }
     });
-    
+
     #[derive(serde::Deserialize, Debug)]
     #[allow(dead_code)]
     struct TestData {
-        entity_id: String,  // expects string
+        entity_id: String, // expects string
         name: String,
     }
-    
+
     let result: Result<TestData, _> = extract_data(response);
     assert!(result.is_err());
 }
@@ -201,14 +197,14 @@ fn test_extract_data_missing_field_fails() {
             // missing "name" field
         }
     });
-    
+
     #[derive(serde::Deserialize, Debug)]
     #[allow(dead_code)]
     struct TestData {
         entity_id: String,
-        name: String,  // required field
+        name: String, // required field
     }
-    
+
     let result: Result<TestData, _> = extract_data(response);
     assert!(result.is_err());
 }

@@ -21,18 +21,18 @@ fn test_parse_complete_audit_entry() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse audit entry");
-    
+
     assert_eq!(entry.entry_type, "request");
     assert_eq!(entry.time, "2025-10-07T12:34:56.789Z");
     assert!(entry.auth.is_some());
     assert!(entry.request.is_some());
     assert!(entry.response.is_none());
-    
+
     let auth = entry.auth.unwrap();
     assert_eq!(auth.entity_id, Some("test-entity-123".to_string()));
     assert_eq!(auth.display_name, Some("test-user".to_string()));
     assert_eq!(auth.token_type, Some("service".to_string()));
-    
+
     let request = entry.request.unwrap();
     assert_eq!(request.operation, Some("read".to_string()));
     assert_eq!(request.path, Some("secret/data/myapp".to_string()));
@@ -51,10 +51,10 @@ fn test_parse_login_request() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse login request");
-    
+
     assert_eq!(entry.entry_type, "request");
     assert!(entry.request.is_some());
-    
+
     let request = entry.request.unwrap();
     assert_eq!(request.path, Some("auth/kubernetes/login".to_string()));
     assert!(request.path.unwrap().ends_with("/login"));
@@ -78,10 +78,10 @@ fn test_parse_response_entry() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse response entry");
-    
+
     assert_eq!(entry.entry_type, "response");
     assert!(entry.response.is_some());
-    
+
     let response = entry.response.unwrap();
     assert_eq!(response.mount_type, Some("kv".to_string()));
 }
@@ -98,7 +98,7 @@ fn test_parse_entry_with_error() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse error entry");
-    
+
     assert!(entry.error.is_some());
     assert_eq!(entry.error.unwrap(), "permission denied");
 }
@@ -113,8 +113,9 @@ fn test_parse_entry_without_auth() {
         }
     }"#;
 
-    let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse unauthenticated request");
-    
+    let entry: AuditEntry =
+        serde_json::from_str(json).expect("Failed to parse unauthenticated request");
+
     assert!(entry.auth.is_none());
 }
 
@@ -136,10 +137,10 @@ fn test_parse_auth_with_metadata() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse auth with metadata");
-    
+
     let auth = entry.auth.unwrap();
     assert!(auth.metadata.is_some());
-    
+
     let metadata = auth.metadata.unwrap();
     assert!(metadata.contains_key("role"));
     assert!(metadata.contains_key("team"));
@@ -165,7 +166,7 @@ fn test_parse_kv_operation() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse KV operation");
-    
+
     let request = entry.request.unwrap();
     assert!(request.path.as_ref().unwrap().contains("/data/"));
     assert_eq!(request.mount_type, Some("kv".to_string()));
@@ -186,7 +187,7 @@ fn test_parse_token_lookup() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse token lookup");
-    
+
     let request = entry.request.unwrap();
     assert!(request.path.as_ref().unwrap().contains("lookup"));
 }
@@ -199,7 +200,7 @@ fn test_parse_minimal_entry() {
     }"#;
 
     let entry: AuditEntry = serde_json::from_str(json).expect("Failed to parse minimal entry");
-    
+
     assert_eq!(entry.entry_type, "request");
     assert!(entry.auth.is_none());
     assert!(entry.request.is_none());
@@ -210,7 +211,7 @@ fn test_parse_minimal_entry() {
 #[test]
 fn test_invalid_json_fails() {
     let json = r#"{"type": "invalid"#;
-    
+
     let result: Result<AuditEntry, _> = serde_json::from_str(json);
     assert!(result.is_err());
 }
@@ -220,7 +221,7 @@ fn test_missing_required_type_field() {
     let json = r#"{
         "time": "2025-10-07T12:34:56.789Z"
     }"#;
-    
+
     let result: Result<AuditEntry, _> = serde_json::from_str(json);
     assert!(result.is_err());
 }
