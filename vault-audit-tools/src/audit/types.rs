@@ -148,3 +148,186 @@ impl AuditEntry {
         self.path_starts_with("auth/token/")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_login_request() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {
+                "entity_id": "test-entity-123",
+                "display_name": "test-user",
+                "policies": ["default", "admin"],
+                "token_type": "service"
+            },
+            "request": {
+                "operation": "update",
+                "path": "auth/kubernetes/login",
+                "mount_type": "kubernetes",
+                "mount_point": "auth/kubernetes/"
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.entry_type, "request");
+        assert_eq!(entry.entity_id(), Some("test-entity-123"));
+        assert_eq!(entry.path(), Some("auth/kubernetes/login"));
+        assert_eq!(entry.operation(), Some("update"));
+        assert_eq!(entry.display_name(), Some("test-user"));
+        assert_eq!(entry.mount_type(), Some("kubernetes"));
+        assert_eq!(entry.mount_point(), Some("auth/kubernetes/"));
+    }
+
+    #[test]
+    fn test_parse_kv_read() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {
+                "entity_id": "entity-456",
+                "display_name": "app-user"
+            },
+            "request": {
+                "operation": "read",
+                "path": "kv/data/myapp/config",
+                "mount_type": "kv",
+                "mount_point": "kv/"
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.entity_id(), Some("entity-456"));
+        assert!(entry.is_kv_operation());
+        assert!(entry.is_read_or_list());
+        assert!(entry.path_starts_with("kv/"));
+    }
+
+    #[test]
+    fn test_parse_token_operation() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {
+                "entity_id": "entity-789"
+            },
+            "request": {
+                "operation": "update",
+                "path": "auth/token/lookup-self"
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert!(entry.is_token_operation());
+        assert!(!entry.is_kv_operation());
+    }
+
+    #[test]
+    fn test_parse_no_auth() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "request": {
+                "operation": "read",
+                "path": "sys/health"
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.entity_id(), None);
+        assert_eq!(entry.display_name(), None);
+        assert_eq!(entry.path(), Some("sys/health"));
+    }
+
+    #[test]
+    fn test_parse_response() {
+        let json = r#"{
+            "type": "response",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {
+                "entity_id": "entity-999"
+            },
+            "request": {
+                "operation": "read",
+                "path": "secret/data/test"
+            },
+            "response": {
+                "mount_type": "kv",
+                "data": {"foo": "bar"}
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.entry_type, "response");
+        assert!(entry.response.is_some());
+        assert_eq!(entry.response.unwrap().mount_type, Some("kv".to_string()));
+    }
+
+    #[test]
+    fn test_parse_with_error() {
+        let json = r#"{
+            "type": "response",
+            "time": "2025-10-07T12:00:00.000Z",
+            "error": "permission denied"
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.error, Some("permission denied".to_string()));
+    }
+
+    #[test]
+    fn test_parse_list_operation() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {"entity_id": "test"},
+            "request": {
+                "operation": "list",
+                "path": "kv/metadata/",
+                "mount_type": "kv"
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert!(entry.is_read_or_list());
+        assert_eq!(entry.operation(), Some("list"));
+    }
+
+    #[test]
+    fn test_namespace_parsing() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "request": {
+                "operation": "read",
+                "path": "test",
+                "namespace": {"id": "root"}
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        assert!(entry.request.unwrap().namespace.is_some());
+    }
+
+    #[test]
+    fn test_metadata_parsing() {
+        let json = r#"{
+            "type": "request",
+            "time": "2025-10-07T12:00:00.000Z",
+            "auth": {
+                "entity_id": "test",
+                "metadata": {
+                    "service_account_name": "my-app",
+                    "service_account_namespace": "production"
+                }
+            }
+        }"#;
+
+        let entry: AuditEntry = serde_json::from_str(json).unwrap();
+        let metadata = entry.auth.unwrap().metadata.unwrap();
+        assert!(metadata.contains_key("service_account_name"));
+    }
+}
