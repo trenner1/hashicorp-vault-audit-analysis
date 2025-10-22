@@ -192,7 +192,11 @@ enum Commands {
         output: Option<String>,
     },
 
-    /// Multi-day entity churn analysis - tracks entity lifecycle across multiple log files
+    /// Multi-day entity churn analysis with intelligent ephemeral pattern detection
+    ///
+    /// Tracks entity lifecycle across log files and uses data-driven pattern learning
+    /// to detect ephemeral entities (e.g., CI/CD pipelines, temporary build entities)
+    /// with confidence scoring and detailed reasoning.
     EntityChurn {
         /// Paths to audit log files (in chronological order)
         #[arg(required = true, num_args = 2..)]
@@ -206,9 +210,13 @@ enum Commands {
         #[arg(long)]
         baseline: Option<String>,
 
-        /// Output JSON file path for detailed entity churn data
+        /// Output file path for detailed entity churn data with ephemeral analysis
         #[arg(short, long)]
         output: Option<String>,
+
+        /// Output format: json or csv (auto-detected from file extension if not specified)
+        #[arg(long, value_parser = ["json", "csv"])]
+        format: Option<String>,
     },
 
     /// Get Vault client activity by mount (queries Vault API)
@@ -348,11 +356,13 @@ async fn main() -> Result<()> {
             entity_map,
             baseline,
             output,
+            format,
         } => commands::entity_churn::run(
             &log_files,
             entity_map.as_deref(),
             baseline.as_deref(),
             output.as_deref(),
+            format.as_deref(),
         ),
         Commands::ClientActivity {
             start,
