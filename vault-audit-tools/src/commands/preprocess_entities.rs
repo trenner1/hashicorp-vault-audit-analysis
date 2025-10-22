@@ -1,22 +1,25 @@
 //! Entity mapping preprocessor.
 //!
-//! Extracts entity-to-alias mappings from audit logs and exports to JSON,
+//! Extracts entity-to-alias mappings from audit logs and exports to JSON or CSV,
 //! creating a baseline for subsequent entity analysis.
 //! Supports multi-file processing for comprehensive entity mapping.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Single file preprocessing
+//! # Single file preprocessing (JSON default)
 //! vault-audit preprocess-entities audit.log --output entity-mappings.json
 //!
-//! # Multi-day comprehensive mapping
-//! vault-audit preprocess-entities logs/*.log --output entity-mappings.json
+//! # Multi-day comprehensive mapping (CSV)
+//! vault-audit preprocess-entities logs/*.log --output entity-mappings.csv --format csv
+//!
+//! # JSON format for entity-creation command
+//! vault-audit preprocess-entities logs/*.log --output entity-mappings.json --format json
 //! ```
 //!
 //! # Output
 //!
-//! Generates CSV containing:
+//! Generates JSON or CSV containing:
 //! - Entity ID
 //! - Display name
 //! - Mount path and accessor
@@ -25,7 +28,8 @@
 //! - First and last seen timestamps
 //!
 //! This output can be used as a baseline for:
-//! - `entity-churn` command
+//! - `entity-creation` command (accepts both CSV and JSON)
+//! - `client-activity` command (JSON format)
 //! - External analysis tools
 //! - Historical trending
 
@@ -50,7 +54,7 @@ struct EntityMapping {
     last_seen: String,
 }
 
-pub fn run(log_files: &[String], output: &str) -> Result<()> {
+pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
     eprintln!("Preprocessing audit logs...");
     eprintln!("Extracting entity → display_name mappings from login events...\n");
 
@@ -192,19 +196,62 @@ pub fn run(log_files: &[String], output: &str) -> Result<()> {
         entity_map.len()
     );
 
-    // Write output as JSON
+    // Write output based on format
     eprintln!("\nWriting entity mappings to: {}", output);
-    let output_file = File::create(output)
-        .with_context(|| format!("Failed to create output file: {}", output))?;
-    let mut writer = std::io::BufWriter::new(output_file);
 
-    // Write as pretty JSON for readability
-    let json =
-        serde_json::to_string_pretty(&entity_map).context("Failed to serialize entity mappings")?;
-    writer.write_all(json.as_bytes())?;
-    writer.flush()?;
+    match format.to_lowercase().as_str() {
+        "json" => {
+            let output_file = File::create(output)
+                .with_context(|| format!("Failed to create output file: {}", output))?;
+            let mut writer = std::io::BufWriter::new(output_file);
 
-    eprintln!("✓ Entity mapping file created successfully!\n");
+            // Write as pretty JSON for readability
+            let json = serde_json::to_string_pretty(&entity_map)
+                .context("Failed to serialize entity mappings")?;
+            writer.write_all(json.as_bytes())?;
+            writer.flush()?;
+
+            eprintln!("✓ JSON entity mapping file created successfully!\n");
+        }
+        "csv" => {
+            let output_file = File::create(output)
+                .with_context(|| format!("Failed to create output file: {}", output))?;
+            let mut csv_writer = csv::Writer::from_writer(output_file);
+
+            // Write CSV header
+            csv_writer.write_record([
+                "entity_id",
+                "display_name",
+                "mount_path",
+                "mount_accessor",
+                "username",
+                "login_count",
+                "first_seen",
+                "last_seen",
+            ])?;
+
+            // Write entity data
+            for (entity_id, mapping) in &entity_map {
+                csv_writer.write_record([
+                    entity_id,
+                    &mapping.display_name,
+                    &mapping.mount_path,
+                    &mapping.mount_accessor,
+                    mapping.username.as_deref().unwrap_or(""),
+                    &mapping.login_count.to_string(),
+                    &mapping.first_seen,
+                    &mapping.last_seen,
+                ])?;
+            }
+
+            csv_writer.flush()?;
+            eprintln!("✓ CSV entity mapping file created successfully!\n");
+        }
+        _ => {
+            anyhow::bail!("Invalid format '{}'. Use 'csv' or 'json'", format);
+        }
+    }
+
     eprintln!("Usage with client-activity command:");
     eprintln!(
         "  vault-audit client-activity --start <START> --end <END> --entity-map {}",
