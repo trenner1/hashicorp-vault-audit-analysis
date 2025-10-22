@@ -12,6 +12,10 @@
 //!
 //! # Multi-day analysis
 //! vault-audit entity-creation logs/*.log --output entity-creation.json
+//!
+//! # With entity mappings from entity-list (CSV or JSON)
+//! vault-audit entity-creation logs/*.log --entity-map entities.csv
+//! vault-audit entity-creation logs/*.log --entity-map entities.json
 //! ```
 //!
 //! # Output
@@ -83,6 +87,94 @@ fn format_number(n: usize) -> String {
     result.chars().rev().collect()
 }
 
+/// Load entity mappings from either JSON or CSV format
+fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>> {
+    let file =
+        File::open(path).with_context(|| format!("Failed to open entity map file: {}", path))?;
+
+    // Auto-detect format based on file extension or content
+    let path_lower = path.to_lowercase();
+    if path_lower.ends_with(".json") {
+        // JSON format (from preprocess-entities)
+        serde_json::from_reader(file)
+            .with_context(|| format!("Failed to parse entity map JSON: {}", path))
+    } else if path_lower.ends_with(".csv") {
+        // CSV format (from entity-list)
+        let mut reader = csv::Reader::from_reader(file);
+        let mut mappings = HashMap::new();
+
+        for result in reader.records() {
+            let record = result?;
+            if record.len() < 8 {
+                continue; // Skip malformed rows
+            }
+
+            let entity_id = record.get(0).unwrap_or("").to_string();
+            let display_name = record.get(1).unwrap_or("").to_string();
+            let mount_path = record.get(7).unwrap_or("").to_string(); // mount_path column
+            let mount_accessor = record.get(9).unwrap_or("").to_string(); // mount_accessor column
+
+            if !entity_id.is_empty() {
+                mappings.insert(
+                    entity_id,
+                    EntityMapping {
+                        display_name,
+                        mount_path,
+                        mount_accessor,
+                        username: None,
+                        login_count: 0,
+                        first_seen: String::new(),
+                        last_seen: String::new(),
+                    },
+                );
+            }
+        }
+
+        Ok(mappings)
+    } else {
+        // Try JSON first, fall back to CSV
+        let file = File::open(path)?;
+        match serde_json::from_reader::<_, HashMap<String, EntityMapping>>(file) {
+            Ok(mappings) => Ok(mappings),
+            Err(_) => {
+                // Try CSV
+                let file = File::open(path)?;
+                let mut reader = csv::Reader::from_reader(file);
+                let mut mappings = HashMap::new();
+
+                for result in reader.records() {
+                    let record = result?;
+                    if record.len() < 8 {
+                        continue;
+                    }
+
+                    let entity_id = record.get(0).unwrap_or("").to_string();
+                    let display_name = record.get(1).unwrap_or("").to_string();
+                    let mount_path = record.get(7).unwrap_or("").to_string();
+                    let mount_accessor = record.get(9).unwrap_or("").to_string();
+
+                    if !entity_id.is_empty() {
+                        mappings.insert(
+                            entity_id,
+                            EntityMapping {
+                                display_name,
+                                mount_path,
+                                mount_accessor,
+                                username: None,
+                                login_count: 0,
+                                first_seen: String::new(),
+                                last_seen: String::new(),
+                            },
+                        );
+                    }
+                }
+
+                Ok(mappings)
+            }
+        }
+    }
+}
+
 pub fn run(
     log_files: &[String],
     entity_map_file: Option<&str>,
@@ -90,13 +182,10 @@ pub fn run(
 ) -> Result<()> {
     eprintln!("Analyzing entity creation by authentication path...\n");
 
-    // Load entity mappings if provided
+    // Load entity mappings if provided (supports both JSON and CSV)
     let entity_mappings: HashMap<String, EntityMapping> = if let Some(map_file) = entity_map_file {
         eprintln!("Loading entity mappings from: {}", map_file);
-        let file = File::open(map_file)
-            .with_context(|| format!("Failed to open entity map file: {}", map_file))?;
-        serde_json::from_reader(file)
-            .with_context(|| format!("Failed to parse entity map JSON: {}", map_file))?
+        load_entity_mappings(map_file)?
     } else {
         HashMap::new()
     };
