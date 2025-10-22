@@ -2,20 +2,19 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   # Rust formatting and linting
-  - repo: https://github.com/doublify/pre-commit-rust
-    rev: v1.0
+  - repo: local
     hooks:
-      - id: fmt
+      - id: cargo-fmt
         name: cargo fmt
         description: Format Rust code with rustfmt
-        entry: cargo fmt --manifest-path vault-audit-tools/Cargo.toml --
+        entry: cargo fmt --check
         language: system
         files: \.rs$
-        pass_filenames: true
-      - id: clippy
+        pass_filenames: false
+      - id: cargo-clippy
         name: cargo clippy
         description: Lint Rust code with clippy
-        entry: bash -c 'cd vault-audit-tools && cargo clippy --all-targets --all-features -- -D warnings'
+        entry: bash -c 'cargo clippy --all-targets --all-features -- -D warnings'
         language: system
         files: \.rs$
         pass_filenames: false
