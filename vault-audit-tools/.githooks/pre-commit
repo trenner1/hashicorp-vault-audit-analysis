@@ -1,31 +1,56 @@
-#!/bin/sh
-#
-# Pre-commit hook to run cargo fmt and cargo clippy
-# This ensures code is properly formatted and passes linting before committing
+#!/usr/bin/env bash
+# Pre-commit hook to catch secrets and run Rust checks
+set -euo pipefail
 
-echo "Running cargo fmt..."
-cargo fmt -- --check
-FMT_EXIT=$?
+# Basic secrets check: grep for actual secret values (not code/variable names)
+# Skip documentation and known placeholder files to avoid false positives.
+# Files to skip: .env.example, README.md, .githooks/*, scripts/*, .pre-commit-config.yaml, .secrets.baseline
+FILES_TO_SCAN=$(git diff --cached --name-only --diff-filter=ACM | grep -vE '^(\.env.example$|README.md$|\.githooks/|scripts/|run\.sh$|run_in_venv\.sh$|setup_venv\.sh$|\.pre-commit-config\.yaml$|\.secrets\.baseline$)' || true)
+if [ -n "$FILES_TO_SCAN" ]; then
+  # Match actual secret values, not variable names or code:
+  # - AWS keys starting with AKIA
+  # - Vault tokens hvs. or s. (actual token values, not variable names)
+  # - Lines with VAULT_TOKEN= followed by non-placeholder values (excluding default=os.getenv patterns)
+  # - Private keys
+  # - password= with actual values (not just param names)
+  SECRETS=$(echo "$FILES_TO_SCAN" | xargs grep -En '(AKIA[0-9A-Z]{16,}|hvs\.[A-Za-z0-9_\-\.]{24,}|s\.[A-Za-z0-9_\-\.]{24,}|VAULT_TOKEN\s*=\s*["\047][a-zA-Z0-9]{20,}["\047]|-----BEGIN (PRIVATE|RSA PRIVATE) KEY-----|password\s*=\s*["\047]\S{6,}["\047])' || true)
+else
+  SECRETS=""
+fi
+ 
+if [ -n "$SECRETS" ]; then
+  echo "Potential secret/credential found in staged files:" >&2
+  echo "$SECRETS" >&2
+  echo "Aborting commit. Remove secrets or add them to .env and .gitignore." >&2
+  exit 1
+fi
 
-if [ $FMT_EXIT -ne 0 ]; then
+# Check for Rust files and run cargo fmt and clippy
+RUST_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.rs$' || true)
+if [ -n "$RUST_FILES" ]; then
+  echo "Running cargo fmt check..."
+  cargo fmt -- --check
+  FMT_EXIT=$?
+
+  if [ $FMT_EXIT -ne 0 ]; then
     echo "Code formatting check failed!"
     echo "Run 'cargo fmt' to fix formatting issues."
     exit 1
-fi
+  fi
 
-echo "Code formatting passed"
+  echo "Code formatting passed"
 
-echo "Running cargo clippy..."
-cargo clippy --all-targets --all-features -- -D warnings
-CLIPPY_EXIT=$?
+  echo "Running cargo clippy..."
+  cargo clippy --all-targets --all-features -- -D warnings
+  CLIPPY_EXIT=$?
 
-if [ $CLIPPY_EXIT -ne 0 ]; then
+  if [ $CLIPPY_EXIT -ne 0 ]; then
     echo "Clippy check failed!"
     echo "Fix the clippy warnings above before committing."
     exit 1
-fi
+  fi
 
-echo "Clippy passed"
-echo "All pre-commit checks passed"
+  echo "Clippy passed"
+fi
 
 exit 0
