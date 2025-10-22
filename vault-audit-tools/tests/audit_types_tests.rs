@@ -1,4 +1,3 @@
-use serde_json;
 use vault_audit_tools::audit::types::*;
 
 #[test]
