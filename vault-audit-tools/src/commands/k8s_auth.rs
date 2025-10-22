@@ -2,12 +2,16 @@
 //!
 //! Analyzes Kubernetes auth method usage to understand service account
 //! access patterns and identify high-volume K8s clients.
+//! Supports multi-file analysis for tracking over time.
 //!
 //! # Usage
 //!
 //! ```bash
+//! # Single file analysis
 //! vault-audit k8s-auth audit.log
-//! vault-audit k8s-auth audit.log --output k8s-usage.csv
+//!
+//! # Multi-day analysis with CSV export
+//! vault-audit k8s-auth logs/*.log --output k8s-usage.csv
 //! ```
 //!
 //! # Output

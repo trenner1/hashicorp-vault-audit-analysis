@@ -1,12 +1,20 @@
 //! System-wide audit log overview.
 //!
 //! Provides high-level statistics and insights about Vault usage
-//! across the entire audit log.
+//! across the entire audit log. Supports analyzing multiple log files
+//! for long-term trend analysis.
 //!
 //! # Usage
 //!
 //! ```bash
+//! # Single file
 //! vault-audit system-overview audit.log
+//!
+//! # Multiple files for week-long analysis
+//! vault-audit system-overview day1.log day2.log day3.log
+//!
+//! # Using shell globbing
+//! vault-audit system-overview logs/vault_audit.2025-10-*.log
 //! ```
 //!
 //! # Output

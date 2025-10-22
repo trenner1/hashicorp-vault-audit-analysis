@@ -2,18 +2,19 @@
 //!
 //! Identifies the most frequently accessed paths in Vault to help
 //! understand usage patterns and potential performance bottlenecks.
+//! Supports multi-file analysis for long-term trending.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Show top 20 hotspots (default)
+//! # Single file - show top 20 hotspots (default)
 //! vault-audit path-hotspots audit.log
 //!
-//! # Show top 50 hotspots
-//! vault-audit path-hotspots audit.log --top 50
+//! # Multi-day analysis with top 50
+//! vault-audit path-hotspots logs/*.log --top 50
 //!
-//! # Filter by mount point
-//! vault-audit path-hotspots audit.log --mount secret
+//! # Filter by mount point across multiple files
+//! vault-audit path-hotspots day*.log --mount secret
 //! ```
 //!
 //! # Output
