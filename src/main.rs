@@ -167,6 +167,7 @@ enum KvAnalysisCommands {
 #[derive(Subcommand)]
 enum Commands {
     /// Analyze KV usage by path and entity (⚠️ DEPRECATED: Use 'kv-analysis analyze' instead)
+    #[command(hide = true)]
     KvAnalyzer {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -186,6 +187,7 @@ enum Commands {
     },
 
     /// Compare KV usage between two time periods (⚠️ DEPRECATED: Use 'kv-analysis compare' instead)
+    #[command(hide = true)]
     KvCompare {
         /// First CSV file (older period)
         csv1: String,
@@ -195,6 +197,7 @@ enum Commands {
     },
 
     /// Summarize KV usage from CSV (⚠️ DEPRECATED: Use 'kv-analysis summary' instead)
+    #[command(hide = true)]
     KvSummary {
         /// KV usage CSV file
         csv_file: String,
@@ -216,6 +219,7 @@ enum Commands {
     },
 
     /// Analyze token operations by entity (⚠️ DEPRECATED: Use 'token-analysis' instead)
+    #[command(hide = true)]
     TokenOperations {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -253,6 +257,7 @@ enum Commands {
     },
 
     /// Export token lookup patterns to CSV (⚠️ DEPRECATED: Use 'token-analysis --export' instead)
+    #[command(hide = true)]
     TokenExport {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -268,6 +273,7 @@ enum Commands {
     },
 
     /// Detect token lookup abuse patterns (⚠️ DEPRECATED: Use 'token-analysis --abuse-threshold' instead)
+    #[command(hide = true)]
     TokenLookupAbuse {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -293,6 +299,7 @@ enum Commands {
     KvAnalysis(KvAnalysisCommands),
 
     /// Analyze entity creation/deletion gaps (⚠️ DEPRECATED: Use 'entity-analysis gaps' instead)
+    #[command(hide = true)]
     EntityGaps {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -304,6 +311,7 @@ enum Commands {
     },
 
     /// Show timeline of operations for a specific entity (⚠️ DEPRECATED: Use 'entity-analysis timeline' instead)
+    #[command(hide = true)]
     EntityTimeline {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -352,6 +360,7 @@ enum Commands {
     },
 
     /// Preprocess audit logs to extract entity mappings (⚠️ DEPRECATED: Use 'entity-analysis preprocess' instead)
+    #[command(hide = true)]
     PreprocessEntities {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -367,6 +376,7 @@ enum Commands {
     },
 
     /// Analyze entity creation by authentication path (⚠️ DEPRECATED: Use 'entity-analysis creation' instead)
+    #[command(hide = true)]
     EntityCreation {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -386,6 +396,7 @@ enum Commands {
     /// Tracks entity lifecycle across log files and uses data-driven pattern learning
     /// to detect ephemeral entities (e.g., CI/CD pipelines, temporary build entities)
     /// with confidence scoring and detailed reasoning.
+    #[command(hide = true)]
     EntityChurn {
         /// Paths to audit log files (in chronological order)
         #[arg(required = true, num_args = 2..)]
