@@ -4,6 +4,8 @@ on:
   release:
     types: [published]      # build when you publish a release (tag)
   push:
+    branches:
+      - main                # rebuild latest docs on main branch updates
     tags:
       - 'v*'                # also build on version tag pushes (backup trigger)
   workflow_dispatch:         # allow manual runs (useful to rebuild all versions)
