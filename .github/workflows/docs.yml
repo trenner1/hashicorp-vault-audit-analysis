@@ -71,7 +71,7 @@ jobs:
           popd
 
           mkdir -p "_site/latest"
-          cp -r "${CRATE_DIR}/target/doc" "_site/latest/"
+          cp -r "${CRATE_DIR}/target/doc/." "_site/latest/"
 
           # Root redirect -> latest crate docs
           cat > _site/index.html <<EOF
@@ -129,7 +129,7 @@ jobs:
             )
 
             mkdir -p "_site/${tag}"
-            cp -r "$WT/$CRATE_DIR/target/doc" "_site/${tag}/"
+            cp -r "$WT/$CRATE_DIR/target/doc/." "_site/${tag}/"
 
             # Record mapping for versions.html
             echo "${tag} ${DOC_CRATE}" >> _site/.versions
