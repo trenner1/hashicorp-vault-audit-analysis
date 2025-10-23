@@ -19,7 +19,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         rust: [stable]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -48,25 +48,21 @@ jobs:
       - name: Cache target directory
         uses: actions/cache@v4
         with:
-          path: vault-audit-tools/target
+          path: target
           key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-target-
 
       - name: Run tests
-        run: |
-          cd vault-audit-tools
-          cargo test --all-features --verbose
+        run: cargo test --all-features --verbose
 
       - name: Run doc tests
-        run: |
-          cd vault-audit-tools
-          cargo test --doc
+        run: cargo test --doc
 
   lint:
     name: Linting (clippy)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -82,18 +78,16 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            vault-audit-tools/target
+            target
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run clippy
-        run: |
-          cd vault-audit-tools
-          cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
   format:
     name: Code Formatting
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -104,9 +98,7 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: |
-          cd vault-audit-tools
-          cargo fmt --all -- --check
+        run: cargo fmt --all -- --check
 
   build:
     name: Build
@@ -114,7 +106,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -128,26 +120,24 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            vault-audit-tools/target
+            target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release
-        run: |
-          cd vault-audit-tools
-          cargo build --release --verbose
+        run: cargo build --release --verbose
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: vault-audit-${{ matrix.os }}
           path: |
-            vault-audit-tools/target/release/vault-audit${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            target/release/vault-audit${{ matrix.os == 'windows-latest' && '.exe' || '' }}
           retention-days: 7
 
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -159,15 +149,13 @@ jobs:
         run: cargo install cargo-tarpaulin
 
       - name: Generate coverage
-        run: |
-          cd vault-audit-tools
-          cargo tarpaulin --out xml --all-features
+        run: cargo tarpaulin --out xml --all-features
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         continue-on-error: true
         with:
-          files: vault-audit-tools/cobertura.xml
+          files: cobertura.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: trenner1/hashicorp-vault-audit-analysis
@@ -177,4 +165,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: vault-audit-tools/cobertura.xml
+          path: cobertura.xml

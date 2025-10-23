@@ -131,7 +131,7 @@ fn test_entity_churn_multi_day() {
         .collect();
 
     // Run entity-churn command
-    let result = entity_churn::run(&log_files, None, None, None);
+    let result = entity_churn::run(&log_files, None, None, None, None);
 
     assert!(
         result.is_ok(),
@@ -154,6 +154,7 @@ fn test_entity_churn_with_baseline() {
         None,
         Some(baseline_csv.path().to_str().unwrap()),
         None,
+        None,
     );
 
     assert!(result.is_ok(), "entity-churn with baseline should succeed");
@@ -174,6 +175,7 @@ fn test_entity_churn_with_json_output() {
         None,
         None,
         Some(output_file.path().to_str().unwrap()),
+        None,
     );
 
     assert!(result.is_ok(), "entity-churn with output should succeed");
@@ -201,7 +203,7 @@ fn test_entity_churn_minimum_files() {
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
 
-    let result = entity_churn::run(&log_files, None, None, None);
+    let result = entity_churn::run(&log_files, None, None, None, None);
 
     assert!(result.is_ok(), "entity-churn should work with 2 files");
 }
@@ -217,7 +219,7 @@ fn test_entity_churn_single_file() {
         .map(|p| p.to_str().unwrap().to_string())
         .collect();
 
-    let result = entity_churn::run(&log_files, None, None, None);
+    let result = entity_churn::run(&log_files, None, None, None, None);
 
     // Single file is allowed (useful for baseline analysis)
     assert!(
