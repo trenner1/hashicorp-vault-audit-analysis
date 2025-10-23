@@ -31,9 +31,9 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 fn format_number(n: usize) -> String {
@@ -70,7 +70,7 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
             ProgressBar::new_spinner("Processing")
         };
 
-        let file = File::open(log_file)?;
+        let file = open_file(log_file)?;
         let reader = BufReader::new(file);
 
         let mut file_lines = 0;

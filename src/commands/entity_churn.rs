@@ -82,6 +82,7 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -573,7 +574,7 @@ pub fn run(
 
         println!("\nProcessing Day {} ({})...", file_idx + 1, file_name);
 
-        let file = File::open(log_file)
+        let file = open_file(log_file)
             .with_context(|| format!("Failed to open log file: {}", log_file))?;
         let file_size = get_file_size(log_file)? as usize;
 
