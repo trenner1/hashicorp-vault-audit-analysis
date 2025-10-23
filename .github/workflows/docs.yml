@@ -1,0 +1,62 @@
+# .github/workflows/docs.yml
+name: Publish Rust docs to Pages
+
+on:
+  release:
+    types: [published]   # run when you publish a release
+  workflow_dispatch:      # allow manual runs
+
+permissions:
+  contents: read
+  pages: write            # required for actions/deploy-pages
+  id-token: write         # required for OIDC with Pages
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # Build just your crate's docs (no deps) with docs.rs cfgs enabled
+      - name: Build docs
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs"
+        run: |
+          # If you have a workspace, set CRATE to the package you want (e.g., vault-audit-tools)
+          CRATE="vault-audit-tools"
+          cargo doc -p "${CRATE}" --all-features --no-deps
+
+          # Create a redirect index so Pages root opens your crate docs
+          mkdir -p target/doc
+          cat > target/doc/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <meta http-equiv="refresh" content="0; url=vault_audit_tools/index.html">
+          <link rel="canonical" href="vault_audit_tools/index.html">
+          HTML
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/doc
+
+  deploy:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
