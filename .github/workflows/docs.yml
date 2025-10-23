@@ -1,11 +1,11 @@
-name: Versioned Rust docs to Pages
+name: Versioned Rust docs to Pages (auto-crate, multi-layout)
 
 on:
   release:
     types: [published]      # build when you publish a release (tag)
   push:
     tags:
-      - 'v*'                 # also build on version tag pushes (backup trigger)
+      - 'v*'                # also build on version tag pushes (backup trigger)
   workflow_dispatch:         # allow manual runs (useful to rebuild all versions)
 
 permissions:
@@ -18,18 +18,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # The actual crate name from Cargo.toml
-  CRATE: vault-audit-tools
-  # The doc directory name (hyphens become underscores)
-  DOC_CRATE: vault_audit_tools
-  # how many most-recent tags to include (keep the site fast to build)
-  VERSION_COUNT: "10"
+  VERSION_COUNT: "10"        # how many most-recent tags to include
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (with full history for tags)
+      - name: Checkout (full history for tags)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -44,62 +39,170 @@ jobs:
         run: |
           rm -rf site target || true
           mkdir -p site
+          # We'll collect "tag<TAB>crate_dir" lines here to render versions.html later
+          : > site/.versions
 
-      # ---------- Build latest from default branch ----------
-      - name: Build docs for latest (default branch)
+      # ---------- helper: detect crate name & dir for the current ref ----------
+      # Outputs:
+      #   CRATE  -> package name from Cargo.toml (may have hyphens)
+      #   CRATE_DIR -> rustdoc folder (hyphens replaced with underscores)
+      - name: Detect crate (latest / current ref)
+        id: detect_latest
+        shell: bash
+        run: |
+          detect() {
+            local wd="$1"
+            if [ -f "$wd/Cargo.toml" ]; then
+              (
+                cd "$wd"
+                # extract first package name from cargo metadata without jq
+                local name
+                name=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
+                  | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
+                if [ -z "$name" ]; then
+                  echo "Could not detect crate name in $wd" >&2; exit 1
+                fi
+                echo "$name"
+              )
+            fi
+          }
+
+          CRATE=""
+          # Prefer new layout at repo root; fall back to old subdir layout
+          if [ -f Cargo.toml ]; then
+            CRATE=$(detect ".")
+          elif [ -f vault-audit-tools/Cargo.toml ]; then
+            CRATE=$(detect "vault-audit-tools")
+          else
+            echo "No Cargo.toml found in root or vault-audit-tools/; cannot detect crate." >&2
+            exit 1
+          fi
+
+          CRATE_DIR="${CRATE//-/_}"
+          echo "crate=$CRATE" >> "$GITHUB_OUTPUT"
+          echo "crate_dir=$CRATE_DIR" >> "$GITHUB_OUTPUT"
+          echo "Detected latest crate: $CRATE (dir: $CRATE_DIR)"
+
+      # ---------- Build docs for latest from default branch ----------
+      - name: Build docs (latest)
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
+          CRATE: ${{ steps.detect_latest.outputs.crate }}
+        shell: bash
         run: |
-          cargo doc -p "$CRATE" --all-features --no-deps
+          if [ -f Cargo.toml ]; then
+            echo "Building from root (latest)"
+            cargo doc -p "$CRATE" --all-features --no-deps
+          elif [ -f vault-audit-tools/Cargo.toml ]; then
+            echo "Building from vault-audit-tools/ subdir (latest)"
+            ( cd vault-audit-tools && cargo doc -p "$CRATE" --all-features --no-deps )
+          fi
           mkdir -p "site/latest"
           rsync -a "target/doc/" "site/latest/"
+          # Record pseudo-tag 'latest' for the versions page
+          echo -e "latest\t${{ steps.detect_latest.outputs.crate_dir }}" >> site/.versions
+          # clean target so versioned builds don't mix files
+          rm -rf target
 
       # ---------- Build versioned docs for recent tags ----------
       - name: Build docs for last N tags (v*)
-        if: ${{ always() }}
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
+        shell: bash
         run: |
-          # pick last N semver-ish tags (vX.Y.Z)
           TAGS=$(git tag --list 'v*' --sort=-v:refname | head -n "${VERSION_COUNT}")
           echo "Building tags: ${TAGS}"
           for t in ${TAGS}; do
             echo "::group::Build $t"
             git checkout --force "tags/${t}"
 
+            # Detect crate for THIS tag (handle layout + name changes)
+            detect_for_tag() {
+              local wd="$1"
+              if [ -f "$wd/Cargo.toml" ]; then
+                (
+                  cd "$wd"
+                  local name
+                  name=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
+                    | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
+                  echo "$name"
+                )
+              fi
+            }
+
+            CRATE=""
+            BUILD_WD="."
+            if [ -f Cargo.toml ]; then
+              CRATE=$(detect_for_tag ".")
+              BUILD_WD="."
+              echo "Tag $t uses root layout; crate=$CRATE"
+            elif [ -f vault-audit-tools/Cargo.toml ]; then
+              CRATE=$(detect_for_tag "vault-audit-tools")
+              BUILD_WD="vault-audit-tools"
+              echo "Tag $t uses legacy subdir; crate=$CRATE"
+            else
+              echo "No Cargo.toml found for tag $t; skipping."
+              echo "::endgroup::"
+              continue
+            fi
+
+            CRATE_DIR="${CRATE//-/_}"
+
             # clean target between tag builds to avoid cross-version bleed
             rm -rf target
 
-            # Handle both old (vault-audit-tools/) and new (root) directory structures
-            if [ -f "vault-audit-tools/Cargo.toml" ]; then
-              echo "Building from vault-audit-tools/ subdirectory (pre-v0.5.0 structure)"
-              cd vault-audit-tools
-              cargo doc -p "$CRATE" --all-features --no-deps
-              mkdir -p "../site/v/${t}"
-              rsync -a "target/doc/" "../site/v/${t}/"
-              cd ..
-            else
-              echo "Building from root (v0.5.0+ structure)"
+            if [ "$BUILD_WD" = "." ]; then
               cargo doc -p "$CRATE" --all-features --no-deps
               mkdir -p "site/v/${t}"
               rsync -a "target/doc/" "site/v/${t}/"
+            else
+              ( cd "$BUILD_WD" && cargo doc -p "$CRATE" --all-features --no-deps )
+              mkdir -p "site/v/${t}"
+              rsync -a "${BUILD_WD}/target/doc/" "site/v/${t}/"
             fi
+
+            # Record mapping for versions page
+            echo -e "${t}\t${CRATE_DIR}" >> site/.versions
             echo "::endgroup::"
           done
 
           # return to previous ref (Actions checks out a detached HEAD)
           git checkout -
 
-      # ---------- Root redirect ----------
-      - name: Create root redirect to latest
+      # ---------- Root + Versions pages ----------
+      - name: Create root and versions pages
+        shell: bash
         run: |
-          cat > site/index.html <<'HTML'
+          # Extract latest crate dir from the recorded mappings
+          LATEST_DIR=$(awk -F'\t' '$1=="latest"{print $2}' site/.versions | tail -n1)
+          if [ -z "$LATEST_DIR" ]; then
+            echo "Could not find latest crate dir in site/.versions"; exit 1
+          fi
+
+          # index.html redirects to latest crate docs
+          cat > site/index.html <<HTML
           <!doctype html>
           <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=latest/vault_audit_tools/index.html">
-          <link rel="canonical" href="latest/vault_audit_tools/index.html">
-          <title>Redirecting to vault-audit-tools docs…</title>
+          <meta http-equiv="refresh" content="0; url=latest/${LATEST_DIR}/index.html">
+          <link rel="canonical" href="latest/${LATEST_DIR}/index.html">
+          <title>Vault Audit Docs</title>
+          <p>Redirecting to <a href="latest/${LATEST_DIR}/index.html">latest docs</a>…</p>
+          <p>Or see the <a href="versions.html">list of versions</a>.</p>
           HTML
+
+          # versions.html enumerates available tags with correct crate dirs
+          {
+            echo '<!doctype html><meta charset="utf-8"><title>Documentation Versions</title>'
+            echo '<h1>Documentation Versions</h1>'
+            echo '<ul>'
+            # list tags (exclude the 'latest' pseudo-row)
+            awk -F'\t' '$1!="latest"{print $1"\t"$2}' site/.versions \
+              | while IFS=$'\t' read -r tag dir; do
+                  echo "<li><a href=\"v/${tag}/${dir}/index.html\">${tag}</a></li>"
+                done
+            echo '</ul>'
+            echo "<p><a href=\"latest/${LATEST_DIR}/index.html\">Latest (main)</a></p>"
+          } > site/versions.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -1,5 +1,19 @@
 //! KV secrets engine usage analyzer.
 //!
+//! ⚠️ **DEPRECATED**: Use `kv-analysis analyze` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit kv-analyzer logs/*.log --output kv_usage.csv
+//!
+//! # New (recommended):
+//! vault-audit kv-analysis analyze logs/*.log --output kv_usage.csv
+//! ```
+//!
+//! See [`kv_analysis`](crate::commands::kv_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Analyzes KV mount access patterns from audit logs and generates
 //! detailed usage statistics per path and entity. Supports multi-file
 //! analysis (compressed or uncompressed) for long-term trend tracking.

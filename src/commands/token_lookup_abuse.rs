@@ -1,5 +1,22 @@
 //! Token lookup abuse detection.
 //!
+//! **⚠️ DEPRECATED**: Use `token-analysis --abuse-threshold` instead.
+//!
+//! This command has been consolidated into the unified `token-analysis` command.
+//! Use the `--abuse-threshold` flag for abuse detection.
+//!
+//! ```bash
+//! # Old command (deprecated)
+//! vault-audit token-lookup-abuse audit.log --threshold 500
+//!
+//! # New command (recommended)
+//! vault-audit token-analysis audit.log --abuse-threshold 500
+//! ```
+//!
+//! See [`token_analysis`](crate::commands::token_analysis) module for full documentation.
+//!
+//! ---
+//!
 //! Identifies entities performing excessive token lookup operations,
 //! which can indicate misconfigured applications or potential security issues.
 //! Supports multi-file analysis (compressed or uncompressed) for pattern detection over time.

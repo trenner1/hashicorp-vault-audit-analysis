@@ -1,5 +1,19 @@
 //! Entity creation analysis command.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis creation` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit entity-creation logs/*.log
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis creation logs/*.log
+//! ```
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Identifies when entities first appear in audit logs, grouped by
 //! authentication method and mount path.
 //! Supports multi-file analysis for tracking entity creation over time.
@@ -385,7 +399,7 @@ pub fn run(
     eprintln!();
     eprintln!("{}", "-".repeat(100));
     eprintln!(
-        "{:<50} {:<15} {:<15} {:<20}",
+        "{:<50} {:<15} {:>15} {:>15}",
         "Authentication Path", "Mount Type", "Entities", "Total Logins"
     );
     eprintln!("{}", "-".repeat(100));

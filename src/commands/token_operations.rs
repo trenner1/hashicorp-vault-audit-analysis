@@ -1,5 +1,22 @@
 //! Token lifecycle operations analysis.
 //!
+//! **⚠️ DEPRECATED**: Use `token-analysis` instead.
+//!
+//! This command has been consolidated into the unified `token-analysis` command
+//! which provides the same functionality plus abuse detection and CSV export.
+//!
+//! ```bash
+//! # Old command (deprecated)
+//! vault-audit token-operations vault_audit.log
+//!
+//! # New command (recommended)
+//! vault-audit token-analysis vault_audit.log
+//! ```
+//!
+//! See [`token_analysis`](crate::commands::token_analysis) module for full documentation.
+//!
+//! ---
+//!
 //! Tracks token-related operations to understand token usage patterns
 //! and identify entities performing high volumes of token operations.
 //! Supports multi-file analysis for long-term trending.
