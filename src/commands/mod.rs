@@ -50,6 +50,7 @@
 
 pub mod airflow_polling;
 pub mod client_activity;
+pub mod entity_analysis;
 pub mod entity_churn;
 pub mod entity_creation;
 pub mod entity_gaps;

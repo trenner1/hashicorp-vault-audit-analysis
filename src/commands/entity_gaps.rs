@@ -1,5 +1,19 @@
 //! Entity gaps analysis command.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis gaps` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit entity-gaps logs/*.log
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis gaps logs/*.log
+//! ```
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Identifies operations that occur without an associated entity ID,
 //! which can indicate unauthenticated requests or system operations.
 //! Supports multi-file analysis for comprehensive coverage.

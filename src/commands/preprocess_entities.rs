@@ -1,5 +1,21 @@
 //! Entity mapping preprocessor.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis preprocess` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit preprocess-entities logs/*.log --output mappings.json
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis preprocess logs/*.log --output mappings.json
+//! ```
+//!
+//! **Note**: Most commands now auto-preprocess entity mappings, so this is rarely needed!
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Extracts entity-to-alias mappings from audit logs and exports to JSON or CSV,
 //! creating a baseline for subsequent entity analysis.
 //! Supports multi-file processing for comprehensive entity mapping.

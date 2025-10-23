@@ -1,5 +1,19 @@
 //! Entity timeline visualization command.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis timeline` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit entity-timeline logs/*.log --entity-id abc-123-def
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis timeline --entity-id abc-123-def logs/*.log
+//! ```
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Generates a detailed timeline of all operations performed by a specific entity,
 //! useful for understanding entity behavior and troubleshooting issues.
 //! Supports multi-file analysis to track entities across multiple days.

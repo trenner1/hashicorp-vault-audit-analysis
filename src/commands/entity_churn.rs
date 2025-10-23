@@ -1,5 +1,19 @@
 //! Multi-day entity churn analysis with intelligent ephemeral pattern detection.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis churn` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit entity-churn day1.log day2.log day3.log
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis churn day1.log day2.log day3.log
+//! ```
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Tracks entity lifecycle across multiple audit log files (compressed or uncompressed)
 //! to identify:
 //! - New entities appearing each day
