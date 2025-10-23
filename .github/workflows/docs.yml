@@ -1,14 +1,14 @@
-name: Versioned Rust docs to Pages (auto-crate, multi-layout)
+name: Versioned Rust docs to Pages
 
 on:
   release:
-    types: [published]      # build when you publish a release (tag)
+    types: [published]         # run when you publish a release
   push:
-    branches:
-      - main                # rebuild latest docs on main branch updates
     tags:
-      - 'v*'                # also build on version tag pushes (backup trigger)
-  workflow_dispatch:         # allow manual runs (useful to rebuild all versions)
+      - 'v*'                   # run when pushing version tags
+    branches:
+      - main                   # also refresh "latest" on main changes
+  workflow_dispatch:           # allow manual rebuilds
 
 permissions:
   contents: read
@@ -20,11 +20,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VERSION_COUNT: "10"        # how many most-recent tags to include
+  CRATE: vault-audit-tools
+  DOC_CRATE: vault_audit_tools
+  VERSION_COUNT: "10"
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full history for tags)
         uses: actions/checkout@v4
@@ -34,145 +37,63 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Prepare site dir
+      - name: Build docs (latest from current commit)
         run: |
-          rm -rf site target || true
-          mkdir -p site
-          # We'll collect "tag<TAB>crate_dir" lines here to render versions.html later
-          : > site/.versions
+          set -euxo pipefail
+          rm -rf _site
+          mkdir -p _site
 
-      # ---------- helper: detect crate name & dir for the current ref ----------
-      # Outputs:
-      #   CRATE  -> package name from Cargo.toml (may have hyphens)
-      #   CRATE_DIR -> rustdoc folder (hyphens replaced with underscores)
-      - name: Detect crate (latest / current ref)
-        id: detect_latest
+          # Build latest
+          cargo doc --no-deps -p "$CRATE"
+          mkdir -p "_site/latest"
+          cp -r target/doc "_site/latest/"
+
+          # Root index -> latest crate docs
+          cat > _site/index.html <<EOF
+          <meta http-equiv="refresh" content="0; url=latest/${DOC_CRATE}/index.html">
+          <link rel="canonical" href="latest/${DOC_CRATE}/index.html"/>
+          EOF
+
+      - name: Build docs for recent tags
         shell: bash
         run: |
-          # Extract crate name from root Cargo.toml
-          if [ ! -f Cargo.toml ]; then
-            echo "No Cargo.toml found at root; cannot detect crate." >&2
-            exit 1
-          fi
-
-          CRATE=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
-            | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
-
-          if [ -z "$CRATE" ]; then
-            echo "Could not detect crate name" >&2
-            exit 1
-          fi
-
-          CRATE_DIR="${CRATE//-/_}"
-          echo "crate=$CRATE" >> "$GITHUB_OUTPUT"
-          echo "crate_dir=$CRATE_DIR" >> "$GITHUB_OUTPUT"
-          echo "Detected crate: $CRATE (dir: $CRATE_DIR)"
-
-      # ---------- Build docs for latest from default branch ----------
-      - name: Build docs (latest)
-        env:
-          RUSTDOCFLAGS: "--cfg docsrs"
-          CRATE: ${{ steps.detect_latest.outputs.crate }}
-        shell: bash
-        run: |
-          echo "Building from root (latest)"
-          cargo doc --all-features --no-deps
-          mkdir -p "site/latest"
-          rsync -a "target/doc/" "site/latest/"
-          # Record pseudo-tag 'latest' for the versions page
-          echo -e "latest\t${{ steps.detect_latest.outputs.crate_dir }}" >> site/.versions
-          # clean target so versioned builds don't mix files
-          rm -rf target
-
-      # ---------- Build versioned docs for recent tags ----------
-      - name: Build docs for last N tags (v*)
-        env:
-          RUSTDOCFLAGS: "--cfg docsrs"
-        shell: bash
-        run: |
-          TAGS=$(git tag --list 'v*' --sort=-v:refname | head -n "${VERSION_COUNT}")
-          echo "Building tags: ${TAGS}"
-          for t in ${TAGS}; do
-            echo "::group::Build $t"
-            git checkout --force "tags/${t}"
-
-            # Detect crate for THIS tag
-            if [ ! -f Cargo.toml ]; then
-              echo "No Cargo.toml found for tag $t; skipping."
-              echo "::endgroup::"
-              continue
-            fi
-
-            CRATE=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
-              | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
-
-            if [ -z "$CRATE" ]; then
-              echo "Could not detect crate name for tag $t; skipping."
-              echo "::endgroup::"
-              continue
-            fi
-
-            echo "Tag $t: crate=$CRATE"
-            CRATE_DIR="${CRATE//-/_}"
-
-            # clean target between tag builds to avoid cross-version bleed
-            rm -rf target
-
-            cargo doc --all-features --no-deps
-            mkdir -p "site/v/${t}"
-            rsync -a "target/doc/" "site/v/${t}/"
-
-            # Record mapping for versions page
-            echo -e "${t}\t${CRATE_DIR}" >> site/.versions
-            echo "::endgroup::"
+          set -euxo pipefail
+          mapfile -t TAGS < <(git tag -l 'v*' --sort=-v:refname | head -n "${VERSION_COUNT}")
+          for tag in "${TAGS[@]}"; do
+            git checkout --quiet "$tag"
+            # clean target between tag builds to keep size down
+            rm -rf target/doc
+            cargo doc --no-deps -p "$CRATE"
+            mkdir -p "_site/$tag"
+            cp -r target/doc "_site/$tag/"
           done
+          # return to original ref
+          git checkout --quiet "${GITHUB_SHA}"
 
-          # return to previous ref (Actions checks out a detached HEAD)
-          git checkout -
-
-      # ---------- Root + Versions pages ----------
-      - name: Create root and versions pages
+      - name: Generate versions.html
         shell: bash
         run: |
-          # Extract latest crate dir from the recorded mappings
-          LATEST_DIR=$(awk -F'\t' '$1=="latest"{print $2}' site/.versions | tail -n1)
-          if [ -z "$LATEST_DIR" ]; then
-            echo "Could not find latest crate dir in site/.versions"; exit 1
-          fi
-
-          # index.html redirects to latest crate docs
-          cat > site/index.html <<HTML
-          <!doctype html>
-          <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=latest/${LATEST_DIR}/index.html">
-          <link rel="canonical" href="latest/${LATEST_DIR}/index.html">
-          <title>Vault Audit Docs</title>
-          <p>Redirecting to <a href="latest/${LATEST_DIR}/index.html">latest docs</a>…</p>
-          <p>Or see the <a href="versions.html">list of versions</a>.</p>
+          set -euo pipefail
+          cat > _site/versions.html <<'HTML'
+          <!doctype html><meta charset="utf-8">
+          <title>Documentation Versions</title>
+          <h1>Documentation Versions</h1>
+          <ul>
           HTML
-
-          # versions.html enumerates available tags with correct crate dirs
-          {
-            echo '<!doctype html><meta charset="utf-8"><title>Documentation Versions</title>'
-            echo '<h1>Documentation Versions</h1>'
-            echo '<ul>'
-            # list tags (exclude the 'latest' pseudo-row)
-            awk -F'\t' '$1!="latest"{print $1"\t"$2}' site/.versions \
-              | while IFS=$'\t' read -r tag dir; do
-                  echo "<li><a href=\"v/${tag}/${dir}/index.html\">${tag}</a></li>"
-                done
-            echo '</ul>'
-            echo "<p><a href=\"latest/${LATEST_DIR}/index.html\">Latest (main)</a></p>"
-          } > site/versions.html
+          # list versions (latest tags first)
+          for v in $(ls -1 _site | grep '^v' | sort -rV); do
+            echo "<li><a href=\"${v}/${DOC_CRATE}/index.html\">${v}</a></li>" >> _site/versions.html
+          done
+          cat >> _site/versions.html <<'HTML'
+          </ul>
+          <p><a href="latest/${DOC_CRATE}/index.html">Latest (main)</a></p>
+          HTML
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
 
       - name: Deploy to GitHub Pages
-        id: deploy
+        id: deployment
         uses: actions/deploy-pages@v4
