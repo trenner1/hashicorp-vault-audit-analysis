@@ -98,7 +98,7 @@ jobs:
             find_crate_dir() {
               ( cd "$WT" && \
                 git ls-files | grep -E '(^|/)Cargo\.toml$' | while read -r c; do
-                  if grep -q '^\[package\]' "$WT/$c"; then dirname "$c" && exit 0; fi
+                  if grep -q '^\[package\]' "$c"; then dirname "$c" && exit 0; fi
                 done )
             }
 
