@@ -69,10 +69,21 @@ jobs:
 
             # clean target between tag builds to avoid cross-version bleed
             rm -rf target
-            cargo doc -p "$CRATE" --all-features --no-deps
 
-            mkdir -p "site/v/${t}"
-            rsync -a "target/doc/" "site/v/${t}/"
+            # Handle both old (vault-audit-tools/) and new (root) directory structures
+            if [ -f "vault-audit-tools/Cargo.toml" ]; then
+              echo "Building from vault-audit-tools/ subdirectory (pre-v0.5.0 structure)"
+              cd vault-audit-tools
+              cargo doc -p "$CRATE" --all-features --no-deps
+              mkdir -p "../site/v/${t}"
+              rsync -a "target/doc/" "../site/v/${t}/"
+              cd ..
+            else
+              echo "Building from root (v0.5.0+ structure)"
+              cargo doc -p "$CRATE" --all-features --no-deps
+              mkdir -p "site/v/${t}"
+              rsync -a "target/doc/" "site/v/${t}/"
+            fi
             echo "::endgroup::"
           done
 
