@@ -53,6 +53,26 @@
 //! or investigating specific identity issues.
 
 use anyhow::Result;
+use std::fs::File;
+use std::io::Write;
+
+/// Helper to write entity map to temp JSON file for commands that expect file paths
+fn write_temp_entity_map(
+    entity_map: &std::collections::HashMap<
+        String,
+        crate::commands::preprocess_entities::EntityMapping,
+    >,
+) -> Result<String> {
+    let temp_path = format!(".vault-audit-autopreprocess-{}.json", std::process::id());
+
+    let file = File::create(&temp_path)?;
+    let mut writer = std::io::BufWriter::new(file);
+    let json = serde_json::to_string_pretty(&entity_map)?;
+    writer.write_all(json.as_bytes())?;
+    writer.flush()?;
+
+    Ok(temp_path)
+}
 
 /// Run churn analysis subcommand
 pub fn run_churn(
@@ -61,16 +81,37 @@ pub fn run_churn(
     baseline: Option<&String>,
     output: Option<&String>,
     format: Option<&String>,
-    _auto_preprocess: bool,
+    auto_preprocess: bool,
 ) -> Result<()> {
+    // Auto-preprocessing: build entity map in-memory and write to temp file
+    let temp_map_file = if auto_preprocess && entity_map.is_none() {
+        eprintln!("Auto-preprocessing: Building entity mappings in-memory...");
+        let map = crate::commands::preprocess_entities::build_entity_map(log_files)?;
+        let temp_path = write_temp_entity_map(&map)?;
+        eprintln!("Entity mappings ready\n");
+        Some(temp_path)
+    } else {
+        None
+    };
+
+    // Use provided map or auto-generated temp map
+    let map_to_use = entity_map.map(|s| s.as_str()).or(temp_map_file.as_deref());
+
     // Delegate to existing entity_churn implementation
-    crate::commands::entity_churn::run(
+    let result = crate::commands::entity_churn::run(
         log_files,
-        entity_map.map(|s| s.as_str()),
+        map_to_use,
         baseline.map(|s| s.as_str()),
         output.map(|s| s.as_str()),
         format.map(|s| s.as_str()),
-    )
+    );
+
+    // Cleanup temp file
+    if let Some(temp) = temp_map_file {
+        let _ = std::fs::remove_file(temp);
+    }
+
+    result
 }
 
 /// Run creation analysis subcommand
@@ -78,14 +119,32 @@ pub fn run_creation(
     log_files: &[String],
     entity_map: Option<&String>,
     output: Option<&String>,
-    _auto_preprocess: bool,
+    auto_preprocess: bool,
 ) -> Result<()> {
+    // Auto-preprocessing: build entity map in-memory and write to temp file
+    let temp_map_file = if auto_preprocess && entity_map.is_none() {
+        eprintln!("🔄 Auto-preprocessing: Building entity mappings in-memory...");
+        let map = crate::commands::preprocess_entities::build_entity_map(log_files)?;
+        let temp_path = write_temp_entity_map(&map)?;
+        eprintln!("✓ Entity mappings ready\n");
+        Some(temp_path)
+    } else {
+        None
+    };
+
+    // Use provided map or auto-generated temp map
+    let map_to_use = entity_map.map(|s| s.as_str()).or(temp_map_file.as_deref());
+
     // Delegate to existing entity_creation implementation
-    crate::commands::entity_creation::run(
-        log_files,
-        entity_map.map(|s| s.as_str()),
-        output.map(|s| s.as_str()),
-    )
+    let result =
+        crate::commands::entity_creation::run(log_files, map_to_use, output.map(|s| s.as_str()));
+
+    // Cleanup temp file
+    if let Some(temp) = temp_map_file {
+        let _ = std::fs::remove_file(temp);
+    }
+
+    result
 }
 
 /// Run preprocess subcommand

@@ -399,7 +399,7 @@ pub fn run(
     eprintln!();
     eprintln!("{}", "-".repeat(100));
     eprintln!(
-        "{:<50} {:<15} {:<15} {:<20}",
+        "{:<50} {:<15} {:>15} {:>15}",
         "Authentication Path", "Mount Type", "Entities", "Total Logins"
     );
     eprintln!("{}", "-".repeat(100));

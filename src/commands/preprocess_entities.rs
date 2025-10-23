@@ -60,21 +60,20 @@ use std::io::{BufRead, BufReader, Write};
 
 /// Entity mapping with login statistics
 #[derive(Debug, Serialize, Deserialize)]
-struct EntityMapping {
-    display_name: String,
-    mount_path: String,
-    mount_accessor: String,
+pub struct EntityMapping {
+    pub display_name: String,
+    pub mount_path: String,
+    pub mount_accessor: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    username: Option<String>,
-    login_count: usize,
-    first_seen: String,
-    last_seen: String,
+    pub username: Option<String>,
+    pub login_count: usize,
+    pub first_seen: String,
+    pub last_seen: String,
 }
 
-pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
-    eprintln!("Preprocessing audit logs...");
-    eprintln!("Extracting entity → display_name mappings from login events...\n");
-
+/// Build entity mappings from audit logs without writing to file.
+/// Returns HashMap of entity_id -> EntityMapping for reuse by other commands.
+pub fn build_entity_map(log_files: &[String]) -> Result<HashMap<String, EntityMapping>> {
     let mut entity_map: HashMap<String, EntityMapping> = HashMap::new();
     let mut login_events = 0;
     let mut lines_processed = 0;
@@ -207,11 +206,20 @@ pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
     }
 
     eprintln!(
-        "\nTotal: Processed {} lines, found {} login events, tracked {} entities",
+        "\nTotal: Processed {} lines, found {} login events, tracked {} entities\n",
         lines_processed,
         login_events,
         entity_map.len()
     );
+
+    Ok(entity_map)
+}
+
+pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
+    eprintln!("Preprocessing audit logs...");
+    eprintln!("Extracting entity → display_name mappings from login events...\n");
+
+    let entity_map = build_entity_map(log_files)?;
 
     // Write output based on format
     eprintln!("\nWriting entity mappings to: {}", output);
