@@ -1,5 +1,19 @@
 //! Entity gaps analysis command.
 //!
+//! ⚠️ **DEPRECATED**: Use `entity-analysis gaps` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit entity-gaps logs/*.log
+//!
+//! # New (recommended):
+//! vault-audit entity-analysis gaps logs/*.log
+//! ```
+//!
+//! See [`entity_analysis`](crate::commands::entity_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Identifies operations that occur without an associated entity ID,
 //! which can indicate unauthenticated requests or system operations.
 //! Supports multi-file analysis for comprehensive coverage.
@@ -164,7 +178,7 @@ pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
 
     println!("\n3. TOP 30 PATHS ACCESSED");
     println!("{}", "-".repeat(100));
-    println!("{:<70} {:<15} {:<15}", "Path", "Count", "% of No-Entity");
+    println!("{:<70} {:>15} {:>15}", "Path", "Count", "% of No-Entity");
     println!("{}", "-".repeat(100));
 
     let mut sorted_paths: Vec<_> = paths_accessed.iter().collect();
@@ -178,7 +192,7 @@ pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
             path.to_string()
         };
         println!(
-            "{:<70} {:<15} {:<15.2}%",
+            "{:<70} {:>15} {:>14.2}%",
             display_path,
             format_number(**count),
             percentage
