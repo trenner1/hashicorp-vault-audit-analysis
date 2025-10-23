@@ -2,20 +2,23 @@
 //!
 //! Identifies the most frequently accessed paths in Vault to help
 //! understand usage patterns and potential performance bottlenecks.
-//! Supports multi-file analysis for long-term trending.
+//! Supports multi-file analysis (compressed or uncompressed) for long-term trending.
 //!
 //! # Usage
 //!
 //! ```bash
 //! # Single file - show top 20 hotspots (default)
 //! vault-audit path-hotspots audit.log
+//! vault-audit path-hotspots audit.log.gz
 //!
-//! # Multi-day analysis with top 50
-//! vault-audit path-hotspots logs/*.log --top 50
+//! # Multi-day analysis with top 50 (compressed files)
+//! vault-audit path-hotspots logs/*.log.gz --top 50
 //!
 //! # Filter by mount point across multiple files
 //! vault-audit path-hotspots day*.log --mount secret
 //! ```
+//!
+//! **Compressed File Support**: Works seamlessly with `.gz` and `.zst` files.
 //!
 //! # Output
 //!
