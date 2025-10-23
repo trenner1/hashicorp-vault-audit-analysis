@@ -2,17 +2,20 @@
 //!
 //! Identifies entities performing excessive token lookup operations,
 //! which can indicate misconfigured applications or potential security issues.
-//! Supports multi-file analysis for pattern detection over time.
+//! Supports multi-file analysis (compressed or uncompressed) for pattern detection over time.
 //!
 //! # Usage
 //!
 //! ```bash
 //! # Single file with default threshold (100 lookups per entity)
 //! vault-audit token-lookup-abuse audit.log
+//! vault-audit token-lookup-abuse audit.log.gz
 //!
-//! # Multi-day analysis with custom threshold
-//! vault-audit token-lookup-abuse logs/*.log --threshold 500
+//! # Multi-day analysis with custom threshold (compressed files)
+//! vault-audit token-lookup-abuse logs/*.log.gz --threshold 500
 //! ```
+//!
+//! **Compressed File Support**: Analyzes `.gz` and `.zst` files directly.
 //!
 //! # Output
 //!

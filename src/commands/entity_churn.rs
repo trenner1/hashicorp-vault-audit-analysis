@@ -1,6 +1,7 @@
 //! Multi-day entity churn analysis with intelligent ephemeral pattern detection.
 //!
-//! Tracks entity lifecycle across multiple audit log files to identify:
+//! Tracks entity lifecycle across multiple audit log files (compressed or uncompressed)
+//! to identify:
 //! - New entities appearing each day
 //! - Returning vs. churned entities
 //! - Entity persistence patterns
@@ -10,8 +11,8 @@
 //! # Usage
 //!
 //! ```bash
-//! # Analyze entity churn across a week
-//! vault-audit entity-churn day1.log day2.log day3.log day4.log day5.log day6.log day7.log
+//! # Analyze entity churn across a week (compressed files)
+//! vault-audit entity-churn day1.log.gz day2.log.gz day3.log.gz day4.log.gz day5.log.gz day6.log.gz day7.log.gz
 //!
 //! # With baseline for accurate new entity detection
 //! vault-audit entity-churn *.log --baseline baseline_entities.json
@@ -25,6 +26,9 @@
 //! # Export as CSV format
 //! vault-audit entity-churn *.log --output entity_churn.csv --format csv
 //! ```
+//!
+//! **Compressed File Support**: Automatically handles `.gz` and `.zst` files - no manual
+//! decompression required. Mix compressed and uncompressed files freely.
 //!
 //! # Ephemeral Pattern Detection
 //!

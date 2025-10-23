@@ -2,20 +2,23 @@
 //!
 //! Analyzes KV mount access patterns from audit logs and generates
 //! detailed usage statistics per path and entity. Supports multi-file
-//! analysis for long-term trend tracking.
+//! analysis (compressed or uncompressed) for long-term trend tracking.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Single file analysis
+//! # Single file analysis (plain or compressed)
 //! vault-audit kv-analyzer audit.log --output kv_usage.csv
+//! vault-audit kv-analyzer audit.log.gz --output kv_usage.csv
 //!
-//! # Multi-day analysis
-//! vault-audit kv-analyzer day1.log day2.log day3.log --output kv_usage.csv
+//! # Multi-day analysis with compressed files
+//! vault-audit kv-analyzer day1.log.gz day2.log.gz day3.log.gz --output kv_usage.csv
 //!
 //! # Filter specific KV mount
 //! vault-audit kv-analyzer *.log --kv-prefix "appcodes/" --output appcodes.csv
 //! ```
+//!
+//! **Compressed File Support**: Processes `.gz` and `.zst` files with no manual decompression.
 //!
 //! # Output
 //!

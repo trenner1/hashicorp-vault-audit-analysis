@@ -2,20 +2,24 @@
 //!
 //! Provides high-level statistics and insights about Vault usage
 //! across the entire audit log. Supports analyzing multiple log files
-//! for long-term trend analysis.
+//! (compressed or uncompressed) for long-term trend analysis.
 //!
 //! # Usage
 //!
 //! ```bash
-//! # Single file
+//! # Single file (plain or compressed)
 //! vault-audit system-overview audit.log
+//! vault-audit system-overview audit.log.gz
 //!
 //! # Multiple files for week-long analysis
 //! vault-audit system-overview day1.log day2.log day3.log
 //!
-//! # Using shell globbing
-//! vault-audit system-overview logs/vault_audit.2025-10-*.log
+//! # Using shell globbing with compressed files
+//! vault-audit system-overview logs/vault_audit.2025-10-*.log.gz
 //! ```
+//!
+//! **Compressed File Support**: Automatically detects and decompresses `.gz` (gzip)
+//! and `.zst` (zstandard) files with streaming processing - no temp files needed.
 //!
 //! # Output
 //!
