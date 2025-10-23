@@ -236,7 +236,7 @@ pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
             writer.write_all(json.as_bytes())?;
             writer.flush()?;
 
-            eprintln!("✓ JSON entity mapping file created successfully!\n");
+            eprintln!("JSON entity mapping file created successfully!\n");
         }
         "csv" => {
             let output_file = File::create(output)

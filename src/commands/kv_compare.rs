@@ -1,5 +1,19 @@
 //! KV usage comparison across time periods.
 //!
+//! ⚠️ **DEPRECATED**: Use `kv-analysis compare` instead.
+//!
+//! ```bash
+//! # Old (deprecated):
+//! vault-audit kv-compare old_usage.csv new_usage.csv
+//!
+//! # New (recommended):
+//! vault-audit kv-analysis compare old_usage.csv new_usage.csv
+//! ```
+//!
+//! See [`kv_analysis`](crate::commands::kv_analysis) for the unified command.
+//!
+//! ---
+//!
 //! Compares KV secrets engine usage between two CSV exports to identify
 //! changes in access patterns over time.
 //!

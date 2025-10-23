@@ -57,6 +57,7 @@ pub mod entity_gaps;
 pub mod entity_list;
 pub mod entity_timeline;
 pub mod k8s_auth;
+pub mod kv_analysis;
 pub mod kv_analyzer;
 pub mod kv_compare;
 pub mod kv_summary;

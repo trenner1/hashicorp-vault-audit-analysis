@@ -119,10 +119,14 @@ enum EntityAnalysisCommands {
     },
 }
 
+/// KV secrets analysis subcommands
 #[derive(Subcommand)]
-enum Commands {
-    /// Analyze KV usage by path and entity
-    KvAnalyzer {
+enum KvAnalysisCommands {
+    /// Comprehensive KV usage analysis from audit logs
+    ///
+    /// Processes audit logs to generate detailed KV usage statistics per path and entity.
+    /// Supports multi-file analysis and filtering by KV mount prefix.
+    Analyze {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
         log_files: Vec<String>,
@@ -141,6 +145,47 @@ enum Commands {
     },
 
     /// Compare KV usage between two time periods
+    ///
+    /// Identifies changes in access patterns, new secrets, and abandoned secrets.
+    Compare {
+        /// First CSV file (older period)
+        csv1: String,
+
+        /// Second CSV file (newer period)
+        csv2: String,
+    },
+
+    /// Summarize KV usage from CSV export
+    ///
+    /// Shows aggregated statistics, top accessed secrets, and breakdown by mount point.
+    Summary {
+        /// KV usage CSV file
+        csv_file: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Analyze KV usage by path and entity (⚠️ DEPRECATED: Use 'kv-analysis analyze' instead)
+    KvAnalyzer {
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
+
+        /// KV mount prefix to filter (e.g., "kv/", leave empty for all KV mounts)
+        #[arg(long, default_value = "")]
+        kv_prefix: String,
+
+        /// Output CSV file path
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Entity alias CSV for enrichment (columns: entity_id, name)
+        #[arg(long)]
+        entity_csv: Option<String>,
+    },
+
+    /// Compare KV usage between two time periods (⚠️ DEPRECATED: Use 'kv-analysis compare' instead)
     KvCompare {
         /// First CSV file (older period)
         csv1: String,
@@ -149,7 +194,7 @@ enum Commands {
         csv2: String,
     },
 
-    /// Summarize KV usage from CSV
+    /// Summarize KV usage from CSV (⚠️ DEPRECATED: Use 'kv-analysis summary' instead)
     KvSummary {
         /// KV usage CSV file
         csv_file: String,
@@ -170,7 +215,7 @@ enum Commands {
         min_operations: usize,
     },
 
-    /// Analyze token operations by entity
+    /// Analyze token operations by entity (⚠️ DEPRECATED: Use 'token-analysis' instead)
     TokenOperations {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -207,7 +252,7 @@ enum Commands {
         min_operations: usize,
     },
 
-    /// Export token lookup patterns to CSV
+    /// Export token lookup patterns to CSV (⚠️ DEPRECATED: Use 'token-analysis --export' instead)
     TokenExport {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -222,7 +267,7 @@ enum Commands {
         min_lookups: usize,
     },
 
-    /// Detect token lookup abuse patterns
+    /// Detect token lookup abuse patterns (⚠️ DEPRECATED: Use 'token-analysis --abuse-threshold' instead)
     TokenLookupAbuse {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -240,7 +285,14 @@ enum Commands {
     #[command(subcommand)]
     EntityAnalysis(EntityAnalysisCommands),
 
-    /// Analyze entity creation/deletion gaps
+    /// Unified KV secrets analysis - usage, comparison, and summarization
+    ///
+    /// Consolidates all KV-related analysis commands into a single interface.
+    /// Replaces: kv-analyzer, kv-compare, kv-summary
+    #[command(subcommand)]
+    KvAnalysis(KvAnalysisCommands),
+
+    /// Analyze entity creation/deletion gaps (⚠️ DEPRECATED: Use 'entity-analysis gaps' instead)
     EntityGaps {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -251,7 +303,7 @@ enum Commands {
         window_seconds: u64,
     },
 
-    /// Show timeline of operations for a specific entity
+    /// Show timeline of operations for a specific entity (⚠️ DEPRECATED: Use 'entity-analysis timeline' instead)
     EntityTimeline {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -299,7 +351,7 @@ enum Commands {
         path_pattern: Option<String>,
     },
 
-    /// Preprocess audit logs to extract entity mappings
+    /// Preprocess audit logs to extract entity mappings (⚠️ DEPRECATED: Use 'entity-analysis preprocess' instead)
     PreprocessEntities {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -314,7 +366,7 @@ enum Commands {
         format: String,
     },
 
-    /// Analyze entity creation by authentication path
+    /// Analyze entity creation by authentication path (⚠️ DEPRECATED: Use 'entity-analysis creation' instead)
     EntityCreation {
         /// Path to audit log file(s) - can specify multiple files
         #[arg(required = true)]
@@ -329,7 +381,7 @@ enum Commands {
         output: Option<String>,
     },
 
-    /// Multi-day entity churn analysis with intelligent ephemeral pattern detection
+    /// Multi-day entity churn analysis with intelligent ephemeral pattern detection (⚠️ DEPRECATED: Use 'entity-analysis churn' instead)
     ///
     /// Tracks entity lifecycle across log files and uses data-driven pattern learning
     /// to detect ephemeral entities (e.g., CI/CD pipelines, temporary build entities)
@@ -436,14 +488,29 @@ async fn main() -> Result<()> {
             kv_prefix,
             output,
             entity_csv,
-        } => commands::kv_analyzer::run(
-            &log_files,
-            &kv_prefix,
-            output.as_deref(),
-            entity_csv.as_deref(),
-        ),
-        Commands::KvCompare { csv1, csv2 } => commands::kv_compare::run(&csv1, &csv2),
-        Commands::KvSummary { csv_file } => commands::kv_summary::run(&csv_file),
+        } => {
+            eprintln!("⚠️  WARNING: 'kv-analyzer' is deprecated.");
+            eprintln!("   Use: vault-audit kv-analysis analyze [OPTIONS]");
+            eprintln!("   Run: vault-audit kv-analysis analyze --help for details\n");
+            commands::kv_analyzer::run(
+                &log_files,
+                &kv_prefix,
+                output.as_deref(),
+                entity_csv.as_deref(),
+            )
+        }
+        Commands::KvCompare { csv1, csv2 } => {
+            eprintln!("⚠️  WARNING: 'kv-compare' is deprecated.");
+            eprintln!("   Use: vault-audit kv-analysis compare <CSV1> <CSV2>");
+            eprintln!("   Run: vault-audit kv-analysis compare --help for details\n");
+            commands::kv_compare::run(&csv1, &csv2)
+        }
+        Commands::KvSummary { csv_file } => {
+            eprintln!("⚠️  WARNING: 'kv-summary' is deprecated.");
+            eprintln!("   Use: vault-audit kv-analysis summary <CSV_FILE>");
+            eprintln!("   Run: vault-audit kv-analysis summary --help for details\n");
+            commands::kv_summary::run(&csv_file)
+        }
         Commands::SystemOverview {
             log_files,
             top,
@@ -535,6 +602,25 @@ async fn main() -> Result<()> {
                 &entity_id,
                 display_name.as_ref(),
             ),
+        },
+        Commands::KvAnalysis(kv_cmd) => match kv_cmd {
+            KvAnalysisCommands::Analyze {
+                log_files,
+                kv_prefix,
+                output,
+                entity_csv,
+            } => commands::kv_analysis::run_analyze(
+                &log_files,
+                &kv_prefix,
+                output.as_ref(),
+                entity_csv.as_ref(),
+            ),
+            KvAnalysisCommands::Compare { csv1, csv2 } => {
+                commands::kv_analysis::run_compare(&csv1, &csv2)
+            }
+            KvAnalysisCommands::Summary { csv_file } => {
+                commands::kv_analysis::run_summary(&csv_file)
+            }
         },
         Commands::EntityGaps {
             log_files,

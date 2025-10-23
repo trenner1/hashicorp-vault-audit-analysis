@@ -124,9 +124,13 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 
 ### KV Secrets Analysis
 
-- **`kv-summary`** - Summarize KV secret usage from CSV exports
-- **`kv-analyzer`** - Analyze KV usage by path and entity (generates CSV)
-- **`kv-compare`** - Compare KV usage between two time periods
+- **`kv-analysis`** - Unified KV secrets analysis (recommended)
+  - `analyze` - Analyze KV usage by path and entity (generates CSV)
+  - `compare` - Compare KV usage between two time periods
+  - `summary` - Summarize KV secret usage from CSV exports
+- **`kv-analyzer`** - ⚠️ DEPRECATED: Use `kv-analysis analyze` instead
+- **`kv-compare`** - ⚠️ DEPRECATED: Use `kv-analysis compare` instead
+- **`kv-summary`** - ⚠️ DEPRECATED: Use `kv-analysis summary` instead
 
 ## Documentation
 
@@ -156,9 +160,14 @@ Get detailed help for any command:
 # General help
 vault-audit --help
 
-# Command-specific help
+# Unified command help
+vault-audit entity-analysis --help
+vault-audit token-analysis --help
+vault-audit kv-analysis --help
+
+# Subcommand-specific help
 vault-audit entity-analysis churn --help
-vault-audit kv-analyzer --help
+vault-audit kv-analysis analyze --help
 ```
 
 ### Application-Specific
@@ -292,14 +301,14 @@ vault-audit client-activity --start 2025-10-01T00:00:00Z --end 2025-11-01T00:00:
 ### KV Usage Analysis
 
 ```bash
-# Generate KV usage report
-vault-audit kv-analyzer vault_audit.log --kv-prefix "appcodes/" --output kv_usage.csv
+# Generate KV usage report (new unified command)
+vault-audit kv-analysis analyze vault_audit.log --kv-prefix "appcodes/" --output kv_usage.csv
 
 # Compare two time periods
-vault-audit kv-compare old_usage.csv new_usage.csv
+vault-audit kv-analysis compare old_usage.csv new_usage.csv
 
 # Get summary statistics
-vault-audit kv-summary kv_usage.csv
+vault-audit kv-analysis summary kv_usage.csv
 ```
 
 ## Performance
