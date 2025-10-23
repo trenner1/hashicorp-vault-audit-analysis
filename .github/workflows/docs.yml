@@ -2,11 +2,11 @@ name: Versioned Rust docs to Pages
 
 on:
   release:
-    types: [published]
+    types: [published]          # build when a release is published
   push:
-    tags: ['v*']
-    branches: [main]
-  workflow_dispatch:
+    tags: ['v*']                # build when version tags are pushed
+    branches: ['main']          # keep "latest" fresh on main changes
+  workflow_dispatch:            # allow manual runs
 
 permissions:
   contents: read
@@ -18,11 +18,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VERSION_COUNT: "10"
+  VERSION_COUNT: "10"           # how many most-recent v* tags to publish
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout (full history for tags)
         uses: actions/checkout@v4
@@ -32,110 +33,110 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Init output dir
+      - name: Prepare output
+        shell: bash
         run: |
+          set -euxo pipefail
           rm -rf _site
           mkdir -p _site
-          : > _site/.versions  # mapping: "<version> <doc_crate>"
+          : > _site/.versions   # mapping lines: "<version> <doc_crate>"
 
-      - name: Build LATEST (current commit)
+      - name: Build LATEST from current commit
         shell: bash
         run: |
           set -euxo pipefail
 
-          # Find a crate directory (backwards compatible with old layout)
+          # Find a crate directory with a proper [package] Cargo.toml
           find_crate_dir() {
-            # Prefer a Cargo.toml that has a [package] table
-            local c
-            while IFS= read -r c; do
-              if grep -q '^\[package\]' "$c"; then
-                echo "$(dirname "$c")"
-                return 0
-              fi
-            done < <(git ls-files | grep -E '(^|/)Cargo\.toml$')
-            return 1
+            git ls-files | grep -E '(^|/)Cargo\.toml$' | while read -r c; do
+              if grep -q '^\[package\]' "$c"; then dirname "$c" && exit 0; fi
+            done
           }
-
           CRATE_DIR="$(find_crate_dir)"
           echo "CRATE_DIR(latest)=${CRATE_DIR}"
 
-          # Extract package name from Cargo.toml
+          # Extract package name
           CRATE_NAME="$(awk -F' *= *' '
             /^\[package\]/{p=1; next}
             p && /^name *=/ {gsub(/"/,"",$2); print $2; exit}
           ' "${CRATE_DIR}/Cargo.toml")"
-          echo "CRATE_NAME(latest)=${CRATE_NAME}"
-
+          [ -n "${CRATE_NAME}" ]
           DOC_CRATE="$(echo "$CRATE_NAME" | tr '-' '_')"
+          echo "CRATE_NAME(latest)=${CRATE_NAME}  DOC_CRATE=${DOC_CRATE}"
 
-          # Build docs from the crate directory
+          # Build docs (prefer not to change lockfile for latest as well)
           pushd "$CRATE_DIR"
           rm -rf target/doc
-          cargo doc --no-deps
+          cargo doc --no-deps --locked || cargo doc --no-deps
           popd
 
           mkdir -p "_site/latest"
           cp -r "${CRATE_DIR}/target/doc" "_site/latest/"
 
-          # Root redirect to latest crate docs
+          # Root redirect -> latest crate docs
           cat > _site/index.html <<EOF
+          <!doctype html><meta charset="utf-8">
           <meta http-equiv="refresh" content="0; url=latest/${DOC_CRATE}/index.html">
           <link rel="canonical" href="latest/${DOC_CRATE}/index.html"/>
           EOF
 
-      - name: Build recent TAGS (handles old repo layout)
+      - name: Build recent TAGS in isolated worktrees
         shell: bash
         run: |
           set -euxo pipefail
 
           mapfile -t TAGS < <(git tag -l 'v*' --sort=-v:refname | head -n "${VERSION_COUNT}")
 
-          find_crate_dir() {
-            local c
-            while IFS= read -r c; do
-              if grep -q '^\[package\]' "$c"; then
-                echo "$(dirname "$c")"
-                return 0
-              fi
-            done < <(git ls-files | grep -E '(^|/)Cargo\.toml$')
-            return 1
-          }
-
           for tag in "${TAGS[@]}"; do
             echo "=== Building ${tag} ==="
-            git checkout --quiet "$tag"
+            WT="wt-${tag}"
+
+            # Create a detached worktree for this tag
+            git worktree add --detach "$WT" "$tag"
+
+            # Helper to find crate dir inside the worktree
+            find_crate_dir() {
+              ( cd "$WT" && \
+                git ls-files | grep -E '(^|/)Cargo\.toml$' | while read -r c; do
+                  if grep -q '^\[package\]' "$WT/$c"; then dirname "$c" && exit 0; fi
+                done )
+            }
 
             CRATE_DIR="$(find_crate_dir || true)"
             if [[ -z "${CRATE_DIR:-}" ]]; then
-              echo "::warning title=Skip ${tag}::No Cargo.toml with [package] found at this tag"
+              echo "::warning title=Skip ${tag}::No Cargo.toml with [package] found"
+              git worktree remove --force "$WT"
               continue
             fi
 
             CRATE_NAME="$(awk -F' *= *' '
               /^\[package\]/{p=1; next}
               p && /^name *=/ {gsub(/"/,"",$2); print $2; exit}
-            ' "${CRATE_DIR}/Cargo.toml")"
+            ' "$WT/${CRATE_DIR}/Cargo.toml" )"
             if [[ -z "${CRATE_NAME:-}" ]]; then
               echo "::warning title=Skip ${tag}::Could not extract package name"
+              git worktree remove --force "$WT"
               continue
             fi
             DOC_CRATE="$(echo "$CRATE_NAME" | tr '-' '_')"
-            echo "CRATE_DIR(${tag})=${CRATE_DIR}  CRATE_NAME=${CRATE_NAME}  DOC_CRATE=${DOC_CRATE}"
+            echo "Worktree=${WT}  CRATE_DIR=${CRATE_DIR}  CRATE_NAME=${CRATE_NAME}  DOC_CRATE=${DOC_CRATE}"
 
-            pushd "$CRATE_DIR"
-            rm -rf target/doc
-            cargo doc --no-deps
-            popd
+            # Build docs inside the worktree; try to avoid lockfile changes
+            ( set -eux
+              cd "$WT/$CRATE_DIR"
+              rm -rf target/doc
+              cargo doc --no-deps --locked || cargo doc --no-deps
+            )
 
             mkdir -p "_site/${tag}"
-            cp -r "${CRATE_DIR}/target/doc" "_site/${tag}/"
+            cp -r "$WT/$CRATE_DIR/target/doc" "_site/${tag}/"
 
-            # Record the mapping so versions.html links to the correct doc folder
+            # Record mapping for versions.html
             echo "${tag} ${DOC_CRATE}" >> _site/.versions
-          done
 
-          # Return to original commit
-          git checkout --quiet "${GITHUB_SHA}"
+            # Remove the worktree to avoid accumulation/dirty state
+            git worktree remove --force "$WT"
+          done
 
       - name: Generate versions.html
         shell: bash
@@ -150,7 +151,7 @@ jobs:
           HTML
 
             if [[ -s _site/.versions ]]; then
-              # Newest first by semantic version sort
+              # newest first by semantic version
               sort -rV _site/.versions | while read -r ver crate; do
                 echo "<li><a href=\"${ver}/${crate}/index.html\">${ver}</a></li>"
               done
