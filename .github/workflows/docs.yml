@@ -50,38 +50,24 @@ jobs:
         id: detect_latest
         shell: bash
         run: |
-          detect() {
-            local wd="$1"
-            if [ -f "$wd/Cargo.toml" ]; then
-              (
-                cd "$wd"
-                # extract first package name from cargo metadata without jq
-                local name
-                name=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
-                  | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
-                if [ -z "$name" ]; then
-                  echo "Could not detect crate name in $wd" >&2; exit 1
-                fi
-                echo "$name"
-              )
-            fi
-          }
+          # Extract crate name from root Cargo.toml
+          if [ ! -f Cargo.toml ]; then
+            echo "No Cargo.toml found at root; cannot detect crate." >&2
+            exit 1
+          fi
 
-          CRATE=""
-          # Prefer new layout at repo root; fall back to old subdir layout
-          if [ -f Cargo.toml ]; then
-            CRATE=$(detect ".")
-          elif [ -f vault-audit-tools/Cargo.toml ]; then
-            CRATE=$(detect "vault-audit-tools")
-          else
-            echo "No Cargo.toml found in root or vault-audit-tools/; cannot detect crate." >&2
+          CRATE=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
+            | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
+
+          if [ -z "$CRATE" ]; then
+            echo "Could not detect crate name" >&2
             exit 1
           fi
 
           CRATE_DIR="${CRATE//-/_}"
           echo "crate=$CRATE" >> "$GITHUB_OUTPUT"
           echo "crate_dir=$CRATE_DIR" >> "$GITHUB_OUTPUT"
-          echo "Detected latest crate: $CRATE (dir: $CRATE_DIR)"
+          echo "Detected crate: $CRATE (dir: $CRATE_DIR)"
 
       # ---------- Build docs for latest from default branch ----------
       - name: Build docs (latest)
@@ -90,13 +76,8 @@ jobs:
           CRATE: ${{ steps.detect_latest.outputs.crate }}
         shell: bash
         run: |
-          if [ -f Cargo.toml ]; then
-            echo "Building from root (latest)"
-            cargo doc -p "$CRATE" --all-features --no-deps
-          elif [ -f vault-audit-tools/Cargo.toml ]; then
-            echo "Building from vault-audit-tools/ subdir (latest)"
-            ( cd vault-audit-tools && cargo doc -p "$CRATE" --all-features --no-deps )
-          fi
+          echo "Building from root (latest)"
+          cargo doc --all-features --no-deps
           mkdir -p "site/latest"
           rsync -a "target/doc/" "site/latest/"
           # Record pseudo-tag 'latest' for the versions page
@@ -116,50 +97,31 @@ jobs:
             echo "::group::Build $t"
             git checkout --force "tags/${t}"
 
-            # Detect crate for THIS tag (handle layout + name changes)
-            detect_for_tag() {
-              local wd="$1"
-              if [ -f "$wd/Cargo.toml" ]; then
-                (
-                  cd "$wd"
-                  local name
-                  name=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
-                    | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
-                  echo "$name"
-                )
-              fi
-            }
-
-            CRATE=""
-            BUILD_WD="."
-            if [ -f Cargo.toml ]; then
-              CRATE=$(detect_for_tag ".")
-              BUILD_WD="."
-              echo "Tag $t uses root layout; crate=$CRATE"
-            elif [ -f vault-audit-tools/Cargo.toml ]; then
-              CRATE=$(detect_for_tag "vault-audit-tools")
-              BUILD_WD="vault-audit-tools"
-              echo "Tag $t uses legacy subdir; crate=$CRATE"
-            else
+            # Detect crate for THIS tag
+            if [ ! -f Cargo.toml ]; then
               echo "No Cargo.toml found for tag $t; skipping."
               echo "::endgroup::"
               continue
             fi
 
+            CRATE=$(cargo metadata --format-version=1 --no-deps 2>/dev/null \
+              | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
+
+            if [ -z "$CRATE" ]; then
+              echo "Could not detect crate name for tag $t; skipping."
+              echo "::endgroup::"
+              continue
+            fi
+
+            echo "Tag $t: crate=$CRATE"
             CRATE_DIR="${CRATE//-/_}"
 
             # clean target between tag builds to avoid cross-version bleed
             rm -rf target
 
-            if [ "$BUILD_WD" = "." ]; then
-              cargo doc -p "$CRATE" --all-features --no-deps
-              mkdir -p "site/v/${t}"
-              rsync -a "target/doc/" "site/v/${t}/"
-            else
-              ( cd "$BUILD_WD" && cargo doc -p "$CRATE" --all-features --no-deps )
-              mkdir -p "site/v/${t}"
-              rsync -a "${BUILD_WD}/target/doc/" "site/v/${t}/"
-            fi
+            cargo doc --all-features --no-deps
+            mkdir -p "site/v/${t}"
+            rsync -a "target/doc/" "site/v/${t}/"
 
             # Record mapping for versions page
             echo -e "${t}\t${CRATE_DIR}" >> site/.versions
