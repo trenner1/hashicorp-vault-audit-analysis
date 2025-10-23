@@ -1,6 +1,6 @@
 [package]
 name = "vault-audit-tools"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "High-performance command-line tools for analyzing HashiCorp Vault audit logs with intelligent ephemeral entity detection"
