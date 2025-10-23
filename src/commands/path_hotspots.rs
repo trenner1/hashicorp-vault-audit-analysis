@@ -35,12 +35,12 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use crate::utils::time::parse_timestamp;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 /// Statistics for a single path
@@ -102,7 +102,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
         let mut file_lines = 0;
         let mut bytes_read = 0;
 
-        let file = File::open(log_file)?;
+        let file = open_file(log_file)?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {

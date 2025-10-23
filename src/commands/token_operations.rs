@@ -29,9 +29,9 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 /// Token operation statistics for a single entity
@@ -83,7 +83,7 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
         let mut file_lines = 0;
         let mut bytes_read = 0;
 
-        let file = File::open(log_file)?;
+        let file = open_file(log_file)?;
         let reader = BufReader::new(file);
 
         for line in reader.lines() {
