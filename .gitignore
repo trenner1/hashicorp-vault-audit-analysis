@@ -24,6 +24,9 @@ data/
 docs/
 !docs/.gitkeep
 
+# Planning documents (development notes)
+CONSOLIDATION_PLAN.md
+
 # Entity maps (may contain sensitive customer data)
 *entity_map*.json
 *entity_churn*.json

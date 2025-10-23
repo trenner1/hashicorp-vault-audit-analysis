@@ -1,5 +1,22 @@
 //! Token lookup pattern exporter.
 //!
+//! **⚠️ DEPRECATED**: Use `token-analysis --export` instead.
+//!
+//! This command has been consolidated into the unified `token-analysis` command.
+//! Use the `--export` flag for CSV export with per-accessor detail.
+//!
+//! ```bash
+//! # Old command (deprecated)
+//! vault-audit token-export audit.log --output lookups.csv --min-lookups 100
+//!
+//! # New command (recommended)
+//! vault-audit token-analysis audit.log --export lookups.csv --min-operations 100
+//! ```
+//!
+//! See [`token_analysis`](crate::commands::token_analysis) module for full documentation.
+//!
+//! ---
+//!
 //! Exports token lookup patterns to CSV for further analysis.
 //! Identifies entities with high token lookup volumes and their patterns.
 //! Supports multi-file analysis for historical trending.

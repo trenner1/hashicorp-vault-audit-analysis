@@ -77,6 +77,32 @@ enum Commands {
         output: Option<String>,
     },
 
+    /// Unified token analysis - operations, abuse detection, and export
+    ///
+    /// Consolidates all token-related analysis into a single command.
+    /// Replaces: token-operations, token-lookup-abuse, token-export
+    TokenAnalysis {
+        /// Path to audit log file(s) - can specify multiple files
+        #[arg(required = true)]
+        log_files: Vec<String>,
+
+        /// Detect token lookup abuse - show entities exceeding this threshold
+        #[arg(long)]
+        abuse_threshold: Option<usize>,
+
+        /// Filter by operation type (comma-separated: lookup, create, renew, revoke, login)
+        #[arg(long, value_delimiter = ',')]
+        filter: Option<Vec<String>>,
+
+        /// Export data to CSV file
+        #[arg(long)]
+        export: Option<String>,
+
+        /// Minimum operations to include in export
+        #[arg(long, default_value = "10")]
+        min_operations: usize,
+    },
+
     /// Export token lookup patterns to CSV
     TokenExport {
         /// Path to audit log file(s) - can specify multiple files
@@ -313,17 +339,46 @@ async fn main() -> Result<()> {
             min_operations,
         } => commands::system_overview::run(&log_files, top, min_operations),
         Commands::TokenOperations { log_files, output } => {
+            eprintln!("⚠️  WARNING: 'token-operations' is deprecated.");
+            eprintln!("   Use: vault-audit token-analysis [OPTIONS]");
+            eprintln!("   Run: vault-audit token-analysis --help for details\n");
             commands::token_operations::run(&log_files, output.as_deref())
         }
+        Commands::TokenAnalysis {
+            log_files,
+            abuse_threshold,
+            filter,
+            export,
+            min_operations,
+        } => commands::token_analysis::run(
+            &log_files,
+            abuse_threshold,
+            filter,
+            export.as_deref(),
+            min_operations,
+        ),
         Commands::TokenExport {
             log_files,
             output,
             min_lookups,
-        } => commands::token_export::run(&log_files, &output, min_lookups),
+        } => {
+            eprintln!("⚠️  WARNING: 'token-export' is deprecated.");
+            eprintln!("   Use: vault-audit token-analysis --filter lookup --export {} --min-operations {}", output, min_lookups);
+            eprintln!("   Run: vault-audit token-analysis --help for details\n");
+            commands::token_export::run(&log_files, &output, min_lookups)
+        }
         Commands::TokenLookupAbuse {
             log_files,
             threshold,
-        } => commands::token_lookup_abuse::run(&log_files, threshold),
+        } => {
+            eprintln!("⚠️  WARNING: 'token-lookup-abuse' is deprecated.");
+            eprintln!(
+                "   Use: vault-audit token-analysis --abuse-threshold {}",
+                threshold
+            );
+            eprintln!("   Run: vault-audit token-analysis --help for details\n");
+            commands::token_lookup_abuse::run(&log_files, threshold)
+        }
         Commands::EntityGaps {
             log_files,
             window_seconds,

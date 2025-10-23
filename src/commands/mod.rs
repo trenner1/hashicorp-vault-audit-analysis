@@ -20,9 +20,10 @@
 //!
 //! Analyze token lifecycle and usage patterns:
 //!
-//! - [`token_operations`] - Track token creation, renewal, and revocation
-//! - [`token_lookup_abuse`] - Detect suspicious token lookup patterns
-//! - [`token_export`] - Export token metadata for analysis
+//! - [`token_analysis`] - Unified token operations, abuse detection, and export
+//! - [`token_operations`] - ⚠️ DEPRECATED: Use `token-analysis` instead
+//! - [`token_lookup_abuse`] - ⚠️ DEPRECATED: Use `token-analysis --abuse-threshold` instead
+//! - [`token_export`] - ⚠️ DEPRECATED: Use `token-analysis --export` instead
 //!
 //! ### KV Secrets Analysis Commands
 //!
@@ -61,6 +62,7 @@ pub mod kv_summary;
 pub mod path_hotspots;
 pub mod preprocess_entities;
 pub mod system_overview;
+pub mod token_analysis;
 pub mod token_export;
 pub mod token_lookup_abuse;
 pub mod token_operations;

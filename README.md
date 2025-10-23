@@ -3,6 +3,9 @@
 [![CI](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml)
 [![Security](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml)
 [![codecov](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis/graph/badge.svg?token=QYMT1SKDQ6)](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis)
+[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://trenner1.github.io/hashicorp-vault-audit-analysis/)
+[Browse versions](https://trenner1.github.io/hashicorp-vault-audit-analysis/versions.html)
+
 
 High-performance command-line tools for analyzing HashiCorp Vault audit logs, written in Rust.
 
@@ -99,8 +102,10 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 ### Authentication Analysis
 
 - **`k8s-auth`** - Analyze Kubernetes/OpenShift authentication patterns and entity churn
-- **`token-operations`** - Track token lifecycle operations (create, renew, revoke)
-- **`token-lookup-abuse`** - Detect excessive token lookup patterns
+- **`token-analysis`** - Unified token operations analysis with abuse detection and CSV export
+  - Track token lifecycle operations (create, renew, revoke, lookup)
+  - Detect excessive token lookup patterns
+  - Export per-accessor detail to CSV
 
 ### Entity Analysis
 
@@ -157,10 +162,6 @@ vault-audit kv-analyzer --help
 
 - **`airflow-polling`** - Analyze Airflow secret polling patterns with burst rate detection
 
-### Data Export
-
-- **`token-export`** - Export token lookup patterns to CSV
-
 ### Utilities
 
 - **`generate-completion`** - Generate shell completion scripts
@@ -182,10 +183,44 @@ vault-audit entity-churn day1.log.gz day2.log day3.log.zst
 vault-audit path-hotspots logs/*.log.gz
 
 # Streaming decompression - no temp files, no extra disk space needed
-vault-audit token-lookup-abuse huge_file.log.gz  # processes 1.79GB compressed → 13.8GB uncompressed
+vault-audit token-analysis huge_file.log.gz  # processes 1.79GB compressed → 13.8GB uncompressed
 ```
 
 **Performance**: Compressed file processing maintains full speed (~57 MB/s) with no memory overhead thanks to streaming decompression.
+
+### Understanding Entities vs Token Accessors
+
+When analyzing token operations, it's important to understand the difference between **entities** and **accessors**:
+
+**Entity** (User/Service Identity):
+- A single identity like "fg-PIOP0SRVDEVOPS" or "approle"
+- Can have multiple tokens (accessors) over time
+- Summary view shows aggregated totals per entity
+- Example: One service might have 233,668 total operations
+
+**Accessor** (Individual Token):
+- A unique token identifier for a single token
+- Each accessor belongs to one entity
+- Tokens get rotated/recreated, creating new accessors
+- Example: That same service's 233k operations might be spread across 3 tokens:
+  - Token 1: 113,028 operations (10/06 07:26 - 10/07 07:41, 24.3h lifespan)
+  - Token 2: 79,280 operations (10/06 07:26 - 10/07 07:40, 24.2h lifespan)
+  - Token 3: 41,360 operations (10/06 07:28 - 10/07 07:40, 24.2h lifespan)
+
+**When to use each view**:
+- **Summary mode** (default): Shows per-entity totals for understanding overall usage patterns
+- **CSV export** (`--export`): Shows per-accessor detail for token lifecycle analysis, rotation patterns, and identifying specific problematic tokens
+
+```bash
+# See entity-level summary (6,091 entities with totals)
+vault-audit token-analysis vault_audit.log
+
+# Export accessor-level detail (907 individual tokens with timestamps)
+vault-audit token-analysis vault_audit.log --export tokens.csv
+
+# Filter to high-volume tokens only
+vault-audit token-analysis vault_audit.log --export tokens.csv --min-operations 1000
+```
 
 ### Quick Analysis
 
@@ -201,7 +236,7 @@ vault-audit system-overview logs/vault_audit.2025-10-*.log
 vault-audit k8s-auth vault_audit.log
 
 # Detect token abuse across multiple compressed files
-vault-audit token-lookup-abuse day1.log.gz day2.log.gz day3.log.gz
+vault-audit token-analysis day1.log.gz day2.log.gz day3.log.gz --abuse-threshold 5000
 ```
 
 ### Multi-File Long-Term Analysis
@@ -215,8 +250,8 @@ vault-audit system-overview vault_audit.2025-10-{07,08,09,10,11,12,13}.log.gz
 # Month-long entity churn tracking
 vault-audit entity-churn october/*.log.gz
 
-# Multi-day token operations with mixed file types
-vault-audit token-operations logs/vault_audit.*.log --output token_ops.csv
+# Multi-day token operations analysis with mixed file types
+vault-audit token-analysis logs/vault_audit.*.log --export token_ops.csv
 
 # Path hotspot analysis across 30 days of compressed logs
 vault-audit path-hotspots logs/vault_audit.2025-10-*.log.zst
@@ -234,8 +269,12 @@ vault-audit entity-churn day1.log day2.log day3.log --baseline baseline_entities
 # Analyze specific entity behavior
 vault-audit entity-timeline day1.log day2.log --entity-id <UUID>
 
-# Export token data for further analysis
-vault-audit token-export vault_audit.log --output tokens.csv
+# Token analysis with multiple output modes
+vault-audit token-analysis vault_audit.log                              # Summary view (per-entity)
+vault-audit token-analysis vault_audit.log --abuse-threshold 10000      # Abuse detection
+vault-audit token-analysis vault_audit.log --filter lookup,revoke       # Filter operation types
+vault-audit token-analysis vault_audit.log --export tokens.csv          # Export per-accessor detail (907 tokens)
+vault-audit token-analysis vault_audit.log --export tokens.csv --min-operations 1000  # High-volume tokens only
 
 # Analyze Airflow polling with burst detection
 vault-audit airflow-polling vault_audit.log
