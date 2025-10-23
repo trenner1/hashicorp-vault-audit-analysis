@@ -35,6 +35,7 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -74,7 +75,7 @@ pub fn run(log_files: &[String], output: &str, format: &str) -> Result<()> {
         // Get file size for progress tracking
         let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
 
-        let file = File::open(log_file)
+        let file = open_file(log_file)
             .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
         let reader = BufReader::new(file);
 

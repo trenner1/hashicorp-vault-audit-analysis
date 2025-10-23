@@ -1,26 +1,38 @@
-# .github/workflows/docs.yml
-name: Publish Rust docs to Pages
+name: Versioned Rust docs to Pages
 
 on:
   release:
-    types: [published]   # run when you publish a release
-  workflow_dispatch:      # allow manual runs
+    types: [published]      # build when you publish a release (tag)
+  push:
+    tags:
+      - 'v*'                 # also build on version tag pushes (backup trigger)
+  workflow_dispatch:         # allow manual runs (useful to rebuild all versions)
 
 permissions:
   contents: read
-  pages: write            # required for actions/deploy-pages
-  id-token: write         # required for OIDC with Pages
+  pages: write
+  id-token: write
 
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
+env:
+  # The actual crate name from Cargo.toml
+  CRATE: vault-audit-tools
+  # The doc directory name (hyphens become underscores)
+  DOC_CRATE: vault_audit_tools
+  # how many most-recent tags to include (keep the site fast to build)
+  VERSION_COUNT: "10"
+
 jobs:
-  build-docs:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (with full history for tags)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -28,35 +40,61 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      # Build just your crate's docs (no deps) with docs.rs cfgs enabled
-      - name: Build docs
+      - name: Prepare site dir
+        run: |
+          rm -rf site target || true
+          mkdir -p site
+
+      # ---------- Build latest from default branch ----------
+      - name: Build docs for latest (default branch)
         env:
           RUSTDOCFLAGS: "--cfg docsrs"
         run: |
-          # If you have a workspace, set CRATE to the package you want (e.g., vault-audit-tools)
-          CRATE="vault-audit-tools"
-          cargo doc -p "${CRATE}" --all-features --no-deps
+          cargo doc -p "$CRATE" --all-features --no-deps
+          mkdir -p "site/latest"
+          rsync -a "target/doc/" "site/latest/"
 
-          # Create a redirect index so Pages root opens your crate docs
-          mkdir -p target/doc
-          cat > target/doc/index.html <<'HTML'
+      # ---------- Build versioned docs for recent tags ----------
+      - name: Build docs for last N tags (v*)
+        if: ${{ always() }}
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs"
+        run: |
+          # pick last N semver-ish tags (vX.Y.Z)
+          TAGS=$(git tag --list 'v*' --sort=-v:refname | head -n "${VERSION_COUNT}")
+          echo "Building tags: ${TAGS}"
+          for t in ${TAGS}; do
+            echo "::group::Build $t"
+            git checkout --force "tags/${t}"
+
+            # clean target between tag builds to avoid cross-version bleed
+            rm -rf target
+            cargo doc -p "$CRATE" --all-features --no-deps
+
+            mkdir -p "site/v/${t}"
+            rsync -a "target/doc/" "site/v/${t}/"
+            echo "::endgroup::"
+          done
+
+          # return to previous ref (Actions checks out a detached HEAD)
+          git checkout -
+
+      # ---------- Root redirect ----------
+      - name: Create root redirect to latest
+        run: |
+          cat > site/index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=vault_audit_tools/index.html">
-          <link rel="canonical" href="vault_audit_tools/index.html">
+          <meta http-equiv="refresh" content="0; url=latest/vault_audit_tools/index.html">
+          <link rel="canonical" href="latest/vault_audit_tools/index.html">
+          <title>Redirecting to vault-audit-tools docs…</title>
           HTML
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: target/doc
+          path: site
 
-  deploy:
-    needs: build-docs
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
+      - name: Deploy to GitHub Pages
+        id: deploy
         uses: actions/deploy-pages@v4

@@ -34,6 +34,7 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::progress::ProgressBar;
+use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -152,7 +153,7 @@ pub fn run(
             ProgressBar::new_spinner("Processing")
         };
 
-        let file = File::open(log_file)
+        let file = open_file(log_file)
             .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
         let reader = BufReader::new(file);
 
