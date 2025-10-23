@@ -10,6 +10,7 @@ High-performance command-line tools for analyzing HashiCorp Vault audit logs, wr
 
 - **Fast**: 3x faster than equivalent implementations (~17s vs 60s for 4M line logs)
 - **Memory Efficient**: 10x less memory usage through streaming parser
+- **Compressed File Support**: Direct analysis of `.gz` and `.zst` files without manual decompression
 - **Multi-File Support**: Analyze weeks/months of logs without manual concatenation
 - **Comprehensive**: 16 specialized analysis commands for different use cases
 - **Production Ready**: Tested on 100GB+ multi-day production audit logs
@@ -166,11 +167,32 @@ vault-audit kv-analyzer --help
 
 ## Usage Examples
 
+### Compressed File Support
+
+All commands automatically detect and decompress `.gz` (gzip) and `.zst` (zstandard) files:
+
+```bash
+# Analyze compressed files directly - no manual decompression needed
+vault-audit system-overview vault_audit.log.gz
+
+# Mix compressed and uncompressed files
+vault-audit entity-churn day1.log.gz day2.log day3.log.zst
+
+# Glob patterns work with compressed files
+vault-audit path-hotspots logs/*.log.gz
+
+# Streaming decompression - no temp files, no extra disk space needed
+vault-audit token-lookup-abuse huge_file.log.gz  # processes 1.79GB compressed → 13.8GB uncompressed
+```
+
+**Performance**: Compressed file processing maintains full speed (~57 MB/s) with no memory overhead thanks to streaming decompression.
+
 ### Quick Analysis
 
 ```bash
-# Get system overview (single file)
+# Get system overview (works with plain or compressed files)
 vault-audit system-overview vault_audit.log
+vault-audit system-overview vault_audit.log.gz
 
 # Analyze multiple days without concatenation
 vault-audit system-overview logs/vault_audit.2025-10-*.log
@@ -178,26 +200,26 @@ vault-audit system-overview logs/vault_audit.2025-10-*.log
 # Find authentication issues
 vault-audit k8s-auth vault_audit.log
 
-# Detect token abuse across multiple files
-vault-audit token-lookup-abuse day1.log day2.log day3.log
+# Detect token abuse across multiple compressed files
+vault-audit token-lookup-abuse day1.log.gz day2.log.gz day3.log.gz
 ```
 
 ### Multi-File Long-Term Analysis
 
-All audit log commands support multiple files for historical analysis:
+All audit log commands support multiple files (compressed or uncompressed) for historical analysis:
 
 ```bash
-# Week-long system overview
-vault-audit system-overview vault_audit.2025-10-{07,08,09,10,11,12,13}.log
+# Week-long system overview with compressed files
+vault-audit system-overview vault_audit.2025-10-{07,08,09,10,11,12,13}.log.gz
 
 # Month-long entity churn tracking
-vault-audit entity-churn october/*.log
+vault-audit entity-churn october/*.log.gz
 
-# Multi-day token operations
+# Multi-day token operations with mixed file types
 vault-audit token-operations logs/vault_audit.*.log --output token_ops.csv
 
-# Path hotspot analysis across 30 days
-vault-audit path-hotspots $(ls -1 logs/vault_audit.2025-10-*.log)
+# Path hotspot analysis across 30 days of compressed logs
+vault-audit path-hotspots logs/vault_audit.2025-10-*.log.zst
 ```
 
 ### Deep Dive Analysis
@@ -250,6 +272,13 @@ Tested on production audit logs:
 - **Processing Time**: ~2.5 minutes average per command
 - **Memory Usage**: <100 MB (streaming approach)
 - **Throughput**: ~175,000 lines/second sustained
+
+**Compressed Files:**
+- **File Size**: 1.79 GB compressed → 13.8 GB uncompressed
+- **Processing Time**: ~31 seconds (299,958 login operations)
+- **Throughput**: ~57 MB/sec compressed, ~230,000 lines/second
+- **Memory Usage**: <100 MB (streaming decompression, no temp files)
+- **Formats Supported**: gzip (.gz), zstandard (.zst)
 
 ## Output Formats
 
