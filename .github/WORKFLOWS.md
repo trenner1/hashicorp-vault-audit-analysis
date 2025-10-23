@@ -12,18 +12,18 @@ This repository includes comprehensive CI/CD workflows for the Vault Audit Tools
   - Executes all unit tests
   - Runs doc tests
   - Cross-platform validation
-  
+
 - **Linting** - Clippy with warnings as errors
   - Ensures code quality
   - Catches common mistakes
-  
+
 - **Formatting** - rustfmt check
   - Enforces consistent code style
-  
+
 - **Build** - Release builds on all platforms
   - Uploads build artifacts
   - 7-day retention
-  
+
 - **Coverage** - Code coverage with cargo-tarpaulin
   - Uploads to Codecov
   - Tracks test coverage over time
@@ -35,16 +35,16 @@ This repository includes comprehensive CI/CD workflows for the Vault Audit Tools
 - **Snyk** - Dependency vulnerability scanning
   - Checks for known CVEs
   - Uploads results to GitHub Security
-  
+
 - **Cargo Audit** - RustSec advisory database
   - Checks for security advisories
   - Fails on HIGH severity
-  
+
 - **Cargo Deny** - License and security checks
   - Validates licenses (MIT, Apache-2.0, BSD)
   - Blocks GPL/AGPL licenses
   - Checks for unmaintained dependencies
-  
+
 - **Dependency Review** - PR-only
   - Reviews new dependencies
   - Fails on moderate+ vulnerabilities
@@ -56,14 +56,14 @@ This repository includes comprehensive CI/CD workflows for the Vault Audit Tools
 - **Create Release** - Creates GitHub release
   - Auto-generates release notes
   - Includes installation instructions
-  
+
 - **Build Release Binary** - Multi-platform builds
   - Linux (x86_64 GNU and musl)
   - macOS (Intel and Apple Silicon)
   - Windows (x86_64 MSVC)
   - Generates SHA256 checksums
   - Uploads to GitHub Releases
-  
+
 - **Publish to crates.io** - Optional
   - Publishes to Rust package registry
   - Requires CARGO_REGISTRY_TOKEN secret

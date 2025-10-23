@@ -1,39 +1,65 @@
 .env
 vault-data/
-*.csv
 __pycache__/
 .vscode/
 .venv/
 .DS_Store
 
-# CSV outputs
+# CSV outputs (allow sample files)
 *.csv
 !sample*.csv
+!examples/*.csv
 
-# Data directory (all outputs)
+# Data directory (organized outputs)
 data/
+!data/.gitkeep
 
 # Audit logs (may contain sensitive data)
 *audit*.log
 *.log.gz
 !sample*.log
+!examples/*.log
 
 # Analysis findings and reports (contain sensitive customer data)
 docs/
+!docs/.gitkeep
 
 # Entity maps (may contain sensitive customer data)
 *entity_map*.json
 *entity_churn*.json
 
 # Rust build artifacts
-vault-audit-tools/target/
+/target/
 
 # Release binaries and tarballs
 *.tar.gz
 *.tar.gz.*
 
 # Test outputs
+*.test
+*_test.json
 test_*.csv
+churn_test_final.csv
 
 # Shell script sources (reference only, not committed)
 new_files/
+
+# IDE / Editor
+.idea/
+*.swp
+*.swo
+*~
+
+# Test data directories
+test_data/
+
+# Generated documentation (now at root)
+COMMAND_OVERLAP_ANALYSIS.md
+
+# Generated shell completion files (regenerate with: vault-audit generate-completion <shell>)
+completions.bash
+vault-audit.fish
+_vault-audit
+*.zsh
+*.elv
+*.ps1

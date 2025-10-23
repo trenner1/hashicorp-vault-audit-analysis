@@ -26,18 +26,16 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            vault-audit-tools/target
+            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
       - name: Run cargo audit
-        working-directory: vault-audit-tools
         run: cargo audit --json > audit-results.json || true
 
       - name: Display audit results
-        working-directory: vault-audit-tools
         run: cargo audit
 
       - name: Upload audit results
@@ -45,4 +43,4 @@ jobs:
         if: always()
         with:
           name: security-audit-results
-          path: vault-audit-tools/audit-results.json
+          path: audit-results.json
