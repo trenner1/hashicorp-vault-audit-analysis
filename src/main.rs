@@ -139,7 +139,7 @@ enum KvAnalysisCommands {
         #[arg(short, long)]
         output: Option<String>,
 
-        /// Entity alias CSV for enrichment (columns: entity_id, name)
+        /// Entity alias CSV for enrichment (columns: `entity_id`, name)
         #[arg(long)]
         entity_csv: Option<String>,
     },
@@ -181,7 +181,7 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
 
-        /// Entity alias CSV for enrichment (columns: entity_id, name)
+        /// Entity alias CSV for enrichment (columns: `entity_id`, name)
         #[arg(long)]
         entity_csv: Option<String>,
     },
@@ -429,11 +429,11 @@ enum Commands {
         #[arg(long)]
         end: String,
 
-        /// Vault address (default: $VAULT_ADDR or http://127.0.0.1:8200)
+        /// Vault address (default: $`VAULT_ADDR` or <http://127.0.0.1:8200>)
         #[arg(long)]
         vault_addr: Option<String>,
 
-        /// Vault token (default: $VAULT_TOKEN or $VAULT_TOKEN_FILE)
+        /// Vault token (default: $`VAULT_TOKEN` or $`VAULT_TOKEN_FILE`)
         #[arg(long)]
         vault_token: Option<String>,
 
@@ -441,7 +441,7 @@ enum Commands {
         #[arg(long)]
         insecure: bool,
 
-        /// Group by role/appcode within each mount (uses entity_alias_name)
+        /// Group by role/appcode within each mount (uses `entity_alias_name`)
         #[arg(long)]
         group_by_role: bool,
 
@@ -456,11 +456,11 @@ enum Commands {
 
     /// List Vault entities and aliases (queries Vault API)
     EntityList {
-        /// Vault address (default: $VAULT_ADDR or http://127.0.0.1:8200)
+        /// Vault address (default: $`VAULT_ADDR` or <http://127.0.0.1:8200>)
         #[arg(long)]
         vault_addr: Option<String>,
 
-        /// Vault token (default: $VAULT_TOKEN or $VAULT_TOKEN_FILE)
+        /// Vault token (default: $`VAULT_TOKEN` or $`VAULT_TOKEN_FILE`)
         #[arg(long)]
         vault_token: Option<String>,
 
@@ -542,7 +542,7 @@ async fn main() -> Result<()> {
         } => commands::token_analysis::run(
             &log_files,
             abuse_threshold,
-            filter,
+            filter.as_deref(),
             export.as_deref(),
             min_operations,
         ),
@@ -653,7 +653,7 @@ async fn main() -> Result<()> {
                 entity_id
             );
             eprintln!("   Run: vault-audit entity-analysis timeline --help for details\n");
-            commands::entity_timeline::run(&log_files, &entity_id, &display_name)
+            commands::entity_timeline::run(&log_files, &entity_id, display_name.as_ref())
         }
         Commands::PathHotspots { log_files, top } => commands::path_hotspots::run(&log_files, top),
         Commands::K8sAuth { log_files, output } => {

@@ -1,0 +1,23 @@
+# Cargo configuration for vault-audit-tools
+#
+# This file configures clippy lints for better code quality
+
+[target.'cfg(all())']
+rustflags = [
+    "-W", "clippy::all",
+    "-W", "clippy::pedantic",
+    "-W", "clippy::nursery",
+    # Allow some pedantic lints that may be too strict for this codebase
+    "-A", "clippy::module-name-repetitions",
+    "-A", "clippy::missing-errors-doc", # TODO: Add error docs in future
+    "-A", "clippy::missing-panics-doc", # TODO: Add panic docs in future
+    "-A", "clippy::must-use-candidate", # Too noisy for utility functions
+    "-A", "clippy::too-many-lines", # Large functions can be split later
+    "-A", "clippy::cognitive-complexity", # Complex business logic is sometimes necessary
+    "-A", "clippy::cast-precision-loss", # Acceptable for performance monitoring
+    "-A", "clippy::cast-possible-truncation", # Acceptable for file size operations
+    "-A", "clippy::cast-sign-loss", # Acceptable for percentage calculations
+    "-A", "clippy::uninlined-format-args", # Can be improved later
+    "-A", "clippy::option-if-let-else", # Sometimes more readable than map_or_else
+    "-A", "clippy::items-after-statements", # Sometimes necessary for helper structs
+]

@@ -41,6 +41,7 @@
 //! - Security audits
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
@@ -59,30 +60,19 @@ impl PathData {
     fn new() -> Self {
         Self {
             count: 0,
-            operations: HashMap::new(),
-            entities: HashSet::new(),
+            operations: HashMap::with_capacity(10), // Typical: few operation types per path
+            entities: HashSet::with_capacity(50),   // Typical: dozens of entities per popular path
         }
     }
-}
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
 }
 
 pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()> {
-    let mut path_operations: HashMap<String, PathData> = HashMap::new();
-    let mut operation_types: HashMap<String, usize> = HashMap::new();
-    let mut path_prefixes: HashMap<String, usize> = HashMap::new();
-    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::new();
-    let mut entity_names: HashMap<String, String> = HashMap::new();
+    // Pre-allocate HashMaps for better performance based on typical usage patterns
+    let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000); // Typical: 1000-10000 unique paths
+    let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20); // Small: read, write, list, delete, etc.
+    let mut path_prefixes: HashMap<String, usize> = HashMap::with_capacity(100); // Typical: dozens of mount points
+    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::with_capacity(2000); // Typical: hundreds to thousands of entities
+    let mut entity_names: HashMap<String, String> = HashMap::with_capacity(2000);
     let mut total_lines = 0;
 
     // Process each log file sequentially
@@ -128,9 +118,8 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
                 Err(_) => continue,
             };
 
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -285,12 +274,11 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
             .operations
             .iter()
             .max_by_key(|x| x.1)
-            .map(|x| x.0.as_str())
-            .unwrap_or("N/A");
+            .map_or("N/A", |x| x.0.as_str());
         let path_display = if path.len() > 60 {
             format!("{}...", &path[..58])
         } else {
-            path.to_string()
+            (*path).to_string()
         };
         println!(
             "{:<60} {:>10} {:>10} {:>15}",
@@ -310,7 +298,7 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
     );
     println!("{}", "-".repeat(100));
 
-    let mut entity_totals: HashMap<String, usize> = HashMap::new();
+    let mut entity_totals: HashMap<String, usize> = HashMap::with_capacity(entity_paths.len());
     for (entity_id, paths) in &entity_paths {
         let total: usize = paths.values().sum();
         entity_totals.insert(entity_id.clone(), total);
@@ -322,8 +310,7 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
     for (entity_id, total) in sorted_entities.iter().take(top) {
         let name = entity_names
             .get(*entity_id)
-            .map(|s| s.as_str())
-            .unwrap_or("N/A");
+            .map_or("N/A", std::string::String::as_str);
         let name_display = if name.len() > 48 { &name[..48] } else { name };
         let entity_short = if entity_id.len() > 36 {
             &entity_id[..36]

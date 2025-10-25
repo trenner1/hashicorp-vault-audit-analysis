@@ -41,21 +41,10 @@
 //! - Identifying most popular secrets
 //! - Planning KV migrations or reorganization
 
+use crate::utils::format::format_number;
 use anyhow::{Context, Result};
 use std::fs::File;
 use std::io::BufReader;
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
 
 pub fn run(csv_file: &str) -> Result<()> {
     let file = File::open(csv_file).context("Failed to open CSV file")?;

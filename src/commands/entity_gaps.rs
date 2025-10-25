@@ -42,23 +42,12 @@
 //! - Unauthenticated access patterns
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
 
 pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
     let mut operations_by_type: HashMap<String, usize> = HashMap::new();
@@ -189,7 +178,7 @@ pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
         let display_path = if path.len() > 68 {
             format!("{}...", &path[..65])
         } else {
-            path.to_string()
+            (*path).to_string()
         };
         println!(
             "{:<70} {:>15} {:>14.2}%",

@@ -41,6 +41,7 @@
 //! - Database credential caching
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use crate::utils::time::parse_timestamp;
@@ -48,18 +49,6 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
-
-pub fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
 
 struct PathData {
     operations: usize,
@@ -128,9 +117,8 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
             };
 
             // Filter for Airflow-related paths (case-insensitive)
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -237,7 +225,7 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
         for entity in &data.entities {
             let entry = entity_patterns
                 .entry(entity.clone())
-                .or_insert((0, std::collections::HashSet::new()));
+                .or_insert_with(|| (0, std::collections::HashSet::new()));
             entry.0 += data.operations_by_entity.get(entity).unwrap_or(&0);
             entry.1.insert(path.clone());
         }

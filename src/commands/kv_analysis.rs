@@ -45,8 +45,8 @@ pub fn run_analyze(
     crate::commands::kv_analyzer::run(
         log_files,
         kv_prefix,
-        output.map(|s| s.as_str()),
-        entity_csv.map(|s| s.as_str()),
+        output.map(std::string::String::as_str),
+        entity_csv.map(std::string::String::as_str),
     )
 }
 

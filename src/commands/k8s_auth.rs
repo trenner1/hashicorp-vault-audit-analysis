@@ -30,27 +30,17 @@
 //! - Pods making frequent Vault requests
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
 pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
     let mut k8s_logins = 0;
-    let mut entities_seen: HashMap<String, usize> = HashMap::new();
+    // Pre-allocate for K8s entities - typical K8s environments have hundreds of service accounts
+    let mut entities_seen: HashMap<String, usize> = HashMap::with_capacity(1000);
     let mut total_lines = 0;
 
     // Process each log file sequentially
@@ -101,9 +91,8 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
                 continue;
             }
 
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -120,8 +109,7 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
             let is_k8s_by_mount = request
                 .mount_type
                 .as_deref()
-                .map(|mt| mt == "kubernetes" || mt == "openshift")
-                .unwrap_or(false);
+                .is_some_and(|mt| mt == "kubernetes" || mt == "openshift");
 
             if is_k8s_by_path || is_k8s_by_mount {
                 k8s_logins += 1;

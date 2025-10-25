@@ -1,4 +1,4 @@
-//! Data structures representing HashiCorp Vault audit log entries.
+//! Data structures representing `HashiCorp` Vault audit log entries.
 //!
 //! These types closely mirror the JSON structure of Vault audit logs,
 //! enabling efficient deserialization with serde.
@@ -128,19 +128,18 @@ impl AuditEntry {
 
     #[allow(dead_code)]
     pub fn is_kv_operation(&self) -> bool {
-        self.mount_type().map(|mt| mt == "kv").unwrap_or(false)
+        self.mount_type().is_some_and(|mt| mt == "kv")
     }
 
     #[allow(dead_code)]
     pub fn is_read_or_list(&self) -> bool {
         self.operation()
-            .map(|op| op == "read" || op == "list")
-            .unwrap_or(false)
+            .is_some_and(|op| op == "read" || op == "list")
     }
 
     #[allow(dead_code)]
     pub fn path_starts_with(&self, prefix: &str) -> bool {
-        self.path().map(|p| p.starts_with(prefix)).unwrap_or(false)
+        self.path().is_some_and(|p| p.starts_with(prefix))
     }
 
     #[allow(dead_code)]

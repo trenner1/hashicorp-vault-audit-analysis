@@ -48,10 +48,11 @@
 //! - Potential reconnaissance activity
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use crate::utils::time::parse_timestamp;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 
@@ -73,26 +74,14 @@ impl TokenData {
     }
 }
 
-fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> f64 {
-    match (parse_timestamp(first_seen), parse_timestamp(last_seen)) {
-        (Ok(first), Ok(last)) => {
-            let duration = last.signed_duration_since(first);
-            duration.num_seconds() as f64 / 3600.0
-        }
-        _ => 0.0,
-    }
-}
+fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> Result<f64> {
+    let first = parse_timestamp(first_seen)
+        .with_context(|| format!("Failed to parse first timestamp: {}", first_seen))?;
+    let last = parse_timestamp(last_seen)
+        .with_context(|| format!("Failed to parse last timestamp: {}", last_seen))?;
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
+    let duration = last.signed_duration_since(first);
+    Ok(duration.num_seconds() as f64 / 3600.0)
 }
 
 pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
@@ -145,9 +134,8 @@ pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
             };
 
             // Filter for token lookup-self operations
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -159,10 +147,7 @@ pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
                 continue;
             }
 
-            let auth = match &entry.auth {
-                Some(a) => a,
-                None => continue,
-            };
+            let Some(auth) = &entry.auth else { continue };
 
             let entity_id = match &auth.entity_id {
                 Some(id) => id.as_str(),
@@ -182,7 +167,7 @@ pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
                 .entry(accessor)
                 .and_modify(|data| {
                     data.lookups += 1;
-                    data.last_seen = entry.time.clone();
+                    data.last_seen.clone_from(&entry.time);
                 })
                 .or_insert_with(|| TokenData::new(entry.time.clone()));
         }
@@ -210,7 +195,14 @@ pub fn run(log_files: &[String], threshold: usize) -> Result<()> {
     for (entity_id, tokens) in &patterns {
         for (accessor, data) in tokens {
             if data.lookups >= threshold {
-                let time_span = calculate_time_span_hours(&data.first_seen, &data.last_seen);
+                let time_span = calculate_time_span_hours(&data.first_seen, &data.last_seen)
+                    .unwrap_or_else(|err| {
+                        eprintln!(
+                            "Warning: Failed to calculate time span for accessor {}: {}",
+                            accessor, err
+                        );
+                        0.0
+                    });
                 let lookups_per_hour = if time_span > 0.0 {
                     data.lookups as f64 / time_span
                 } else {

@@ -141,7 +141,7 @@ fn test_entity_timeline_command() {
 
     use vault_audit_tools::commands::entity_timeline;
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = entity_timeline::run(&log_files, "entity-1", &None);
+    let result = entity_timeline::run(&log_files, "entity-1", None);
 
     assert!(result.is_ok());
 }

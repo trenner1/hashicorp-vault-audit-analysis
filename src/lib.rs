@@ -1,11 +1,11 @@
 //! # Vault Audit Tools
 //!
-//! High-performance command-line tools for analyzing HashiCorp Vault audit logs.
+//! High-performance command-line tools for analyzing `HashiCorp` Vault audit logs.
 //!
 //! ## Overview
 //!
 //! This crate provides a suite of specialized tools for parsing and analyzing
-//! HashiCorp Vault audit logs. It's designed to handle large production logs
+//! `HashiCorp` Vault audit logs. It's designed to handle large production logs
 //! (multi-gigabyte files) efficiently through streaming parsing and minimal
 //! memory overhead.
 //!

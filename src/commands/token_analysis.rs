@@ -57,14 +57,15 @@
 //!
 //! ## Export Mode (--export) - Per-Accessor Detail
 //! Generates CSV with per-token accessor granularity:
-//! - entity_id, display_name, accessor (token identifier)
-//! - operations, first_seen, last_seen, duration_hours
+//! - `entity_id`, `display_name`, accessor (token identifier)
+//! - operations, `first_seen`, `last_seen`, `duration_hours`
 //! - Shows individual token lifecycle and usage patterns
 //! - Use --min-operations to filter low-activity tokens
 //! - First/last seen timestamps
 //! - Duration
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use crate::utils::time::parse_timestamp;
@@ -73,7 +74,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 
-/// Type alias for the complex return type from process_logs
+/// Type alias for the complex return type from `process_logs`
 type ProcessLogsResult = (
     HashMap<String, TokenOps>,
     HashMap<String, EntityAccessors>,
@@ -96,7 +97,7 @@ struct TokenOps {
 }
 
 impl TokenOps {
-    fn total(&self) -> usize {
+    const fn total(&self) -> usize {
         self.lookup_self
             + self.renew_self
             + self.revoke_self
@@ -128,35 +129,25 @@ struct EntityAccessors {
     display_name: Option<String>,
 }
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
+fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> Result<f64> {
+    let first = parse_timestamp(first_seen)
+        .with_context(|| format!("Failed to parse first timestamp: {}", first_seen))?;
+    let last = parse_timestamp(last_seen)
+        .with_context(|| format!("Failed to parse last timestamp: {}", last_seen))?;
 
-fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> f64 {
-    match (parse_timestamp(first_seen), parse_timestamp(last_seen)) {
-        (Ok(first), Ok(last)) => {
-            let duration = last.signed_duration_since(first);
-            duration.num_seconds() as f64 / 3600.0
-        }
-        _ => 0.0,
-    }
+    let duration = last.signed_duration_since(first);
+    Ok(duration.num_seconds() as f64 / 3600.0)
 }
 
 /// Process audit logs and collect token operation data
 fn process_logs(
     log_files: &[String],
-    operation_filter: Option<&Vec<String>>,
+    operation_filter: Option<&[String]>,
 ) -> Result<ProcessLogsResult> {
-    let mut token_ops: HashMap<String, TokenOps> = HashMap::new();
-    let mut accessor_data: HashMap<String, EntityAccessors> = HashMap::new();
+    // Pre-allocate HashMaps for better performance
+    // Typical environments have hundreds to thousands of entities
+    let mut token_ops: HashMap<String, TokenOps> = HashMap::with_capacity(2000);
+    let mut accessor_data: HashMap<String, EntityAccessors> = HashMap::with_capacity(2000);
     let mut total_lines = 0;
 
     for (file_idx, log_file) in log_files.iter().enumerate() {
@@ -200,15 +191,11 @@ fn process_logs(
             };
 
             // Skip if no request or auth info
-            let request = match entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = entry.request else {
+                continue;
             };
 
-            let auth = match entry.auth {
-                Some(a) => a,
-                None => continue,
-            };
+            let Some(auth) = entry.auth else { continue };
 
             let entity_id = match auth.entity_id {
                 Some(ref id) if !id.is_empty() => id.clone(),
@@ -254,13 +241,13 @@ fn process_logs(
             }
 
             if ops.display_name.is_none() {
-                ops.display_name = auth.display_name.clone();
+                ops.display_name.clone_from(&auth.display_name);
             }
             if ops.username.is_none() {
                 ops.username = auth.metadata.as_ref().and_then(|m| {
                     m.get("username")
                         .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
+                        .map(std::string::ToString::to_string)
                 });
             }
             ops.update_timestamps(&entry.time);
@@ -269,7 +256,7 @@ fn process_logs(
             if let Some(accessor) = auth.accessor {
                 let entity_acc = accessor_data.entry(entity_id.clone()).or_default();
                 if entity_acc.display_name.is_none() {
-                    entity_acc.display_name = auth.display_name.clone();
+                    entity_acc.display_name.clone_from(&auth.display_name);
                 }
 
                 let acc_data =
@@ -434,7 +421,13 @@ fn display_abuse(token_ops: &HashMap<String, TokenOps>, threshold: usize) {
             .unwrap_or(entity_id);
 
         let time_span = if let (Some(first), Some(last)) = (&ops.first_seen, &ops.last_seen) {
-            calculate_time_span_hours(first, last)
+            calculate_time_span_hours(first, last).unwrap_or_else(|err| {
+                eprintln!(
+                    "Warning: Failed to calculate time span for entity {}: {}",
+                    entity_id, err
+                );
+                0.0
+            })
         } else {
             0.0
         };
@@ -487,7 +480,14 @@ fn export_csv(
     rows.sort_by(|a, b| b.3.operations.cmp(&a.3.operations));
 
     for (entity_id, display_name, accessor, data) in rows {
-        let duration = calculate_time_span_hours(&data.first_seen, &data.last_seen);
+        let duration =
+            calculate_time_span_hours(&data.first_seen, &data.last_seen).unwrap_or_else(|err| {
+                eprintln!(
+                    "Warning: Failed to calculate duration for accessor {}: {}",
+                    accessor, err
+                );
+                0.0
+            });
         let display = display_name.as_deref().unwrap_or(entity_id);
 
         writeln!(
@@ -510,13 +510,13 @@ fn export_csv(
 pub fn run(
     log_files: &[String],
     abuse_threshold: Option<usize>,
-    operation_filter: Option<Vec<String>>,
+    operation_filter: Option<&[String]>,
     export_path: Option<&str>,
     min_operations: usize,
 ) -> Result<()> {
     eprintln!("Token Analysis");
     eprintln!("   Files: {}", log_files.len());
-    if let Some(ref filters) = operation_filter {
+    if let Some(filters) = operation_filter {
         eprintln!("   Filter: {}", filters.join(", "));
     }
     if let Some(threshold) = abuse_threshold {
@@ -527,8 +527,7 @@ pub fn run(
     }
     eprintln!();
 
-    let (token_ops, accessor_data, total_lines) =
-        process_logs(log_files, operation_filter.as_ref())?;
+    let (token_ops, accessor_data, total_lines) = process_logs(log_files, operation_filter)?;
 
     eprintln!("\n Processed {} total lines", format_number(total_lines));
     eprintln!(
