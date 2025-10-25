@@ -216,6 +216,10 @@ enum Commands {
         /// Minimum operations to report
         #[arg(long, default_value = "1000")]
         min_operations: usize,
+
+        /// Process files sequentially instead of in parallel (for debugging)
+        #[arg(long)]
+        sequential: bool,
     },
 
     /// Analyze token operations by entity (⚠️ DEPRECATED: Use 'token-analysis' instead)
@@ -526,7 +530,8 @@ async fn main() -> Result<()> {
             log_files,
             top,
             min_operations,
-        } => commands::system_overview::run(&log_files, top, min_operations),
+            sequential,
+        } => commands::system_overview::run(&log_files, top, min_operations, sequential),
         Commands::TokenOperations { log_files, output } => {
             eprintln!("⚠️  WARNING: 'token-operations' is deprecated.");
             eprintln!("   Use: vault-audit token-analysis [OPTIONS]");
