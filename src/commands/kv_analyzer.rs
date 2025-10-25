@@ -50,24 +50,13 @@
 //! - `secret/metadata/myapp/config` → `secret/myapp/config`
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
 
 /// Tracks KV usage statistics for a specific path
 struct KvUsageData {
@@ -116,14 +105,11 @@ fn normalize_kv_path(path: &str) -> String {
 }
 
 fn load_entity_alias_mapping(alias_export_csv: &str) -> Result<HashMap<String, Vec<String>>> {
-    let mut entity_aliases: HashMap<String, Vec<String>> = HashMap::new();
+    let mut entity_aliases: HashMap<String, Vec<String>> = HashMap::with_capacity(2000); // Pre-allocate for entities
 
-    let file = match File::open(alias_export_csv) {
-        Ok(f) => f,
-        Err(_) => {
-            eprintln!("[WARN] Entity alias export not found: {}", alias_export_csv);
-            return Ok(entity_aliases);
-        }
+    let Ok(file) = File::open(alias_export_csv) else {
+        eprintln!("[WARN] Entity alias export not found: {}", alias_export_csv);
+        return Ok(entity_aliases);
     };
 
     let mut reader = csv::Reader::from_reader(file);
@@ -149,7 +135,8 @@ pub fn run(
 ) -> Result<()> {
     let output_file = output.unwrap_or("kv_usage_by_client.csv");
 
-    let mut kv_usage: HashMap<String, KvUsageData> = HashMap::new();
+    // Pre-allocate for KV paths - typical environments have hundreds to thousands of secrets
+    let mut kv_usage: HashMap<String, KvUsageData> = HashMap::with_capacity(10000);
     let mut total_lines = 0;
     let mut parsed_lines = 0;
 
@@ -198,9 +185,8 @@ pub fn run(
             };
 
             // Filter for KV operations
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -222,9 +208,8 @@ pub fn run(
                 continue;
             }
 
-            let entity_id = match entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) {
-                Some(id) => id,
-                None => continue,
+            let Some(entity_id) = entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) else {
+                continue;
             };
 
             parsed_lines += 1;
@@ -269,7 +254,7 @@ pub fn run(
     let entity_aliases = if let Some(alias_file) = entity_csv {
         load_entity_alias_mapping(alias_file)?
     } else {
-        HashMap::new()
+        HashMap::with_capacity(0) // Empty aliases when file doesn't exist
     };
 
     // Ensure output directory exists

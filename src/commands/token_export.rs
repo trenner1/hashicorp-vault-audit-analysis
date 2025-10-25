@@ -48,8 +48,10 @@
 //! - Identifying long-lived vs short-lived tokens
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
+use crate::utils::time::parse_timestamp;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::File;
@@ -70,30 +72,14 @@ struct EntityData {
     tokens: HashMap<String, TokenData>,
 }
 
-pub fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
+fn calculate_time_span_hours(first: &str, last: &str) -> Result<f64> {
+    let first_dt = parse_timestamp(first)
+        .with_context(|| format!("Failed to parse first timestamp: {}", first))?;
+    let last_dt = parse_timestamp(last)
+        .with_context(|| format!("Failed to parse last timestamp: {}", last))?;
 
-fn calculate_time_span_hours(first: &str, last: &str) -> f64 {
-    use chrono::DateTime;
-
-    let first_dt = DateTime::parse_from_rfc3339(first).ok();
-    let last_dt = DateTime::parse_from_rfc3339(last).ok();
-
-    if let (Some(first), Some(last)) = (first_dt, last_dt) {
-        let duration = last.signed_duration_since(first);
-        duration.num_seconds() as f64 / 3600.0
-    } else {
-        0.0
-    }
+    let duration = last_dt.signed_duration_since(first_dt);
+    Ok(duration.num_seconds() as f64 / 3600.0)
 }
 
 pub fn run(log_files: &[String], output: &str, min_lookups: usize) -> Result<()> {
@@ -145,9 +131,8 @@ pub fn run(log_files: &[String], output: &str, min_lookups: usize) -> Result<()>
             };
 
             // Filter for token lookup operations
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -159,9 +144,8 @@ pub fn run(log_files: &[String], output: &str, min_lookups: usize) -> Result<()>
                 continue;
             }
 
-            let entity_id = match entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) {
-                Some(id) => id,
-                None => continue,
+            let Some(entity_id) = entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) else {
+                continue;
             };
 
             lookup_count += 1;
@@ -192,7 +176,7 @@ pub fn run(log_files: &[String], output: &str, min_lookups: usize) -> Result<()>
             token_data.lookups += 1;
 
             if token_data.first_seen.is_empty() {
-                token_data.first_seen = timestamp.clone();
+                token_data.first_seen.clone_from(&timestamp);
             }
             token_data.last_seen = timestamp;
         }
@@ -224,7 +208,14 @@ pub fn run(log_files: &[String], output: &str, min_lookups: usize) -> Result<()>
                 .iter()
                 .map(move |(accessor, token_data)| {
                     let time_span =
-                        calculate_time_span_hours(&token_data.first_seen, &token_data.last_seen);
+                        calculate_time_span_hours(&token_data.first_seen, &token_data.last_seen)
+                            .unwrap_or_else(|err| {
+                                eprintln!(
+                                    "Warning: Failed to calculate time span for accessor {}: {}",
+                                    accessor, err
+                                );
+                                0.0
+                            });
                     let lookups_per_hour = if time_span > 0.0 {
                         token_data.lookups as f64 / time_span
                     } else {

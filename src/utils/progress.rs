@@ -1,3 +1,4 @@
+use crate::utils::format::format_number;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
@@ -110,14 +111,14 @@ impl ProgressBar {
                 format_number(self.current / elapsed.as_secs() as usize)
             )
         } else {
-            "".to_string()
+            String::new()
         };
 
         eprintln!(
             " Done in {:.1}s {}",
             elapsed.as_secs_f64(),
             if rate.is_empty() {
-                "".to_string()
+                String::new()
             } else {
                 format!("({})", rate)
             }
@@ -128,31 +129,5 @@ impl ProgressBar {
     pub fn finish_with_message(&mut self, message: &str) {
         self.render();
         eprintln!(" {}", message);
-    }
-}
-
-/// Format a number with thousand separators
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_format_number() {
-        assert_eq!(format_number(0), "0");
-        assert_eq!(format_number(999), "999");
-        assert_eq!(format_number(1000), "1,000");
-        assert_eq!(format_number(1234567), "1,234,567");
     }
 }

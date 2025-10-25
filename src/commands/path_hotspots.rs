@@ -37,6 +37,7 @@
 //! - Load distribution
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use crate::utils::time::parse_timestamp;
@@ -60,28 +61,17 @@ impl PathStats {
     fn new() -> Self {
         Self {
             operations: 0,
-            entities: HashSet::new(),
-            operations_by_type: HashMap::new(),
-            timestamps: Vec::new(),
-            entity_operations: HashMap::new(),
+            entities: HashSet::with_capacity(50), // Typical: dozens of entities per popular path
+            operations_by_type: HashMap::with_capacity(10), // Few operation types: read, write, list, delete
+            timestamps: Vec::with_capacity(1000),           // Pre-allocate for timestamps
+            entity_operations: HashMap::with_capacity(50),  // Entities accessing this path
         }
     }
-}
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
 }
 
 pub fn run(log_files: &[String], top: usize) -> Result<()> {
-    let mut path_stats: HashMap<String, PathStats> = HashMap::new();
+    // Pre-allocate for better performance - typical environments have thousands of unique paths
+    let mut path_stats: HashMap<String, PathStats> = HashMap::with_capacity(5000);
     let mut total_lines = 0;
     let mut total_operations = 0;
 
@@ -214,11 +204,10 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             .operations_by_type
             .iter()
             .max_by_key(|x| x.1)
-            .map(|x| x.0.as_str())
-            .unwrap_or("N/A");
+            .map_or("N/A", |x| x.0.as_str());
 
         let display_path = if path.len() <= 58 {
-            path.to_string()
+            (*path).to_string()
         } else {
             format!("{}...", &path[..55])
         };
@@ -295,7 +284,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             for (entity_id, entity_ops) in top_entities.iter().take(5) {
                 let entity_pct = (**entity_ops as f64 / ops as f64) * 100.0;
                 let entity_display = if entity_id.len() <= 40 {
-                    entity_id.to_string()
+                    (*entity_id).to_string()
                 } else {
                     format!("{}...", &entity_id[..37])
                 };
@@ -403,7 +392,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     println!("\n\nSUMMARY BY PATH CATEGORY");
     println!("{}", "=".repeat(120));
 
-    let mut categories: HashMap<&str, usize> = HashMap::new();
+    let mut categories: HashMap<&str, usize> = HashMap::with_capacity(10); // Small fixed set of categories
     categories.insert("Token Operations", 0);
     categories.insert("KV Secret Access", 0);
     categories.insert("Authentication", 0);
@@ -411,7 +400,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     categories.insert("System/Admin", 0);
     categories.insert("Other", 0);
 
-    for (path, stats) in path_stats.iter() {
+    for (path, stats) in &path_stats {
         let ops = stats.operations;
         if path.contains("token/") {
             *categories.get_mut("Token Operations").unwrap() += ops;
@@ -502,13 +491,13 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     // Calculate high-frequency path caching opportunities
     let high_freq_ops: usize = path_stats
         .iter()
-        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
+        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100_000)
         .map(|(_, stats)| stats.operations)
         .sum();
 
     let high_freq_count = path_stats
         .iter()
-        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
+        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100_000)
         .count();
 
     if high_freq_ops > 10000 {

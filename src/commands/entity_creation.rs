@@ -44,6 +44,7 @@
 //! Use `--json` to output structured data for further processing.
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
@@ -90,18 +91,6 @@ struct MountStats {
     sample_entities: Vec<String>, // Store up to 5 sample display names
 }
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
 /// Load entity mappings from either JSON or CSV format
 pub fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>> {
     let file =
@@ -109,11 +98,17 @@ pub fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>
 
     // Auto-detect format based on file extension or content
     let path_lower = path.to_lowercase();
-    if path_lower.ends_with(".json") {
+    if std::path::Path::new(&path_lower)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    {
         // JSON format (from preprocess-entities)
         serde_json::from_reader(file)
             .with_context(|| format!("Failed to parse entity map JSON: {}", path))
-    } else if path_lower.ends_with(".csv") {
+    } else if std::path::Path::new(&path_lower)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("csv"))
+    {
         // CSV format (from entity-list)
         let mut reader = csv::Reader::from_reader(file);
         let mut mappings = HashMap::new();
@@ -149,43 +144,42 @@ pub fn load_entity_mappings(path: &str) -> Result<HashMap<String, EntityMapping>
     } else {
         // Try JSON first, fall back to CSV
         let file = File::open(path)?;
-        match serde_json::from_reader::<_, HashMap<String, EntityMapping>>(file) {
-            Ok(mappings) => Ok(mappings),
-            Err(_) => {
-                // Try CSV
-                let file = File::open(path)?;
-                let mut reader = csv::Reader::from_reader(file);
-                let mut mappings = HashMap::new();
+        if let Ok(mappings) = serde_json::from_reader::<_, HashMap<String, EntityMapping>>(file) {
+            Ok(mappings)
+        } else {
+            // Try CSV
+            let file = File::open(path)?;
+            let mut reader = csv::Reader::from_reader(file);
+            let mut mappings = HashMap::new();
 
-                for result in reader.records() {
-                    let record = result?;
-                    if record.len() < 8 {
-                        continue;
-                    }
-
-                    let entity_id = record.get(0).unwrap_or("").to_string();
-                    let display_name = record.get(1).unwrap_or("").to_string();
-                    let mount_path = record.get(7).unwrap_or("").to_string();
-                    let mount_accessor = record.get(9).unwrap_or("").to_string();
-
-                    if !entity_id.is_empty() {
-                        mappings.insert(
-                            entity_id,
-                            EntityMapping {
-                                display_name,
-                                mount_path,
-                                mount_accessor,
-                                username: None,
-                                login_count: 0,
-                                first_seen: String::new(),
-                                last_seen: String::new(),
-                            },
-                        );
-                    }
+            for result in reader.records() {
+                let record = result?;
+                if record.len() < 8 {
+                    continue;
                 }
 
-                Ok(mappings)
+                let entity_id = record.get(0).unwrap_or("").to_string();
+                let display_name = record.get(1).unwrap_or("").to_string();
+                let mount_path = record.get(7).unwrap_or("").to_string();
+                let mount_accessor = record.get(9).unwrap_or("").to_string();
+
+                if !entity_id.is_empty() {
+                    mappings.insert(
+                        entity_id,
+                        EntityMapping {
+                            display_name,
+                            mount_path,
+                            mount_accessor,
+                            username: None,
+                            login_count: 0,
+                            first_seen: String::new(),
+                            last_seen: String::new(),
+                        },
+                    );
+                }
             }
+
+            Ok(mappings)
         }
     }
 }
@@ -262,9 +256,8 @@ pub fn run(
             };
 
             // Look for login events in auth paths
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
             let path = match &request.path {
@@ -276,10 +269,7 @@ pub fn run(
                 continue;
             }
 
-            let auth = match &entry.auth {
-                Some(a) => a,
-                None => continue,
-            };
+            let Some(auth) = &entry.auth else { continue };
 
             let entity_id = match &auth.entity_id {
                 Some(id) if !id.is_empty() => id.clone(),

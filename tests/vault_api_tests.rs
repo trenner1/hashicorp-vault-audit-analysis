@@ -15,7 +15,7 @@ fn test_should_skip_verify_no_flag() {
 #[test]
 fn test_vault_client_new() {
     let client = VaultClient::new(
-        "https://vault.example.com:8200".to_string(),
+        "https://vault.example.com:8200",
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
@@ -27,7 +27,7 @@ fn test_vault_client_new() {
 #[test]
 fn test_vault_client_new_with_trailing_slash() {
     let client = VaultClient::new(
-        "https://vault.example.com:8200/".to_string(),
+        "https://vault.example.com:8200/",
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
@@ -39,7 +39,7 @@ fn test_vault_client_new_with_trailing_slash() {
 #[test]
 fn test_vault_client_new_with_multiple_trailing_slashes() {
     let client = VaultClient::new(
-        "https://vault.example.com:8200///".to_string(),
+        "https://vault.example.com:8200///",
         "hvs.test-token".to_string(),
     );
     assert!(client.is_ok());
@@ -51,7 +51,7 @@ fn test_vault_client_new_with_multiple_trailing_slashes() {
 #[test]
 fn test_vault_client_new_with_skip_verify() {
     let client = VaultClient::new_with_skip_verify(
-        "https://vault.example.com:8200".to_string(),
+        "https://vault.example.com:8200",
         "hvs.test-token".to_string(),
         true,
     );
@@ -61,7 +61,7 @@ fn test_vault_client_new_with_skip_verify() {
 #[test]
 fn test_vault_client_new_without_skip_verify() {
     let client = VaultClient::new_with_skip_verify(
-        "https://vault.example.com:8200".to_string(),
+        "https://vault.example.com:8200",
         "hvs.test-token".to_string(),
         false,
     );
@@ -211,17 +211,14 @@ fn test_extract_data_missing_field_fails() {
 
 #[test]
 fn test_vault_client_http_addr() {
-    let client = VaultClient::new(
-        "http://localhost:8200".to_string(),
-        "test-token".to_string(),
-    );
+    let client = VaultClient::new("http://localhost:8200", "test-token".to_string());
     assert!(client.is_ok());
 }
 
 #[test]
 fn test_vault_client_https_addr() {
     let client = VaultClient::new(
-        "https://vault.prod.example.com:8200".to_string(),
+        "https://vault.prod.example.com:8200",
         "test-token".to_string(),
     );
     assert!(client.is_ok());
@@ -229,20 +226,14 @@ fn test_vault_client_https_addr() {
 
 #[test]
 fn test_vault_client_with_port() {
-    let client = VaultClient::new(
-        "https://vault.example.com:8200".to_string(),
-        "test-token".to_string(),
-    );
+    let client = VaultClient::new("https://vault.example.com:8200", "test-token".to_string());
     assert!(client.is_ok());
     assert_eq!(client.unwrap().addr(), "https://vault.example.com:8200");
 }
 
 #[test]
 fn test_vault_client_without_port() {
-    let client = VaultClient::new(
-        "https://vault.example.com".to_string(),
-        "test-token".to_string(),
-    );
+    let client = VaultClient::new("https://vault.example.com", "test-token".to_string());
     assert!(client.is_ok());
     assert_eq!(client.unwrap().addr(), "https://vault.example.com");
 }

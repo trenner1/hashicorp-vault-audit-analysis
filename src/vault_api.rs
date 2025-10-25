@@ -1,6 +1,6 @@
 //! Vault API client for entity enrichment.
 //!
-//! This module provides a client for interacting with the HashiCorp Vault API
+//! This module provides a client for interacting with the `HashiCorp` Vault API
 //! to enrich audit log data with additional entity information.
 //!
 //! # Environment Variables
@@ -18,7 +18,7 @@
 //! use vault_audit_tools::vault_api::VaultClient;
 //!
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let addr = "https://vault.example.com:8200".to_string();
+//! let addr = "https://vault.example.com:8200";
 //! let token = "hvs.secret".to_string();
 //! let client = VaultClient::new(addr, token)?;
 //! # Ok(())
@@ -69,12 +69,12 @@ pub struct VaultClient {
 
 impl VaultClient {
     /// Create a new Vault client from address and token
-    pub fn new(addr: String, token: String) -> Result<Self> {
+    pub fn new(addr: &str, token: String) -> Result<Self> {
         Self::new_with_skip_verify(addr, token, false)
     }
 
     /// Create a new Vault client with option to skip TLS verification
-    pub fn new_with_skip_verify(addr: String, token: String, skip_verify: bool) -> Result<Self> {
+    pub fn new_with_skip_verify(addr: &str, token: String, skip_verify: bool) -> Result<Self> {
         let client = Client::builder()
             .danger_accept_invalid_certs(skip_verify)
             .build()
@@ -107,7 +107,7 @@ impl VaultClient {
             ));
         };
 
-        Self::new(addr, token)
+        Self::new(&addr, token)
     }
 
     /// Create a client with optional parameters (for CLI)
@@ -117,7 +117,7 @@ impl VaultClient {
         skip_verify: bool,
     ) -> Result<Self> {
         let addr = vault_addr
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .or_else(|| env::var("VAULT_ADDR").ok())
             .unwrap_or_else(|| "http://127.0.0.1:8200".to_string());
 
@@ -139,7 +139,7 @@ impl VaultClient {
             ));
         };
 
-        Self::new_with_skip_verify(addr, token, skip_verify)
+        Self::new_with_skip_verify(&addr, token, skip_verify)
     }
 
     /// Make a GET request to a Vault API endpoint
@@ -228,20 +228,13 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let client = VaultClient::new(
-            "http://127.0.0.1:8200".to_string(),
-            "test-token".to_string(),
-        );
+        let client = VaultClient::new("http://127.0.0.1:8200", "test-token".to_string());
         assert!(client.is_ok());
     }
 
     #[test]
     fn test_addr_trimming() {
-        let client = VaultClient::new(
-            "http://127.0.0.1:8200/".to_string(),
-            "test-token".to_string(),
-        )
-        .unwrap();
+        let client = VaultClient::new("http://127.0.0.1:8200/", "test-token".to_string()).unwrap();
         assert_eq!(client.addr(), "http://127.0.0.1:8200");
     }
 }
