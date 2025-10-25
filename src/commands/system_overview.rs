@@ -42,7 +42,7 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
-// use crate::utils::parallel::process_files_parallel; // Temporarily disabled
+use crate::utils::parallel::process_files_parallel;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
@@ -77,7 +77,107 @@ struct FileAnalysisResult {
     entity_names: HashMap<String, String>,
 }
 
-/// Process entries from a single file
+/// Process entries from a single file using streaming to reduce memory usage
+fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult> {
+    use crate::utils::reader::open_file;
+    use std::io::{BufRead, BufReader};
+
+    let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000);
+    let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20);
+    let mut path_prefixes: HashMap<String, usize> = HashMap::with_capacity(100);
+    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::with_capacity(2000);
+    let mut entity_names: HashMap<String, String> = HashMap::with_capacity(2000);
+
+    let file = open_file(file_path)?;
+    let reader = BufReader::new(file);
+
+    for line_result in reader.lines() {
+        let line = line_result?;
+
+        // Skip empty lines
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        // Parse JSON entry
+        let entry: AuditEntry = match serde_json::from_str(&line) {
+            Ok(entry) => entry,
+            Err(_) => continue, // Skip invalid JSON lines
+        };
+
+        let Some(request) = &entry.request else {
+            continue;
+        };
+
+        let path = match &request.path {
+            Some(p) => p.as_str(),
+            None => continue,
+        };
+
+        let operation = match &request.operation {
+            Some(o) => o.as_str(),
+            None => continue,
+        };
+
+        let entity_id = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.entity_id.as_deref())
+            .unwrap_or("no-entity");
+
+        let display_name = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.display_name.as_deref())
+            .unwrap_or("N/A");
+
+        if path.is_empty() || operation.is_empty() {
+            continue;
+        }
+
+        // Track by full path
+        let path_data = path_operations
+            .entry(path.to_string())
+            .or_insert_with(PathData::new);
+        path_data.count += 1;
+        *path_data
+            .operations
+            .entry(operation.to_string())
+            .or_insert(0) += 1;
+        path_data.entities.insert(entity_id.to_string());
+
+        // Track by operation type
+        *operation_types.entry(operation.to_string()).or_insert(0) += 1;
+
+        // Track by path prefix
+        let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+        let prefix = if parts.len() >= 2 {
+            format!("{}/{}", parts[0], parts[1])
+        } else if !parts.is_empty() {
+            parts[0].to_string()
+        } else {
+            "root".to_string()
+        };
+        *path_prefixes.entry(prefix).or_insert(0) += 1;
+
+        // Track entity usage
+        let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
+        *entity_map.entry(path.to_string()).or_insert(0) += 1;
+        entity_names
+            .entry(entity_id.to_string())
+            .or_insert_with(|| display_name.to_string());
+    }
+
+    Ok(FileAnalysisResult {
+        path_operations,
+        operation_types,
+        path_prefixes,
+        entity_paths,
+        entity_names,
+    })
+}
+
+/// Process entries from a single file (original non-streaming version)
 fn process_file_entries(_file_path: &str, entries: Vec<AuditEntry>) -> FileAnalysisResult {
     let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000);
     let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20);
@@ -158,8 +258,7 @@ fn process_file_entries(_file_path: &str, entries: Vec<AuditEntry>) -> FileAnaly
     }
 }
 
-/// Combine results from multiple files (temporarily unused)
-#[allow(dead_code)]
+/// Combine results from multiple files
 fn combine_results(
     results: Vec<crate::utils::parallel::FileProcessResult<FileAnalysisResult>>,
 ) -> FileAnalysisResult {
@@ -328,11 +427,14 @@ pub fn run(
     min_operations: usize,
     sequential: bool,
 ) -> Result<()> {
-    // For now, always use sequential processing to avoid memory issues
-    // Parallel processing will be re-enabled after memory optimization
-    let _ = sequential; // Acknowledge the parameter
-    eprintln!("Processing {} files sequentially...", log_files.len());
-    let (combined_result, total_lines) = run_sequential(log_files)?;
+    let (combined_result, total_lines) = if sequential || log_files.len() == 1 {
+        // Use sequential processing for single files or when explicitly requested
+        eprintln!("Processing {} files sequentially...", log_files.len());
+        run_sequential(log_files)?
+    } else {
+        // Use parallel processing for multiple files with streaming
+        process_files_parallel(log_files, process_file_entries_streaming, combine_results)?
+    };
 
     eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
 
