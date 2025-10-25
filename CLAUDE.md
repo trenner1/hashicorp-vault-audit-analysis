@@ -67,6 +67,7 @@ The project has undergone command consolidation to reduce complexity:
 ### Key Design Patterns
 - **Streaming Parser**: Processes audit logs line-by-line without loading entire files into memory
 - **Auto-preprocessing**: Entity commands automatically build entity mappings in-memory, eliminating multi-step workflows
+- **Parallel Processing**: Multiple files processed concurrently for maximum performance (system-overview command)
 - **Compressed File Support**: Automatic detection and streaming decompression of .gz and .zst files
 - **Multi-file Processing**: All commands support multiple input files for historical analysis
 

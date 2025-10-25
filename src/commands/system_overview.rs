@@ -42,6 +42,7 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
+// use crate::utils::parallel::process_files_parallel; // Temporarily disabled
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
@@ -66,16 +67,165 @@ impl PathData {
     }
 }
 
-pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()> {
-    // Pre-allocate HashMaps for better performance based on typical usage patterns
-    let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000); // Typical: 1000-10000 unique paths
-    let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20); // Small: read, write, list, delete, etc.
-    let mut path_prefixes: HashMap<String, usize> = HashMap::with_capacity(100); // Typical: dozens of mount points
-    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::with_capacity(2000); // Typical: hundreds to thousands of entities
+/// Results from processing a single file
+#[derive(Debug)]
+struct FileAnalysisResult {
+    path_operations: HashMap<String, PathData>,
+    operation_types: HashMap<String, usize>,
+    path_prefixes: HashMap<String, usize>,
+    entity_paths: HashMap<String, HashMap<String, usize>>,
+    entity_names: HashMap<String, String>,
+}
+
+/// Process entries from a single file
+fn process_file_entries(_file_path: &str, entries: Vec<AuditEntry>) -> FileAnalysisResult {
+    let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000);
+    let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20);
+    let mut path_prefixes: HashMap<String, usize> = HashMap::with_capacity(100);
+    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::with_capacity(2000);
     let mut entity_names: HashMap<String, String> = HashMap::with_capacity(2000);
+
+    for entry in entries {
+        let Some(request) = &entry.request else {
+            continue;
+        };
+
+        let path = match &request.path {
+            Some(p) => p.as_str(),
+            None => continue,
+        };
+
+        let operation = match &request.operation {
+            Some(o) => o.as_str(),
+            None => continue,
+        };
+
+        let entity_id = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.entity_id.as_deref())
+            .unwrap_or("no-entity");
+
+        let display_name = entry
+            .auth
+            .as_ref()
+            .and_then(|a| a.display_name.as_deref())
+            .unwrap_or("N/A");
+
+        if path.is_empty() || operation.is_empty() {
+            continue;
+        }
+
+        // Track by full path
+        let path_data = path_operations
+            .entry(path.to_string())
+            .or_insert_with(PathData::new);
+        path_data.count += 1;
+        *path_data
+            .operations
+            .entry(operation.to_string())
+            .or_insert(0) += 1;
+        path_data.entities.insert(entity_id.to_string());
+
+        // Track by operation type
+        *operation_types.entry(operation.to_string()).or_insert(0) += 1;
+
+        // Track by path prefix
+        let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
+        let prefix = if parts.len() >= 2 {
+            format!("{}/{}", parts[0], parts[1])
+        } else if !parts.is_empty() {
+            parts[0].to_string()
+        } else {
+            "root".to_string()
+        };
+        *path_prefixes.entry(prefix).or_insert(0) += 1;
+
+        // Track entity usage
+        let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
+        *entity_map.entry(path.to_string()).or_insert(0) += 1;
+        entity_names
+            .entry(entity_id.to_string())
+            .or_insert_with(|| display_name.to_string());
+    }
+
+    FileAnalysisResult {
+        path_operations,
+        operation_types,
+        path_prefixes,
+        entity_paths,
+        entity_names,
+    }
+}
+
+/// Combine results from multiple files (temporarily unused)
+#[allow(dead_code)]
+fn combine_results(
+    results: Vec<crate::utils::parallel::FileProcessResult<FileAnalysisResult>>,
+) -> FileAnalysisResult {
+    let mut combined = FileAnalysisResult {
+        path_operations: HashMap::with_capacity(5000),
+        operation_types: HashMap::with_capacity(20),
+        path_prefixes: HashMap::with_capacity(100),
+        entity_paths: HashMap::with_capacity(2000),
+        entity_names: HashMap::with_capacity(2000),
+    };
+
+    for file_result in results {
+        let result = file_result.data;
+
+        // Merge path operations
+        for (path, path_data) in result.path_operations {
+            if let Some(existing) = combined.path_operations.get_mut(&path) {
+                existing.count += path_data.count;
+                for (op, count) in path_data.operations {
+                    *existing.operations.entry(op).or_insert(0) += count;
+                }
+                existing.entities.extend(path_data.entities);
+            } else {
+                combined.path_operations.insert(path, path_data);
+            }
+        }
+
+        // Merge operation types
+        for (op, count) in result.operation_types {
+            *combined.operation_types.entry(op).or_insert(0) += count;
+        }
+
+        // Merge path prefixes
+        for (prefix, count) in result.path_prefixes {
+            *combined.path_prefixes.entry(prefix).or_insert(0) += count;
+        }
+
+        // Merge entity paths
+        for (entity_id, paths) in result.entity_paths {
+            let entity_map = combined.entity_paths.entry(entity_id).or_default();
+            for (path, count) in paths {
+                *entity_map.entry(path).or_insert(0) += count;
+            }
+        }
+
+        // Merge entity names (first occurrence wins)
+        for (entity_id, name) in result.entity_names {
+            combined.entity_names.entry(entity_id).or_insert(name);
+        }
+    }
+
+    combined
+}
+
+/// Sequential processing fallback for compatibility and single files
+fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
+    let mut combined_result = FileAnalysisResult {
+        path_operations: HashMap::with_capacity(5000),
+        operation_types: HashMap::with_capacity(20),
+        path_prefixes: HashMap::with_capacity(100),
+        entity_paths: HashMap::with_capacity(2000),
+        entity_names: HashMap::with_capacity(2000),
+    };
     let mut total_lines = 0;
 
-    // Process each log file sequentially
+    // Process each file sequentially
     for (file_idx, log_file) in log_files.iter().enumerate() {
         eprintln!(
             "[{}/{}] Processing: {}",
@@ -84,7 +234,6 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
             log_file
         );
 
-        // Get file size for progress tracking
         let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
         let mut progress = if let Some(size) = file_size {
             ProgressBar::new(size, "Processing")
@@ -97,92 +246,27 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
 
         let mut file_lines = 0;
         let mut bytes_read = 0;
+        let mut entries = Vec::new();
 
         for line in reader.lines() {
             file_lines += 1;
             total_lines += 1;
             let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
+            bytes_read += line.len() + 1;
 
-            // Update progress every 10k lines for smooth animation
             if file_lines % 10_000 == 0 {
                 if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size)); // Cap at file size
+                    progress.update(bytes_read.min(size));
                 } else {
                     progress.update(file_lines);
                 }
             }
 
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
-            let Some(request) = &entry.request else {
-                continue;
-            };
-
-            let path = match &request.path {
-                Some(p) => p.as_str(),
-                None => continue,
-            };
-
-            let operation = match &request.operation {
-                Some(o) => o.as_str(),
-                None => continue,
-            };
-
-            let entity_id = entry
-                .auth
-                .as_ref()
-                .and_then(|a| a.entity_id.as_deref())
-                .unwrap_or("no-entity");
-
-            let display_name = entry
-                .auth
-                .as_ref()
-                .and_then(|a| a.display_name.as_deref())
-                .unwrap_or("N/A");
-
-            if path.is_empty() || operation.is_empty() {
-                continue;
+            if let Ok(entry) = serde_json::from_str::<AuditEntry>(&line) {
+                entries.push(entry);
             }
-
-            // Track by full path
-            let path_data = path_operations
-                .entry(path.to_string())
-                .or_insert_with(PathData::new);
-            path_data.count += 1;
-            *path_data
-                .operations
-                .entry(operation.to_string())
-                .or_insert(0) += 1;
-            // Track all entities including "no-entity" to match Python behavior
-            path_data.entities.insert(entity_id.to_string());
-
-            // Track by operation type
-            *operation_types.entry(operation.to_string()).or_insert(0) += 1;
-
-            // Track by path prefix
-            let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
-            let prefix = if parts.len() >= 2 {
-                format!("{}/{}", parts[0], parts[1])
-            } else if !parts.is_empty() {
-                parts[0].to_string()
-            } else {
-                "root".to_string()
-            };
-            *path_prefixes.entry(prefix).or_insert(0) += 1;
-
-            // Track entity usage for all entities (including "no-entity")
-            let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
-            *entity_map.entry(path.to_string()).or_insert(0) += 1;
-            entity_names
-                .entry(entity_id.to_string())
-                .or_insert_with(|| display_name.to_string());
         }
 
-        // Ensure 100% progress for this file
         if let Some(size) = file_size {
             progress.update(size);
         }
@@ -191,9 +275,72 @@ pub fn run(log_files: &[String], top: usize, min_operations: usize) -> Result<()
             "Processed {} lines from this file",
             format_number(file_lines)
         ));
+
+        // Process the entries from this file and merge directly
+        let file_result = process_file_entries(log_file, entries);
+
+        // Merge path operations
+        for (path, path_data) in file_result.path_operations {
+            if let Some(existing) = combined_result.path_operations.get_mut(&path) {
+                existing.count += path_data.count;
+                for (op, count) in path_data.operations {
+                    *existing.operations.entry(op).or_insert(0) += count;
+                }
+                existing.entities.extend(path_data.entities);
+            } else {
+                combined_result.path_operations.insert(path, path_data);
+            }
+        }
+
+        // Merge operation types
+        for (op, count) in file_result.operation_types {
+            *combined_result.operation_types.entry(op).or_insert(0) += count;
+        }
+
+        // Merge path prefixes
+        for (prefix, count) in file_result.path_prefixes {
+            *combined_result.path_prefixes.entry(prefix).or_insert(0) += count;
+        }
+
+        // Merge entity paths
+        for (entity_id, paths) in file_result.entity_paths {
+            let entity_map = combined_result.entity_paths.entry(entity_id).or_default();
+            for (path, count) in paths {
+                *entity_map.entry(path).or_insert(0) += count;
+            }
+        }
+
+        // Merge entity names
+        for (entity_id, name) in file_result.entity_names {
+            combined_result
+                .entity_names
+                .entry(entity_id)
+                .or_insert(name);
+        }
     }
 
+    Ok((combined_result, total_lines))
+}
+
+pub fn run(
+    log_files: &[String],
+    top: usize,
+    min_operations: usize,
+    sequential: bool,
+) -> Result<()> {
+    // For now, always use sequential processing to avoid memory issues
+    // Parallel processing will be re-enabled after memory optimization
+    let _ = sequential; // Acknowledge the parameter
+    eprintln!("Processing {} files sequentially...", log_files.len());
+    let (combined_result, total_lines) = run_sequential(log_files)?;
+
     eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
+
+    let path_operations = combined_result.path_operations;
+    let operation_types = combined_result.operation_types;
+    let path_prefixes = combined_result.path_prefixes;
+    let entity_paths = combined_result.entity_paths;
+    let entity_names = combined_result.entity_names;
 
     let total_operations: usize = operation_types.values().sum();
 
