@@ -22,14 +22,15 @@ pub struct FileProcessResult<T> {
     pub data: T,
 }
 
-/// Process multiple files in parallel with a custom handler function
+/// Process multiple files in parallel with memory-efficient streaming
 ///
-/// This function processes files concurrently, maximizing CPU utilization
-/// for I/O and CPU intensive audit log analysis.
+/// This function processes files concurrently using a streaming approach that
+/// processes entries line-by-line without loading entire files into memory.
+/// This prevents memory allocation failures on large files.
 ///
 /// # Arguments
 /// * `files` - List of file paths to process
-/// * `processor` - Function that processes entries from a single file
+/// * `processor` - Function that processes a single file with streaming callback
 /// * `combiner` - Function that combines results from all files
 ///
 /// # Returns
@@ -42,7 +43,7 @@ pub fn process_files_parallel<T, F, C, R>(
 where
     T: Send + 'static,
     R: Send + 'static,
-    F: Fn(&str, Vec<AuditEntry>) -> T + Send + Sync,
+    F: Fn(&str) -> Result<T> + Send + Sync,
     C: Fn(Vec<FileProcessResult<T>>) -> R + Send + Sync,
 {
     if files.is_empty() {
@@ -61,9 +62,8 @@ where
         .map(|(idx, file_path)| -> Result<FileProcessResult<T>> {
             eprintln!("[{}/{}] Starting: {}", idx + 1, files.len(), file_path);
 
-            // Read and parse the entire file
-            let entries = read_file_entries(file_path)?;
-            let lines_count = entries.len();
+            // Count lines for progress tracking (fast pass)
+            let lines_count = count_file_lines(file_path)?;
 
             // Update progress
             total_lines.fetch_add(lines_count, Ordering::Relaxed);
@@ -71,8 +71,9 @@ where
                 progress.update(total_lines.load(Ordering::Relaxed));
             }
 
-            // Process entries with the provided function
-            let data = processor(file_path, entries);
+            // Process file using streaming approach
+            let data = processor(file_path)
+                .with_context(|| format!("Failed to process file: {}", file_path))?;
 
             eprintln!(
                 "[{}/{}] Completed: {} ({} lines)",
@@ -103,7 +104,55 @@ where
     Ok((result, total_lines_processed))
 }
 
-/// Read all entries from a single file
+/// Count lines in a file for progress tracking (lightweight)
+fn count_file_lines(file_path: &str) -> Result<usize> {
+    let file =
+        open_file(file_path).with_context(|| format!("Failed to open file: {}", file_path))?;
+    let reader = BufReader::new(file);
+
+    let mut count = 0;
+    for line_result in reader.lines() {
+        line_result.with_context(|| format!("Failed to read line from {}", file_path))?;
+        count += 1;
+    }
+
+    Ok(count)
+}
+
+/// Process a file with streaming to minimize memory usage
+///
+/// This function processes audit entries one-by-one instead of loading
+/// the entire file into memory, making it suitable for very large files.
+#[allow(dead_code)]
+pub fn process_file_streaming<T, F>(file_path: &str, mut processor: F) -> Result<T>
+where
+    F: FnMut(&AuditEntry),
+    T: Default,
+{
+    let file =
+        open_file(file_path).with_context(|| format!("Failed to open file: {}", file_path))?;
+    let reader = BufReader::new(file);
+
+    for (line_num, line_result) in reader.lines().enumerate() {
+        let line = line_result
+            .with_context(|| format!("Failed to read line {} from {}", line_num + 1, file_path))?;
+
+        // Skip empty lines
+        if line.trim().is_empty() {
+            continue;
+        }
+
+        // Parse and process entry immediately
+        if let Ok(entry) = serde_json::from_str::<AuditEntry>(&line) {
+            processor(&entry);
+        }
+    }
+
+    Ok(T::default())
+}
+
+/// Read all entries from a single file (kept for compatibility but not recommended for large files)
+#[allow(dead_code)]
 fn read_file_entries(file_path: &str) -> Result<Vec<AuditEntry>> {
     let file =
         open_file(file_path).with_context(|| format!("Failed to open file: {}", file_path))?;
@@ -142,7 +191,7 @@ pub fn process_files_aggregate<T, F, A>(
 ) -> Result<(T, usize)>
 where
     T: Send + Clone + Sync + 'static,
-    F: Fn(&str, Vec<AuditEntry>) -> T + Send + Sync,
+    F: Fn(&str) -> Result<T> + Send + Sync,
     A: Fn(T, T) -> T + Send + Sync,
 {
     process_files_parallel(files, processor, |results| {
@@ -174,7 +223,21 @@ mod tests {
         // Process files to count entries per file
         let (results, total_lines) = process_files_parallel(
             &files,
-            |_file_path, entries| entries.len(),
+            |file_path| -> Result<usize> {
+                let file = open_file(file_path)?;
+                let reader = BufReader::new(file);
+                let mut count = 0;
+                for line_result in reader.lines() {
+                    let line = line_result?;
+                    if line.trim().is_empty() {
+                        continue;
+                    }
+                    if serde_json::from_str::<AuditEntry>(&line).is_ok() {
+                        count += 1;
+                    }
+                }
+                Ok(count)
+            },
             |results| results.into_iter().map(|r| r.data).sum::<usize>(),
         )
         .unwrap();
