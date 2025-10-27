@@ -43,83 +43,77 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use anyhow::Result;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+
+#[derive(Debug, Clone)]
+struct GapsState {
+    operations_by_type: HashMap<String, usize>,
+    paths_accessed: HashMap<String, usize>,
+    no_entity_operations: usize,
+}
+
+impl GapsState {
+    fn new() -> Self {
+        Self {
+            operations_by_type: HashMap::new(),
+            paths_accessed: HashMap::new(),
+            no_entity_operations: 0,
+        }
+    }
+
+    fn merge(mut self, other: Self) -> Self {
+        // Merge operations_by_type
+        for (op, count) in other.operations_by_type {
+            *self.operations_by_type.entry(op).or_insert(0) += count;
+        }
+
+        // Merge paths_accessed
+        for (path, count) in other.paths_accessed {
+            *self.paths_accessed.entry(path).or_insert(0) += count;
+        }
+
+        // Merge counters
+        self.no_entity_operations += other.no_entity_operations;
+
+        self
+    }
+}
 
 pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
-    let mut operations_by_type: HashMap<String, usize> = HashMap::new();
-    let mut paths_accessed: HashMap<String, usize> = HashMap::new();
-    let mut total_lines = 0;
-    let mut no_entity_operations = 0;
+    let processor = ProcessorBuilder::new()
+        .mode(ProcessingMode::Auto)
+        .progress_label("Processing".to_string())
+        .build();
 
-    // Process each log file sequentially
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
-
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
-
-            // Update progress every 10k lines for smooth animation
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        |entry: &AuditEntry, state: &mut GapsState| {
             // Check for no entity
             if entry.entity_id().is_some() {
-                continue;
+                return;
             }
 
-            no_entity_operations += 1;
+            state.no_entity_operations += 1;
 
             // Track data
             if let Some(op) = entry.operation() {
-                *operations_by_type.entry(op.to_string()).or_insert(0) += 1;
+                *state.operations_by_type.entry(op.to_string()).or_insert(0) += 1;
             }
 
             if let Some(path) = entry.path() {
-                *paths_accessed.entry(path.to_string()).or_insert(0) += 1;
+                *state.paths_accessed.entry(path.to_string()).or_insert(0) += 1;
             }
-        }
+        },
+        GapsState::merge,
+        GapsState::new(),
+    )?;
 
-        progress.finish_with_message(&format!(
-            "Processed {} lines from this file",
-            format_number(file_lines)
-        ));
-    }
+    let total_lines = stats.total_lines;
+    let no_entity_operations = result.no_entity_operations;
+    let operations_by_type = result.operations_by_type;
+    let paths_accessed = result.paths_accessed;
 
     eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
     eprintln!(

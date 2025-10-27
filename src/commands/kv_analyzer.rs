@@ -51,18 +51,61 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 /// Tracks KV usage statistics for a specific path
+#[derive(Debug, Clone)]
 struct KvUsageData {
     entity_ids: HashSet<String>,
     operations_count: usize,
     paths_accessed: HashSet<String>,
+}
+
+impl KvUsageData {
+    fn new() -> Self {
+        Self {
+            entity_ids: HashSet::new(),
+            operations_count: 0,
+            paths_accessed: HashSet::new(),
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.entity_ids.extend(other.entity_ids);
+        self.operations_count += other.operations_count;
+        self.paths_accessed.extend(other.paths_accessed);
+    }
+}
+
+#[derive(Debug, Clone)]
+struct KvAnalyzerState {
+    kv_usage: HashMap<String, KvUsageData>,
+    kv_prefix: String,
+    parsed_lines: usize,
+}
+
+impl KvAnalyzerState {
+    fn new(kv_prefix: String) -> Self {
+        Self {
+            kv_usage: HashMap::with_capacity(10000),
+            kv_prefix,
+            parsed_lines: 0,
+        }
+    }
+
+    fn merge(mut self, other: Self) -> Self {
+        self.parsed_lines += other.parsed_lines;
+        for (path, other_data) in other.kv_usage {
+            self.kv_usage
+                .entry(path)
+                .and_modify(|data| data.merge(other_data.clone()))
+                .or_insert(other_data);
+        }
+        self
+    }
 }
 
 /// Normalizes KV paths by removing KV v2 /data/ and /metadata/ components
@@ -134,110 +177,68 @@ pub fn run(
     entity_csv: Option<&str>,
 ) -> Result<()> {
     let output_file = output.unwrap_or("kv_usage_by_client.csv");
+    let kv_prefix_owned = kv_prefix.to_string();
 
-    // Pre-allocate for KV paths - typical environments have hundreds to thousands of secrets
-    let mut kv_usage: HashMap<String, KvUsageData> = HashMap::with_capacity(10000);
-    let mut total_lines = 0;
-    let mut parsed_lines = 0;
+    let processor = ProcessorBuilder::new()
+        .mode(ProcessingMode::Auto)
+        .progress_label("Processing".to_string())
+        .build();
 
-    // Process each log file sequentially
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
-
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let file = open_file(log_file)
-            .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
-        let reader = BufReader::new(file);
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
-
-            // Update progress every 10k lines for smooth animation
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size)); // Cap at file size
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        |entry: &AuditEntry, state: &mut KvAnalyzerState| {
             // Filter for KV operations
             let Some(request) = &entry.request else {
-                continue;
+                return;
             };
 
             let path = match &request.path {
                 Some(p) => p.as_str(),
-                None => continue,
+                None => return,
             };
 
             // Check prefix
-            if !kv_prefix.is_empty() && !path.starts_with(kv_prefix) {
-                continue;
+            if !state.kv_prefix.is_empty() && !path.starts_with(&state.kv_prefix) {
+                return;
             }
-            if kv_prefix.is_empty() && !path.contains("/data/") && !path.contains("/metadata/") {
-                continue;
+            if state.kv_prefix.is_empty()
+                && !path.contains("/data/")
+                && !path.contains("/metadata/")
+            {
+                return;
             }
 
             // Filter for read/list operations
             let operation = request.operation.as_deref().unwrap_or("");
             if operation != "read" && operation != "list" {
-                continue;
+                return;
             }
 
             let Some(entity_id) = entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) else {
-                continue;
+                return;
             };
 
-            parsed_lines += 1;
+            state.parsed_lines += 1;
 
             // Normalize path
             let app_path = normalize_kv_path(path);
 
-            let usage = kv_usage.entry(app_path).or_insert_with(|| KvUsageData {
-                entity_ids: HashSet::new(),
-                operations_count: 0,
-                paths_accessed: HashSet::new(),
-            });
+            let usage = state
+                .kv_usage
+                .entry(app_path)
+                .or_insert_with(KvUsageData::new);
 
             usage.entity_ids.insert(entity_id.to_string());
             usage.operations_count += 1;
             usage.paths_accessed.insert(path.to_string());
-        }
+        },
+        KvAnalyzerState::merge,
+        KvAnalyzerState::new(kv_prefix_owned),
+    )?;
 
-        // Ensure 100% progress for this file
-        if let Some(size) = file_size {
-            progress.update(size);
-        }
-
-        progress.finish_with_message(&format!(
-            "Processed {} lines from this file",
-            format_number(file_lines)
-        ));
-    }
+    let total_lines = stats.total_lines;
+    let parsed_lines = result.parsed_lines;
+    let kv_usage = result.kv_usage;
 
     eprintln!(
         "\nTotal: Processed {} lines, parsed {} KV operations",

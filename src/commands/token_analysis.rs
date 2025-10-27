@@ -66,13 +66,12 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use crate::utils::time::parse_timestamp;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 
 /// Type alias for the complex return type from `process_logs`
 type ProcessLogsResult = (
@@ -82,7 +81,7 @@ type ProcessLogsResult = (
 );
 
 /// Token operation statistics for a single entity
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct TokenOps {
     lookup_self: usize,
     renew_self: usize,
@@ -115,7 +114,7 @@ impl TokenOps {
 }
 
 /// Token accessor-specific data for detailed analysis
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct AccessorData {
     operations: usize,
     first_seen: String,
@@ -123,10 +122,85 @@ struct AccessorData {
 }
 
 /// Tracks per-accessor token activity for an entity
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct EntityAccessors {
     accessors: HashMap<String, AccessorData>,
     display_name: Option<String>,
+}
+
+/// Combined state for token processing
+#[derive(Debug, Default, Clone)]
+struct TokenAnalysisState {
+    token_ops: HashMap<String, TokenOps>,
+    accessor_data: HashMap<String, EntityAccessors>,
+}
+
+impl TokenAnalysisState {
+    fn new() -> Self {
+        Self {
+            token_ops: HashMap::with_capacity(2000),
+            accessor_data: HashMap::with_capacity(2000),
+        }
+    }
+
+    fn merge(mut self, other: Self) -> Self {
+        // Merge token_ops
+        for (entity_id, other_ops) in other.token_ops {
+            let ops = self.token_ops.entry(entity_id).or_default();
+            ops.lookup_self += other_ops.lookup_self;
+            ops.renew_self += other_ops.renew_self;
+            ops.revoke_self += other_ops.revoke_self;
+            ops.create += other_ops.create;
+            ops.login += other_ops.login;
+            ops.other += other_ops.other;
+
+            // Update display name and username if not set
+            if ops.display_name.is_none() {
+                ops.display_name = other_ops.display_name;
+            }
+            if ops.username.is_none() {
+                ops.username = other_ops.username;
+            }
+
+            // Update timestamps (earliest first_seen, latest last_seen)
+            if ops.first_seen.is_none()
+                || (other_ops.first_seen.is_some() && ops.first_seen > other_ops.first_seen)
+            {
+                ops.first_seen = other_ops.first_seen;
+            }
+            if ops.last_seen.is_none()
+                || (other_ops.last_seen.is_some() && ops.last_seen < other_ops.last_seen)
+            {
+                ops.last_seen = other_ops.last_seen;
+            }
+        }
+
+        // Merge accessor_data
+        for (entity_id, other_entity) in other.accessor_data {
+            let entity = self.accessor_data.entry(entity_id).or_default();
+
+            // Merge accessors
+            for (accessor, other_data) in other_entity.accessors {
+                let data = entity.accessors.entry(accessor).or_default();
+                data.operations += other_data.operations;
+
+                // Update timestamps
+                if data.first_seen.is_empty() || data.first_seen > other_data.first_seen {
+                    data.first_seen = other_data.first_seen;
+                }
+                if data.last_seen.is_empty() || data.last_seen < other_data.last_seen {
+                    data.last_seen = other_data.last_seen;
+                }
+            }
+
+            // Update display name if not set
+            if entity.display_name.is_none() {
+                entity.display_name = other_entity.display_name;
+            }
+        }
+
+        self
+    }
 }
 
 fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> Result<f64> {
@@ -144,62 +218,26 @@ fn process_logs(
     log_files: &[String],
     operation_filter: Option<&[String]>,
 ) -> Result<ProcessLogsResult> {
-    // Pre-allocate HashMaps for better performance
-    // Typical environments have hundreds to thousands of entities
-    let mut token_ops: HashMap<String, TokenOps> = HashMap::with_capacity(2000);
-    let mut accessor_data: HashMap<String, EntityAccessors> = HashMap::with_capacity(2000);
-    let mut total_lines = 0;
+    let processor = ProcessorBuilder::new()
+        .progress_label("Analyzing tokens")
+        .mode(ProcessingMode::Auto)
+        .build();
 
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
+    let operation_filter = operation_filter.map(<[std::string::String]>::to_vec);
 
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1;
-
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        move |entry: &AuditEntry, state: &mut TokenAnalysisState| {
             // Skip if no request or auth info
-            let Some(request) = entry.request else {
-                continue;
+            let Some(request) = &entry.request else {
+                return;
             };
 
-            let Some(auth) = entry.auth else { continue };
+            let Some(auth) = &entry.auth else { return };
 
-            let entity_id = match auth.entity_id {
-                Some(ref id) if !id.is_empty() => id.clone(),
-                _ => continue,
+            let entity_id = match &auth.entity_id {
+                Some(id) if !id.is_empty() => id.clone(),
+                _ => return,
             };
 
             // Determine operation type
@@ -219,18 +257,18 @@ fn process_logs(
             } else if path.starts_with("auth/token/") {
                 "other"
             } else {
-                continue; // Not a token operation
+                return; // Not a token operation
             };
 
             // Apply operation filter if specified
-            if let Some(filters) = operation_filter {
+            if let Some(ref filters) = operation_filter {
                 if !filters.iter().any(|f| op_type.contains(f.as_str())) {
-                    continue;
+                    return;
                 }
             }
 
             // Update token operations summary
-            let ops = token_ops.entry(entity_id.clone()).or_default();
+            let ops = state.token_ops.entry(entity_id.clone()).or_default();
             match op_type {
                 "lookup" => ops.lookup_self += 1,
                 "renew" => ops.renew_self += 1,
@@ -253,31 +291,30 @@ fn process_logs(
             ops.update_timestamps(&entry.time);
 
             // Track accessor-level data for detailed analysis
-            if let Some(accessor) = auth.accessor {
-                let entity_acc = accessor_data.entry(entity_id.clone()).or_default();
+            if let Some(accessor) = &auth.accessor {
+                let entity_acc = state.accessor_data.entry(entity_id).or_default();
                 if entity_acc.display_name.is_none() {
                     entity_acc.display_name.clone_from(&auth.display_name);
                 }
 
-                let acc_data =
-                    entity_acc
-                        .accessors
-                        .entry(accessor)
-                        .or_insert_with(|| AccessorData {
-                            operations: 0,
-                            first_seen: entry.time.clone(),
-                            last_seen: entry.time.clone(),
-                        });
+                let acc_data = entity_acc
+                    .accessors
+                    .entry(accessor.clone())
+                    .or_insert_with(|| AccessorData {
+                        operations: 0,
+                        first_seen: entry.time.clone(),
+                        last_seen: entry.time.clone(),
+                    });
                 acc_data.operations += 1;
-                acc_data.last_seen = entry.time;
+                acc_data.last_seen.clone_from(&entry.time);
             }
-        }
+        },
+        TokenAnalysisState::merge,
+        TokenAnalysisState::new(),
+    )?;
 
-        progress.finish();
-        eprintln!("  Processed {} lines", format_number(file_lines));
-    }
-
-    Ok((token_ops, accessor_data, total_lines))
+    stats.report();
+    Ok((result.token_ops, result.accessor_data, stats.total_lines))
 }
 
 /// Display operations summary

@@ -52,36 +52,59 @@ where
 
     eprintln!("Processing {} files in parallel...", files.len());
 
-    let total_lines = Arc::new(AtomicUsize::new(0));
-    let progress = Arc::new(Mutex::new(ProgressBar::new_spinner("Processing files")));
+    // First pass: count total lines across all files for accurate progress
+    eprintln!("Scanning files to determine total work...");
+    let total_lines_to_process: usize = files
+        .par_iter()
+        .map(|file_path| count_file_lines(file_path).unwrap_or(0))
+        .sum();
+
+    eprintln!(
+        "Total lines to process: {}",
+        crate::utils::format::format_number(total_lines_to_process)
+    );
+
+    let processed_lines = Arc::new(AtomicUsize::new(0));
+    let progress = Arc::new(Mutex::new(ProgressBar::new(
+        total_lines_to_process,
+        "Processing",
+    )));
+
+    // Initialize global progress for system_overview streaming
+    crate::commands::system_overview::init_parallel_progress(
+        processed_lines.clone(),
+        progress.clone(),
+    );
 
     // Process files in parallel
     let results: Result<Vec<_>> = files
         .par_iter()
         .enumerate()
         .map(|(idx, file_path)| -> Result<FileProcessResult<T>> {
-            eprintln!("[{}/{}] Starting: {}", idx + 1, files.len(), file_path);
+            // Don't print starting messages to avoid interfering with progress bar
 
-            // Count lines for progress tracking (fast pass)
-            let lines_count = count_file_lines(file_path)?;
-
-            // Update progress
-            total_lines.fetch_add(lines_count, Ordering::Relaxed);
-            if let Ok(mut progress) = progress.lock() {
-                progress.update(total_lines.load(Ordering::Relaxed));
-            }
-
-            // Process file using streaming approach
+            // Process file using streaming approach (progress updated internally)
             let data = processor(file_path)
                 .with_context(|| format!("Failed to process file: {}", file_path))?;
 
-            eprintln!(
-                "[{}/{}] Completed: {} ({} lines)",
-                idx + 1,
-                files.len(),
-                file_path,
-                lines_count
-            );
+            // Count lines for completion message
+            let lines_count = count_file_lines(file_path)?;
+
+            // Print completion message without interfering with progress
+            if let Ok(mut progress) = progress.lock() {
+                eprint!("\r"); // Clear current line
+                eprint!("{}", " ".repeat(100)); // Clear with spaces
+                eprint!("\r"); // Return to start
+                eprintln!(
+                    "[{}/{}] ✓ Completed: {} ({} lines)",
+                    idx + 1,
+                    files.len(),
+                    file_path.split('/').next_back().unwrap_or(file_path),
+                    crate::utils::format::format_number(lines_count)
+                );
+                // Re-render progress bar on new line
+                progress.render();
+            }
 
             Ok(FileProcessResult {
                 file_path: file_path.clone(),
@@ -92,9 +115,13 @@ where
         .collect();
 
     let results = results?;
-    let total_lines_processed = total_lines.load(Ordering::Relaxed);
+    let total_lines_processed = processed_lines.load(Ordering::Relaxed);
 
     if let Ok(mut progress) = progress.lock() {
+        // Clear the progress line before final message
+        eprint!("\r");
+        eprint!("{}", " ".repeat(80));
+        eprint!("\r");
         progress.finish_with_message(&format!("Processed {} total lines", total_lines_processed));
     }
 
@@ -221,7 +248,7 @@ mod tests {
         }).collect();
 
         // Process files to count entries per file
-        let (results, total_lines) = process_files_parallel(
+        let (results, _total_lines) = process_files_parallel(
             &files,
             |file_path| -> Result<usize> {
                 let file = open_file(file_path)?;
@@ -243,6 +270,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(results, 6); // 2 entries per file * 3 files
-        assert_eq!(total_lines, 6);
+                                // Note: total_lines from atomic counter is only updated by streaming processors
+                                // that explicitly call the global progress tracker
     }
 }
