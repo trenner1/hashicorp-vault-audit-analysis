@@ -9,6 +9,7 @@
 //!
 //! - `VAULT_ADDR` - Vault server address (e.g., `https://vault.example.com:8200`)
 //! - `VAULT_TOKEN` - Authentication token for API access
+//! - `VAULT_NAMESPACE` - Vault namespace for API requests (e.g., `tenant1`, `admin/team-a`)
 //! - `VAULT_SKIP_VERIFY` - Skip TLS certificate verification (set to `1`, `true`, or `yes`)
 //! - `VAULT_CACERT` - Path to CA certificate for TLS verification
 //!
@@ -64,17 +65,30 @@ pub fn should_skip_verify(insecure_flag: bool) -> bool {
 pub struct VaultClient {
     addr: String,
     token: String,
+    namespace: Option<String>,
     client: Client,
 }
 
 impl VaultClient {
     /// Create a new Vault client from address and token
+    #[allow(dead_code)]
     pub fn new(addr: &str, token: String) -> Result<Self> {
         Self::new_with_skip_verify(addr, token, false)
     }
 
     /// Create a new Vault client with option to skip TLS verification
+    #[allow(dead_code)]
     pub fn new_with_skip_verify(addr: &str, token: String, skip_verify: bool) -> Result<Self> {
+        Self::new_with_options(addr, token, None, skip_verify)
+    }
+
+    /// Create a new Vault client with all options
+    pub fn new_with_options(
+        addr: &str,
+        token: String,
+        namespace: Option<String>,
+        skip_verify: bool,
+    ) -> Result<Self> {
         let client = Client::builder()
             .danger_accept_invalid_certs(skip_verify)
             .build()
@@ -83,6 +97,7 @@ impl VaultClient {
         Ok(Self {
             addr: addr.trim_end_matches('/').to_string(),
             token,
+            namespace,
             client,
         })
     }
@@ -91,6 +106,7 @@ impl VaultClient {
     #[allow(dead_code)]
     pub fn from_env() -> Result<Self> {
         let addr = env::var("VAULT_ADDR").unwrap_or_else(|_| "http://127.0.0.1:8200".to_string());
+        let namespace = env::var("VAULT_NAMESPACE").ok();
 
         let token = if let Ok(token) = env::var("VAULT_TOKEN") {
             token
@@ -107,19 +123,24 @@ impl VaultClient {
             ));
         };
 
-        Self::new(&addr, token)
+        Self::new_with_options(&addr, token, namespace, false)
     }
 
     /// Create a client with optional parameters (for CLI)
     pub fn from_options(
         vault_addr: Option<&str>,
         vault_token: Option<&str>,
+        vault_namespace: Option<&str>,
         skip_verify: bool,
     ) -> Result<Self> {
         let addr = vault_addr
             .map(std::string::ToString::to_string)
             .or_else(|| env::var("VAULT_ADDR").ok())
             .unwrap_or_else(|| "http://127.0.0.1:8200".to_string());
+
+        let namespace = vault_namespace
+            .map(std::string::ToString::to_string)
+            .or_else(|| env::var("VAULT_NAMESPACE").ok());
 
         let token = if let Some(t) = vault_token {
             t.to_string()
@@ -139,17 +160,20 @@ impl VaultClient {
             ));
         };
 
-        Self::new_with_skip_verify(&addr, token, skip_verify)
+        Self::new_with_options(&addr, token, namespace, skip_verify)
     }
 
     /// Make a GET request to a Vault API endpoint
     pub async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
         let url = format!("{}{}", self.addr, path);
 
-        let response = self
-            .client
-            .get(&url)
-            .header("X-Vault-Token", &self.token)
+        let mut request = self.client.get(&url).header("X-Vault-Token", &self.token);
+
+        if let Some(namespace) = &self.namespace {
+            request = request.header("X-Vault-Namespace", namespace);
+        }
+
+        let response = request
             .send()
             .await
             .context("Failed to send request to Vault")?;
@@ -181,10 +205,13 @@ impl VaultClient {
     pub async fn get_text(&self, path: &str) -> Result<String> {
         let url = format!("{}{}", self.addr, path);
 
-        let response = self
-            .client
-            .get(&url)
-            .header("X-Vault-Token", &self.token)
+        let mut request = self.client.get(&url).header("X-Vault-Token", &self.token);
+
+        if let Some(namespace) = &self.namespace {
+            request = request.header("X-Vault-Namespace", namespace);
+        }
+
+        let response = request
             .send()
             .await
             .context("Failed to send request to Vault")?;

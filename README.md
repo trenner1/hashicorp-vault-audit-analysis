@@ -272,19 +272,76 @@ Commands that interact with Vault API respect standard Vault environment variabl
 
 - `VAULT_ADDR` - Vault server address (e.g., `https://vault.example.com:8200`)
 - `VAULT_TOKEN` - Authentication token for API access
+- `VAULT_NAMESPACE` - Vault namespace for API requests (e.g., `tenant1`, `admin/team-a`)
 - `VAULT_SKIP_VERIFY` - Skip TLS certificate verification (set to `1`, `true`, or `yes`) - **USE ONLY FOR TESTING**
 - `VAULT_CACERT` - Path to CA certificate for TLS verification
 
 You can also provide these via command-line flags:
 ```bash
+# Query entities from a specific namespace
 vault-audit entity-list \
   --vault-addr https://vault.example.com:8200 \
   --vault-token hvs.xxxxx \
+  --vault-namespace tenant1 \
   --output entities.csv
+
+# Client activity for a namespace
+vault-audit client-activity \
+  --start 2025-10-01T00:00:00Z \
+  --end 2025-10-31T23:59:59Z \
+  --vault-namespace admin/security \
+  --output activity.csv
 
 # Skip TLS verification (dev/test only)
 vault-audit entity-list --insecure --output entities.csv
 ```
+
+## Namespace Support
+
+Vault Enterprise supports [namespaces](https://developer.hashicorp.com/vault/docs/enterprise/namespaces) for multi-tenant isolation. This toolset provides comprehensive namespace support for both API commands and audit log analysis.
+
+### API Commands with Namespaces
+
+Commands that query Vault's API (`entity-list` and `client-activity`) support the `--vault-namespace` flag (or `VAULT_NAMESPACE` environment variable) to target a specific namespace:
+
+```bash
+# Set namespace via environment variable
+export VAULT_NAMESPACE="tenant1"
+vault-audit entity-list --output tenant1-entities.csv
+
+# Or use command-line flag
+vault-audit client-activity \
+  --start 2025-10-01T00:00:00Z \
+  --end 2025-10-31T23:59:59Z \
+  --vault-namespace admin/security
+```
+
+### Audit Log Analysis with Namespace Filtering
+
+Audit logs from namespaced Vault clusters include namespace information in each entry. Use the `--namespace-filter` flag to analyze logs from a specific namespace:
+
+```bash
+# Analyze only operations in the "prod" namespace
+vault-audit system-overview audit.log --namespace-filter root
+
+# Show system overview for specific namespace
+vault-audit system-overview logs/*.log.gz --namespace-filter tenant1
+
+# All other audit log commands can filter by namespace using similar patterns
+vault-audit token-analysis audit.log --namespace-filter admin
+vault-audit kv-analysis analyze audit.log --namespace-filter myapp --output kv-usage.csv
+```
+
+**Note**: Namespace filtering for audit log commands currently supported:
+- `system-overview` - Full support with `--namespace-filter`
+- Other commands - Namespace ID is available in audit log entries via the `request.namespace.id` field
+
+### Namespace Best Practices
+
+1. **API Access**: Tokens must have appropriate permissions within the target namespace
+2. **Audit Logs**: Ensure audit logs include namespace information (enabled by default in Vault Enterprise)
+3. **Cross-Namespace Analysis**: To analyze multiple namespaces, run separate commands for each namespace
+4. **Root Namespace**: Use `--namespace-filter root` for operations in the root namespace
 
 ## Documentation
 

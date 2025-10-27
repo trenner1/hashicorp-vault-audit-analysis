@@ -187,7 +187,7 @@ fn test_entity_gaps_invalid_file() {
 fn test_system_overview_invalid_file() {
     use vault_audit_tools::commands::system_overview;
 
-    let result = system_overview::run(&["/nonexistent/file.log".to_string()], 10, 1, false);
+    let result = system_overview::run(&["/nonexistent/file.log".to_string()], 10, 1, None, false);
     assert!(result.is_err());
 }
 
@@ -199,7 +199,13 @@ fn test_system_overview_empty_log() {
     let log_path = temp_dir.path().join("empty.log");
     File::create(&log_path).unwrap();
 
-    let result = system_overview::run(&[log_path.to_str().unwrap().to_string()], 10, 1, false);
+    let result = system_overview::run(
+        &[log_path.to_str().unwrap().to_string()],
+        10,
+        1,
+        None,
+        false,
+    );
     assert!(result.is_ok());
 }
 
