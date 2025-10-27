@@ -65,7 +65,7 @@ fn test_system_overview_command() {
 
     use vault_audit_tools::commands::system_overview;
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = system_overview::run(&log_files, 10, 1, false);
+    let result = system_overview::run(&log_files, 10, 1, None, false);
 
     assert!(result.is_ok());
 }

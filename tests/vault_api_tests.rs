@@ -73,6 +73,7 @@ fn test_vault_client_from_options_with_all_params() {
     let client = VaultClient::from_options(
         Some("https://vault.example.com:8200"),
         Some("hvs.test-token"),
+        None,
         false,
     );
     assert!(client.is_ok());
@@ -94,7 +95,8 @@ fn test_vault_client_from_options_default_addr() {
 #[test]
 fn test_vault_client_from_options_no_token_fails() {
     // Must provide token explicitly since we can't rely on env being clean
-    let client = VaultClient::from_options(Some("https://vault.example.com:8200"), None, false);
+    let client =
+        VaultClient::from_options(Some("https://vault.example.com:8200"), None, None, false);
     // Might pass or fail depending on environment, so just test it runs
     let _ = client;
 }

@@ -217,6 +217,10 @@ enum Commands {
         #[arg(long, default_value = "1000")]
         min_operations: usize,
 
+        /// Filter by namespace ID (e.g., "root")
+        #[arg(long)]
+        namespace_filter: Option<String>,
+
         /// Process files sequentially instead of in parallel (for debugging)
         #[arg(long)]
         sequential: bool,
@@ -441,6 +445,10 @@ enum Commands {
         #[arg(long)]
         vault_token: Option<String>,
 
+        /// Vault namespace (default: $`VAULT_NAMESPACE`)
+        #[arg(long)]
+        vault_namespace: Option<String>,
+
         /// Skip TLS certificate verification (insecure)
         #[arg(long)]
         insecure: bool,
@@ -467,6 +475,10 @@ enum Commands {
         /// Vault token (default: $`VAULT_TOKEN` or $`VAULT_TOKEN_FILE`)
         #[arg(long)]
         vault_token: Option<String>,
+
+        /// Vault namespace (default: $`VAULT_NAMESPACE`)
+        #[arg(long)]
+        vault_namespace: Option<String>,
 
         /// Skip TLS certificate verification (insecure)
         #[arg(long)]
@@ -530,8 +542,15 @@ async fn main() -> Result<()> {
             log_files,
             top,
             min_operations,
+            namespace_filter,
             sequential,
-        } => commands::system_overview::run(&log_files, top, min_operations, sequential),
+        } => commands::system_overview::run(
+            &log_files,
+            top,
+            min_operations,
+            namespace_filter.as_deref(),
+            sequential,
+        ),
         Commands::TokenOperations { log_files, output } => {
             eprintln!("⚠️  WARNING: 'token-operations' is deprecated.");
             eprintln!("   Use: vault-audit token-analysis [OPTIONS]");
@@ -712,6 +731,7 @@ async fn main() -> Result<()> {
             end,
             vault_addr,
             vault_token,
+            vault_namespace,
             insecure,
             group_by_role,
             entity_map,
@@ -722,6 +742,7 @@ async fn main() -> Result<()> {
                 &end,
                 vault_addr.as_deref(),
                 vault_token.as_deref(),
+                vault_namespace.as_deref(),
                 insecure,
                 group_by_role,
                 entity_map.as_deref(),
@@ -732,6 +753,7 @@ async fn main() -> Result<()> {
         Commands::EntityList {
             vault_addr,
             vault_token,
+            vault_namespace,
             insecure,
             output,
             format,
@@ -740,6 +762,7 @@ async fn main() -> Result<()> {
             commands::entity_list::run(
                 vault_addr.as_deref(),
                 vault_token.as_deref(),
+                vault_namespace.as_deref(),
                 insecure,
                 output.as_deref(),
                 format.as_str(),

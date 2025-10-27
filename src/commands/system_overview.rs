@@ -92,7 +92,10 @@ pub fn init_parallel_progress(
 }
 
 /// Process entries from a single file using streaming to reduce memory usage
-fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult> {
+fn process_file_entries_streaming(
+    file_path: &str,
+    namespace_filter: Option<&str>,
+) -> Result<FileAnalysisResult> {
     use crate::utils::reader::open_file;
     use std::io::{BufRead, BufReader};
 
@@ -131,6 +134,13 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
             Ok(entry) => entry,
             Err(_) => continue, // Skip invalid JSON lines
         };
+
+        // Apply namespace filter if specified
+        if let Some(filter_ns) = namespace_filter {
+            if entry.namespace_id() != Some(filter_ns) {
+                continue;
+            }
+        }
 
         let Some(request) = &entry.request else {
             continue;
@@ -352,7 +362,10 @@ fn combine_results(
 }
 
 /// Sequential processing fallback for compatibility and single files
-fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
+fn run_sequential(
+    log_files: &[String],
+    namespace_filter: Option<&str>,
+) -> Result<(FileAnalysisResult, usize)> {
     let mut combined_result = FileAnalysisResult {
         path_operations: HashMap::with_capacity(5000),
         operation_types: HashMap::with_capacity(20),
@@ -400,7 +413,14 @@ fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
             }
 
             if let Ok(entry) = serde_json::from_str::<AuditEntry>(&line) {
-                entries.push(entry);
+                // Apply namespace filter if specified
+                if let Some(filter_ns) = namespace_filter {
+                    if entry.namespace_id() == Some(filter_ns) {
+                        entries.push(entry);
+                    }
+                } else {
+                    entries.push(entry);
+                }
             }
         }
 
@@ -463,15 +483,19 @@ pub fn run(
     log_files: &[String],
     top: usize,
     min_operations: usize,
+    namespace_filter: Option<&str>,
     sequential: bool,
 ) -> Result<()> {
     let (combined_result, total_lines) = if sequential || log_files.len() == 1 {
         // Use sequential processing for single files or when explicitly requested
         eprintln!("Processing {} files sequentially...", log_files.len());
-        run_sequential(log_files)?
+        run_sequential(log_files, namespace_filter)?
     } else {
         // Use parallel processing for multiple files with streaming
-        process_files_parallel(log_files, process_file_entries_streaming, combine_results)?
+        // Create a closure that captures namespace_filter
+        let processor =
+            |file_path: &str| process_file_entries_streaming(file_path, namespace_filter);
+        process_files_parallel(log_files, processor, combine_results)?
     };
 
     eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
