@@ -133,6 +133,159 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 - **`kv-compare`** - ⚠️ DEPRECATED: Use `kv-analysis compare` instead
 - **`kv-summary`** - ⚠️ DEPRECATED: Use `kv-analysis summary` instead
 
+## Vault Token Requirements
+
+Most commands analyze audit log files and **do not require any Vault API access**. Only two commands interact with Vault's API and require a token with specific permissions.
+
+### Commands That Don't Need Vault Access
+
+These commands only read audit log files:
+- `system-overview`, `path-hotspots`, `entity-gaps`
+- `token-analysis`, `k8s-auth`, `airflow-polling`
+- `entity-analysis` (all subcommands)
+- `kv-analysis` (all subcommands)
+
+### Commands That Need Vault API Access
+
+#### `entity-list` Command
+
+Exports complete entity list from Vault for baseline analysis.
+
+**Required ACL Policy:**
+```hcl
+# Read entity information
+path "identity/entity/id" {
+  capabilities = ["list"]
+}
+
+path "identity/entity/id/*" {
+  capabilities = ["read"]
+}
+
+# Read auth mount configuration
+path "sys/auth" {
+  capabilities = ["read"]
+}
+```
+
+#### `client-activity` Command
+
+Queries Vault's activity log API for client usage metrics.
+
+**Required ACL Policy:**
+```hcl
+# Export client activity data
+path "sys/internal/counters/activity/export" {
+  capabilities = ["read"]
+}
+
+# Read mount configuration (secret engines and auth methods)
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+path "sys/auth" {
+  capabilities = ["read"]
+}
+```
+
+### Creating a Token with Required Permissions
+
+**Option 1: Separate policies for each command**
+
+```bash
+# For entity-list command
+vault policy write vault-audit-entity-list - <<EOF
+path "identity/entity/id" {
+  capabilities = ["list"]
+}
+path "identity/entity/id/*" {
+  capabilities = ["read"]
+}
+path "sys/auth" {
+  capabilities = ["read"]
+}
+EOF
+
+vault token create -policy=vault-audit-entity-list
+
+# For client-activity command
+vault policy write vault-audit-client-activity - <<EOF
+path "sys/internal/counters/activity/export" {
+  capabilities = ["read"]
+}
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+path "sys/auth" {
+  capabilities = ["read"]
+}
+EOF
+
+vault token create -policy=vault-audit-client-activity
+```
+
+**Option 2: Combined policy for all API commands**
+
+```bash
+vault policy write vault-audit-tools - <<EOF
+# Entity list access
+path "identity/entity/id" {
+  capabilities = ["list"]
+}
+path "identity/entity/id/*" {
+  capabilities = ["read"]
+}
+
+# Client activity access
+path "sys/internal/counters/activity/export" {
+  capabilities = ["read"]
+}
+
+# Mount information (used by both commands)
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+path "sys/auth" {
+  capabilities = ["read"]
+}
+EOF
+
+vault token create -policy=vault-audit-tools
+```
+
+**Option 3: Use existing token**
+
+If you already have a Vault token with appropriate permissions (e.g., root token for testing, or admin token), you can use it:
+
+```bash
+export VAULT_ADDR="https://vault.example.com:8200"
+export VAULT_TOKEN="hvs.your-token-here"
+
+vault-audit entity-list --output entities.csv
+vault-audit client-activity --start-time 2025-10-01T00:00:00Z --end-time 2025-10-31T23:59:59Z
+```
+
+### Environment Variables
+
+Commands that interact with Vault API respect standard Vault environment variables:
+
+- `VAULT_ADDR` - Vault server address (e.g., `https://vault.example.com:8200`)
+- `VAULT_TOKEN` - Authentication token for API access
+- `VAULT_SKIP_VERIFY` - Skip TLS certificate verification (set to `1`, `true`, or `yes`) - **USE ONLY FOR TESTING**
+- `VAULT_CACERT` - Path to CA certificate for TLS verification
+
+You can also provide these via command-line flags:
+```bash
+vault-audit entity-list \
+  --vault-addr https://vault.example.com:8200 \
+  --vault-token hvs.xxxxx \
+  --output entities.csv
+
+# Skip TLS verification (dev/test only)
+vault-audit entity-list --insecure --output entities.csv
+```
+
 ## Documentation
 
 ### API Documentation
