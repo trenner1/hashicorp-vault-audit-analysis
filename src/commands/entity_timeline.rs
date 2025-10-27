@@ -43,6 +43,7 @@
 //! - First and last seen timestamps
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
@@ -50,27 +51,15 @@ use chrono::{DateTime, Timelike, Utc};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
 #[derive(Clone)]
 #[allow(dead_code)]
 struct Operation {
     timestamp: DateTime<Utc>,
     path: String,
-    operation: String,
+    op: String,
 }
 
-pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>) -> Result<()> {
+pub fn run(log_files: &[String], entity_id: &str, display_name: Option<&String>) -> Result<()> {
     println!("Analyzing timeline for entity: {}", entity_id);
     if let Some(name) = display_name {
         println!("Display name: {}", name);
@@ -167,7 +156,7 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>)
                 operations_timeline.push(Operation {
                     timestamp: ts_utc,
                     path: path.clone(),
-                    operation: operation.clone(),
+                    op: operation.clone(),
                 });
             }
 
@@ -205,13 +194,13 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>)
     operations_timeline.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
     // Calculate time span
-    let (first_op, last_op, time_span_hours) = if !operations_timeline.is_empty() {
+    let (first_op, last_op, time_span_hours) = if operations_timeline.is_empty() {
+        return Ok(());
+    } else {
         let first = operations_timeline.first().unwrap().timestamp;
         let last = operations_timeline.last().unwrap().timestamp;
         let span = (last - first).num_seconds() as f64 / 3600.0;
         (first, last, span)
-    } else {
-        return Ok(());
     };
 
     // Analysis and reporting
@@ -269,7 +258,7 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>)
         let display_path = if path.len() > 68 {
             format!("{}...", &path[..65])
         } else {
-            path.to_string()
+            (*path).to_string()
         };
         println!(
             "{:<70} {:<15} {:<15.2}%",
@@ -299,8 +288,8 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>)
         let total = *ops.get("total").unwrap_or(&0);
         let read = *ops.get("read").unwrap_or(&0);
         let update = *ops.get("update").unwrap_or(&0);
-        let list_op = *ops.get("list").unwrap_or(&0);
-        let other = total - read - update - list_op;
+        let list_operations = *ops.get("list").unwrap_or(&0);
+        let other = total - read - update - list_operations;
 
         println!(
             "{:<20} {:<12} {:<10} {:<10} {:<10} {:<10}",
@@ -308,7 +297,7 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: &Option<String>)
             format_number(total),
             format_number(read),
             format_number(update),
-            format_number(list_op),
+            format_number(list_operations),
             format_number(other)
         );
     }

@@ -39,10 +39,10 @@ fn test_load_json_entity_mappings() {
     assert!(mappings.contains_key("entity-123"));
     assert!(mappings.contains_key("entity-456"));
 
-    let mapping1 = &mappings["entity-123"];
-    assert_eq!(mapping1.display_name, "user1");
-    assert_eq!(mapping1.mount_path, "auth/kubernetes/");
-    assert_eq!(mapping1.mount_accessor, "auth_k8s_abc123");
+    let entity_mapping = &mappings["entity-123"];
+    assert_eq!(entity_mapping.display_name, "user1");
+    assert_eq!(entity_mapping.mount_path, "auth/kubernetes/");
+    assert_eq!(entity_mapping.mount_accessor, "auth_k8s_abc123");
 }
 
 #[test]
@@ -64,10 +64,10 @@ fn test_load_csv_entity_mappings() {
     assert!(mappings.contains_key("entity-789"));
     assert!(mappings.contains_key("entity-012"));
 
-    let mapping1 = &mappings["entity-789"];
-    assert_eq!(mapping1.display_name, "user3");
-    assert_eq!(mapping1.mount_path, "auth/kubernetes/");
-    assert_eq!(mapping1.mount_accessor, "auth_k8s_xyz789");
+    let csv_mapping = &mappings["entity-789"];
+    assert_eq!(csv_mapping.display_name, "user3");
+    assert_eq!(csv_mapping.mount_path, "auth/kubernetes/");
+    assert_eq!(csv_mapping.mount_accessor, "auth_k8s_xyz789");
 }
 
 #[test]

@@ -32,6 +32,7 @@
 //!
 //! This data can be used as a baseline for the `entity-churn` and `entity-creation` commands.
 
+use crate::utils::format::format_number;
 use crate::vault_api::{extract_data, should_skip_verify, VaultClient};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -88,18 +89,6 @@ struct EntityOutput {
     alias_created: String,
     alias_updated: String,
     alias_metadata: String,
-}
-
-pub fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
 }
 
 pub async fn run(

@@ -42,21 +42,10 @@
 //! - Secrets no longer used
 //! - Changes in access patterns
 
+use crate::utils::format::format_number;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::fs::File;
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
 
 /// Mount point usage statistics
 struct MountData {
@@ -66,9 +55,8 @@ struct MountData {
 }
 
 fn analyze_mount(csvfile: &str) -> Result<Option<MountData>> {
-    let file = match File::open(csvfile) {
-        Ok(f) => f,
-        Err(_) => return Ok(None),
+    let Ok(file) = File::open(csvfile) else {
+        return Ok(None);
     };
 
     let mut reader = csv::Reader::from_reader(file);

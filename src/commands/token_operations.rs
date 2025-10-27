@@ -45,6 +45,7 @@
 //! the most active entities.
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::Result;
@@ -62,18 +63,6 @@ struct TokenOps {
     other: usize,
     display_name: Option<String>,
     username: Option<String>,
-}
-
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
 }
 
 pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
@@ -177,11 +166,11 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
                     .auth
                     .as_ref()
                     .and_then(|a| a.display_name.as_deref())
-                    .map(|s| s.to_string());
+                    .map(std::string::ToString::to_string);
                 if let Some(auth) = &entry.auth {
                     if let Some(metadata) = &auth.metadata {
                         if let Some(username) = metadata.get("username") {
-                            ops.username = username.as_str().map(|s| s.to_string());
+                            ops.username = username.as_str().map(std::string::ToString::to_string);
                         }
                     }
                 }

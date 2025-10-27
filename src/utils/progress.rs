@@ -1,3 +1,4 @@
+use crate::utils::format::format_number;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
@@ -74,15 +75,42 @@ impl ProgressBar {
             let filled = (bar_width as f64 * percentage / 100.0) as usize;
             let empty = bar_width - filled;
 
-            let bar = format!("[{}{}]", "=".repeat(filled), " ".repeat(empty));
+            let bar = format!("[{}{}]", "█".repeat(filled), "░".repeat(empty));
+
+            // Calculate ETA
+            let elapsed = self.started.elapsed();
+            let eta_info = if self.current > 0 && percentage > 0.1 {
+                let estimated_total_time = elapsed.as_secs_f64() / (percentage / 100.0);
+                let remaining_time = estimated_total_time - elapsed.as_secs_f64();
+
+                if remaining_time > 0.0 {
+                    let remaining_mins = (remaining_time / 60.0) as u64;
+                    let remaining_secs = (remaining_time % 60.0) as u64;
+                    format!(" ETA: {}:{:02}", remaining_mins, remaining_secs)
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            // Calculate speed
+            let speed_info = if elapsed.as_secs() > 0 {
+                let rate = self.current as f64 / elapsed.as_secs_f64();
+                format!(" ({}/s)", format_number(rate as usize))
+            } else {
+                String::new()
+            };
 
             eprint!(
-                "\r{} {} {:>6.1}% ({}/{})",
+                "\r{} {} {:>6.1}% ({}/{}){}{}",
                 self.label,
                 bar,
                 percentage,
                 format_number(self.current),
-                format_number(total)
+                format_number(total),
+                speed_info,
+                eta_info
             );
         } else {
             // Spinner mode for unknown total
@@ -110,14 +138,14 @@ impl ProgressBar {
                 format_number(self.current / elapsed.as_secs() as usize)
             )
         } else {
-            "".to_string()
+            String::new()
         };
 
         eprintln!(
             " Done in {:.1}s {}",
             elapsed.as_secs_f64(),
             if rate.is_empty() {
-                "".to_string()
+                String::new()
             } else {
                 format!("({})", rate)
             }
@@ -128,31 +156,5 @@ impl ProgressBar {
     pub fn finish_with_message(&mut self, message: &str) {
         self.render();
         eprintln!(" {}", message);
-    }
-}
-
-/// Format a number with thousand separators
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_format_number() {
-        assert_eq!(format_number(0), "0");
-        assert_eq!(format_number(999), "999");
-        assert_eq!(format_number(1000), "1,000");
-        assert_eq!(format_number(1234567), "1,234,567");
     }
 }

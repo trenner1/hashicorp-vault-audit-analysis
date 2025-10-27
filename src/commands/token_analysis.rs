@@ -57,23 +57,23 @@
 //!
 //! ## Export Mode (--export) - Per-Accessor Detail
 //! Generates CSV with per-token accessor granularity:
-//! - entity_id, display_name, accessor (token identifier)
-//! - operations, first_seen, last_seen, duration_hours
+//! - `entity_id`, `display_name`, accessor (token identifier)
+//! - operations, `first_seen`, `last_seen`, `duration_hours`
 //! - Shows individual token lifecycle and usage patterns
 //! - Use --min-operations to filter low-activity tokens
 //! - First/last seen timestamps
 //! - Duration
 
 use crate::audit::types::AuditEntry;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::format::format_number;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use crate::utils::time::parse_timestamp;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 
-/// Type alias for the complex return type from process_logs
+/// Type alias for the complex return type from `process_logs`
 type ProcessLogsResult = (
     HashMap<String, TokenOps>,
     HashMap<String, EntityAccessors>,
@@ -81,7 +81,7 @@ type ProcessLogsResult = (
 );
 
 /// Token operation statistics for a single entity
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct TokenOps {
     lookup_self: usize,
     renew_self: usize,
@@ -96,7 +96,7 @@ struct TokenOps {
 }
 
 impl TokenOps {
-    fn total(&self) -> usize {
+    const fn total(&self) -> usize {
         self.lookup_self
             + self.renew_self
             + self.revoke_self
@@ -114,7 +114,7 @@ impl TokenOps {
 }
 
 /// Token accessor-specific data for detailed analysis
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct AccessorData {
     operations: usize,
     first_seen: String,
@@ -122,97 +122,122 @@ struct AccessorData {
 }
 
 /// Tracks per-accessor token activity for an entity
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct EntityAccessors {
     accessors: HashMap<String, AccessorData>,
     display_name: Option<String>,
 }
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
+/// Combined state for token processing
+#[derive(Debug, Default, Clone)]
+struct TokenAnalysisState {
+    token_ops: HashMap<String, TokenOps>,
+    accessor_data: HashMap<String, EntityAccessors>,
 }
 
-fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> f64 {
-    match (parse_timestamp(first_seen), parse_timestamp(last_seen)) {
-        (Ok(first), Ok(last)) => {
-            let duration = last.signed_duration_since(first);
-            duration.num_seconds() as f64 / 3600.0
+impl TokenAnalysisState {
+    fn new() -> Self {
+        Self {
+            token_ops: HashMap::with_capacity(2000),
+            accessor_data: HashMap::with_capacity(2000),
         }
-        _ => 0.0,
     }
+
+    fn merge(mut self, other: Self) -> Self {
+        // Merge token_ops
+        for (entity_id, other_ops) in other.token_ops {
+            let ops = self.token_ops.entry(entity_id).or_default();
+            ops.lookup_self += other_ops.lookup_self;
+            ops.renew_self += other_ops.renew_self;
+            ops.revoke_self += other_ops.revoke_self;
+            ops.create += other_ops.create;
+            ops.login += other_ops.login;
+            ops.other += other_ops.other;
+
+            // Update display name and username if not set
+            if ops.display_name.is_none() {
+                ops.display_name = other_ops.display_name;
+            }
+            if ops.username.is_none() {
+                ops.username = other_ops.username;
+            }
+
+            // Update timestamps (earliest first_seen, latest last_seen)
+            if ops.first_seen.is_none()
+                || (other_ops.first_seen.is_some() && ops.first_seen > other_ops.first_seen)
+            {
+                ops.first_seen = other_ops.first_seen;
+            }
+            if ops.last_seen.is_none()
+                || (other_ops.last_seen.is_some() && ops.last_seen < other_ops.last_seen)
+            {
+                ops.last_seen = other_ops.last_seen;
+            }
+        }
+
+        // Merge accessor_data
+        for (entity_id, other_entity) in other.accessor_data {
+            let entity = self.accessor_data.entry(entity_id).or_default();
+
+            // Merge accessors
+            for (accessor, other_data) in other_entity.accessors {
+                let data = entity.accessors.entry(accessor).or_default();
+                data.operations += other_data.operations;
+
+                // Update timestamps
+                if data.first_seen.is_empty() || data.first_seen > other_data.first_seen {
+                    data.first_seen = other_data.first_seen;
+                }
+                if data.last_seen.is_empty() || data.last_seen < other_data.last_seen {
+                    data.last_seen = other_data.last_seen;
+                }
+            }
+
+            // Update display name if not set
+            if entity.display_name.is_none() {
+                entity.display_name = other_entity.display_name;
+            }
+        }
+
+        self
+    }
+}
+
+fn calculate_time_span_hours(first_seen: &str, last_seen: &str) -> Result<f64> {
+    let first = parse_timestamp(first_seen)
+        .with_context(|| format!("Failed to parse first timestamp: {}", first_seen))?;
+    let last = parse_timestamp(last_seen)
+        .with_context(|| format!("Failed to parse last timestamp: {}", last_seen))?;
+
+    let duration = last.signed_duration_since(first);
+    Ok(duration.num_seconds() as f64 / 3600.0)
 }
 
 /// Process audit logs and collect token operation data
 fn process_logs(
     log_files: &[String],
-    operation_filter: Option<&Vec<String>>,
+    operation_filter: Option<&[String]>,
 ) -> Result<ProcessLogsResult> {
-    let mut token_ops: HashMap<String, TokenOps> = HashMap::new();
-    let mut accessor_data: HashMap<String, EntityAccessors> = HashMap::new();
-    let mut total_lines = 0;
+    let processor = ProcessorBuilder::new()
+        .progress_label("Analyzing tokens")
+        .mode(ProcessingMode::Auto)
+        .build();
 
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
+    let operation_filter = operation_filter.map(<[std::string::String]>::to_vec);
 
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1;
-
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        move |entry: &AuditEntry, state: &mut TokenAnalysisState| {
             // Skip if no request or auth info
-            let request = match entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                return;
             };
 
-            let auth = match entry.auth {
-                Some(a) => a,
-                None => continue,
-            };
+            let Some(auth) = &entry.auth else { return };
 
-            let entity_id = match auth.entity_id {
-                Some(ref id) if !id.is_empty() => id.clone(),
-                _ => continue,
+            let entity_id = match &auth.entity_id {
+                Some(id) if !id.is_empty() => id.clone(),
+                _ => return,
             };
 
             // Determine operation type
@@ -232,18 +257,18 @@ fn process_logs(
             } else if path.starts_with("auth/token/") {
                 "other"
             } else {
-                continue; // Not a token operation
+                return; // Not a token operation
             };
 
             // Apply operation filter if specified
-            if let Some(filters) = operation_filter {
+            if let Some(ref filters) = operation_filter {
                 if !filters.iter().any(|f| op_type.contains(f.as_str())) {
-                    continue;
+                    return;
                 }
             }
 
             // Update token operations summary
-            let ops = token_ops.entry(entity_id.clone()).or_default();
+            let ops = state.token_ops.entry(entity_id.clone()).or_default();
             match op_type {
                 "lookup" => ops.lookup_self += 1,
                 "renew" => ops.renew_self += 1,
@@ -254,43 +279,42 @@ fn process_logs(
             }
 
             if ops.display_name.is_none() {
-                ops.display_name = auth.display_name.clone();
+                ops.display_name.clone_from(&auth.display_name);
             }
             if ops.username.is_none() {
                 ops.username = auth.metadata.as_ref().and_then(|m| {
                     m.get("username")
                         .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
+                        .map(std::string::ToString::to_string)
                 });
             }
             ops.update_timestamps(&entry.time);
 
             // Track accessor-level data for detailed analysis
-            if let Some(accessor) = auth.accessor {
-                let entity_acc = accessor_data.entry(entity_id.clone()).or_default();
+            if let Some(accessor) = &auth.accessor {
+                let entity_acc = state.accessor_data.entry(entity_id).or_default();
                 if entity_acc.display_name.is_none() {
-                    entity_acc.display_name = auth.display_name.clone();
+                    entity_acc.display_name.clone_from(&auth.display_name);
                 }
 
-                let acc_data =
-                    entity_acc
-                        .accessors
-                        .entry(accessor)
-                        .or_insert_with(|| AccessorData {
-                            operations: 0,
-                            first_seen: entry.time.clone(),
-                            last_seen: entry.time.clone(),
-                        });
+                let acc_data = entity_acc
+                    .accessors
+                    .entry(accessor.clone())
+                    .or_insert_with(|| AccessorData {
+                        operations: 0,
+                        first_seen: entry.time.clone(),
+                        last_seen: entry.time.clone(),
+                    });
                 acc_data.operations += 1;
-                acc_data.last_seen = entry.time;
+                acc_data.last_seen.clone_from(&entry.time);
             }
-        }
+        },
+        TokenAnalysisState::merge,
+        TokenAnalysisState::new(),
+    )?;
 
-        progress.finish();
-        eprintln!("  Processed {} lines", format_number(file_lines));
-    }
-
-    Ok((token_ops, accessor_data, total_lines))
+    stats.report();
+    Ok((result.token_ops, result.accessor_data, stats.total_lines))
 }
 
 /// Display operations summary
@@ -434,7 +458,13 @@ fn display_abuse(token_ops: &HashMap<String, TokenOps>, threshold: usize) {
             .unwrap_or(entity_id);
 
         let time_span = if let (Some(first), Some(last)) = (&ops.first_seen, &ops.last_seen) {
-            calculate_time_span_hours(first, last)
+            calculate_time_span_hours(first, last).unwrap_or_else(|err| {
+                eprintln!(
+                    "Warning: Failed to calculate time span for entity {}: {}",
+                    entity_id, err
+                );
+                0.0
+            })
         } else {
             0.0
         };
@@ -487,7 +517,14 @@ fn export_csv(
     rows.sort_by(|a, b| b.3.operations.cmp(&a.3.operations));
 
     for (entity_id, display_name, accessor, data) in rows {
-        let duration = calculate_time_span_hours(&data.first_seen, &data.last_seen);
+        let duration =
+            calculate_time_span_hours(&data.first_seen, &data.last_seen).unwrap_or_else(|err| {
+                eprintln!(
+                    "Warning: Failed to calculate duration for accessor {}: {}",
+                    accessor, err
+                );
+                0.0
+            });
         let display = display_name.as_deref().unwrap_or(entity_id);
 
         writeln!(
@@ -510,13 +547,13 @@ fn export_csv(
 pub fn run(
     log_files: &[String],
     abuse_threshold: Option<usize>,
-    operation_filter: Option<Vec<String>>,
+    operation_filter: Option<&[String]>,
     export_path: Option<&str>,
     min_operations: usize,
 ) -> Result<()> {
     eprintln!("Token Analysis");
     eprintln!("   Files: {}", log_files.len());
-    if let Some(ref filters) = operation_filter {
+    if let Some(filters) = operation_filter {
         eprintln!("   Filter: {}", filters.join(", "));
     }
     if let Some(threshold) = abuse_threshold {
@@ -527,8 +564,7 @@ pub fn run(
     }
     eprintln!();
 
-    let (token_ops, accessor_data, total_lines) =
-        process_logs(log_files, operation_filter.as_ref())?;
+    let (token_ops, accessor_data, total_lines) = process_logs(log_files, operation_filter)?;
 
     eprintln!("\n Processed {} total lines", format_number(total_lines));
     eprintln!(
