@@ -77,6 +77,20 @@ struct FileAnalysisResult {
     entity_names: HashMap<String, String>,
 }
 
+/// Global progress tracking for parallel processing
+static PARALLEL_PROGRESS: std::sync::OnceLock<(
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    std::sync::Arc<std::sync::Mutex<crate::utils::progress::ProgressBar>>,
+)> = std::sync::OnceLock::new();
+
+/// Set up global progress tracking
+pub fn init_parallel_progress(
+    processed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    progress: std::sync::Arc<std::sync::Mutex<crate::utils::progress::ProgressBar>>,
+) {
+    let _ = PARALLEL_PROGRESS.set((processed, progress));
+}
+
 /// Process entries from a single file using streaming to reduce memory usage
 fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult> {
     use crate::utils::reader::open_file;
@@ -91,8 +105,21 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
     let file = open_file(file_path)?;
     let reader = BufReader::new(file);
 
+    let mut lines_processed = 0;
+
     for line_result in reader.lines() {
         let line = line_result?;
+        lines_processed += 1;
+
+        // Update progress every 2000 lines for responsive feedback
+        if lines_processed % 2000 == 0 {
+            if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
+                processed_lines.fetch_add(2000, std::sync::atomic::Ordering::Relaxed);
+                if let Ok(mut p) = progress.lock() {
+                    p.update(processed_lines.load(std::sync::atomic::Ordering::Relaxed));
+                }
+            }
+        }
 
         // Skip empty lines
         if line.trim().is_empty() {
@@ -166,6 +193,17 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
         entity_names
             .entry(entity_id.to_string())
             .or_insert_with(|| display_name.to_string());
+    }
+
+    // Update progress for remaining lines
+    let remaining = lines_processed % 2000;
+    if remaining > 0 {
+        if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
+            processed_lines.fetch_add(remaining, std::sync::atomic::Ordering::Relaxed);
+            if let Ok(mut p) = progress.lock() {
+                p.update(processed_lines.load(std::sync::atomic::Ordering::Relaxed));
+            }
+        }
     }
 
     Ok(FileAnalysisResult {

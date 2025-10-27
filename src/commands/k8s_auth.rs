@@ -31,77 +31,58 @@
 
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use anyhow::Result;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+
+#[derive(Debug, Clone)]
+struct K8sAuthState {
+    k8s_logins: usize,
+    entities_seen: HashMap<String, usize>,
+}
+
+impl K8sAuthState {
+    fn new() -> Self {
+        Self {
+            k8s_logins: 0,
+            entities_seen: HashMap::with_capacity(1000),
+        }
+    }
+
+    fn merge(mut self, other: Self) -> Self {
+        self.k8s_logins += other.k8s_logins;
+        for (entity, count) in other.entities_seen {
+            *self.entities_seen.entry(entity).or_insert(0) += count;
+        }
+        self
+    }
+}
 
 pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
-    let mut k8s_logins = 0;
-    // Pre-allocate for K8s entities - typical K8s environments have hundreds of service accounts
-    let mut entities_seen: HashMap<String, usize> = HashMap::with_capacity(1000);
-    let mut total_lines = 0;
+    let processor = ProcessorBuilder::new()
+        .mode(ProcessingMode::Auto)
+        .progress_label("Processing".to_string())
+        .build();
 
-    // Process each log file sequentially
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
-
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
-
-            // Update progress every 10k lines for smooth animation
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size)); // Cap at file size
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        |entry: &AuditEntry, state: &mut K8sAuthState| {
             // Filter for successful Kubernetes auth operations (response type, no error)
             if entry.entry_type != "response" || entry.error.is_some() {
-                continue;
+                return;
             }
 
             let Some(request) = &entry.request else {
-                continue;
+                return;
             };
 
             let path = match &request.path {
                 Some(p) => p.as_str(),
-                None => continue,
+                None => return,
             };
 
             if !path.ends_with("/login") {
-                continue;
+                return;
             }
 
             // Check if it's a K8s/OpenShift login by path OR mount_type
@@ -112,24 +93,23 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
                 .is_some_and(|mt| mt == "kubernetes" || mt == "openshift");
 
             if is_k8s_by_path || is_k8s_by_mount {
-                k8s_logins += 1;
+                state.k8s_logins += 1;
 
                 if let Some(entity_id) = entry.auth.as_ref().and_then(|a| a.entity_id.as_deref()) {
-                    *entities_seen.entry(entity_id.to_string()).or_insert(0) += 1;
+                    *state
+                        .entities_seen
+                        .entry(entity_id.to_string())
+                        .or_insert(0) += 1;
                 }
             }
-        }
+        },
+        K8sAuthState::merge,
+        K8sAuthState::new(),
+    )?;
 
-        // Ensure 100% progress for this file
-        if let Some(size) = file_size {
-            progress.update(size);
-        }
-
-        progress.finish_with_message(&format!(
-            "Processed {} lines from this file",
-            format_number(file_lines)
-        ));
-    }
+    let total_lines = stats.total_lines;
+    let k8s_logins = result.k8s_logins;
+    let entities_seen = result.entities_seen;
 
     eprintln!(
         "\nTotal: Processed {} lines, found {} K8s logins",

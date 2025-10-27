@@ -229,7 +229,7 @@ impl From<EntityChurnRecord> for EntityChurnRecordCsv {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DailyStats {
     #[allow(dead_code)]
     file_name: String,
