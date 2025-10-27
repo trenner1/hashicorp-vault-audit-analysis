@@ -2,6 +2,9 @@
 //!
 //! This module provides common functionality used across multiple commands:
 //!
+//! - [`format`] - Number and text formatting utilities
+//! - [`parallel`] - High-performance parallel file processing
+//! - [`processor`] - Log file processing utilities with common patterns
 //! - [`progress`] - Progress tracking and display utilities
 //! - [`time`] - Timestamp parsing and formatting helpers
 //! - [`reader`] - Smart file reader with automatic decompression
@@ -28,6 +31,9 @@
 //! let buf_reader = BufReader::new(reader);
 //! ```
 
+pub mod format;
+pub mod parallel;
+pub mod processor;
 pub mod progress;
 pub mod reader;
 pub mod time;

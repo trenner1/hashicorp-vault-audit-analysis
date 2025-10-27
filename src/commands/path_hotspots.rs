@@ -37,17 +37,16 @@
 //! - Load distribution
 
 use crate::audit::types::AuditEntry;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
+use crate::utils::format::format_number;
+use crate::utils::processor::{ProcessingMode, ProcessorBuilder};
 use crate::utils::time::parse_timestamp;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use std::collections::{HashMap, HashSet};
-use std::io::{BufRead, BufReader};
 
 /// Statistics for a single path
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PathStats {
     operations: usize,
     entities: HashSet<String>,
@@ -60,90 +59,78 @@ impl PathStats {
     fn new() -> Self {
         Self {
             operations: 0,
-            entities: HashSet::new(),
-            operations_by_type: HashMap::new(),
-            timestamps: Vec::new(),
-            entity_operations: HashMap::new(),
+            entities: HashSet::with_capacity(50), // Typical: dozens of entities per popular path
+            operations_by_type: HashMap::with_capacity(10), // Few operation types: read, write, list, delete
+            timestamps: Vec::with_capacity(1000),           // Pre-allocate for timestamps
+            entity_operations: HashMap::with_capacity(50),  // Entities accessing this path
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.operations += other.operations;
+        self.entities.extend(other.entities);
+        for (op, count) in other.operations_by_type {
+            *self.operations_by_type.entry(op).or_insert(0) += count;
+        }
+        self.timestamps.extend(other.timestamps);
+        for (entity, count) in other.entity_operations {
+            *self.entity_operations.entry(entity).or_insert(0) += count;
         }
     }
 }
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
+#[derive(Debug, Clone)]
+struct HotspotsState {
+    path_stats: HashMap<String, PathStats>,
+    total_operations: usize,
+}
+
+impl HotspotsState {
+    fn new() -> Self {
+        Self {
+            path_stats: HashMap::with_capacity(5000),
+            total_operations: 0,
         }
-        result.push(c);
     }
-    result.chars().rev().collect()
+
+    fn merge(mut self, other: Self) -> Self {
+        self.total_operations += other.total_operations;
+        for (path, other_stats) in other.path_stats {
+            self.path_stats
+                .entry(path)
+                .and_modify(|stats| stats.merge(other_stats.clone()))
+                .or_insert(other_stats);
+        }
+        self
+    }
 }
 
 pub fn run(log_files: &[String], top: usize) -> Result<()> {
-    let mut path_stats: HashMap<String, PathStats> = HashMap::new();
-    let mut total_lines = 0;
-    let mut total_operations = 0;
+    let processor = ProcessorBuilder::new()
+        .mode(ProcessingMode::Auto)
+        .progress_label("Processing".to_string())
+        .build();
 
-    // Process each log file sequentially
-    for (file_idx, log_file) in log_files.iter().enumerate() {
-        eprintln!(
-            "[{}/{}] Processing: {}",
-            file_idx + 1,
-            log_files.len(),
-            log_file
-        );
-
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
-
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
-
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            let entry: AuditEntry = match serde_json::from_str(&line) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-
+    let (result, stats) = processor.process_files_streaming(
+        log_files,
+        |entry: &AuditEntry, state: &mut HotspotsState| {
             let path = match &entry.request {
                 Some(r) => match &r.path {
                     Some(p) => p.as_str(),
-                    None => continue,
+                    None => return,
                 },
-                None => continue,
+                None => return,
             };
 
             let operation = match &entry.request {
                 Some(r) => match &r.operation {
                     Some(o) => o.as_str(),
-                    None => continue,
+                    None => return,
                 },
-                None => continue,
+                None => return,
             };
 
-            total_operations += 1;
+            state.total_operations += 1;
 
             let entity_id = entry
                 .auth
@@ -155,34 +142,31 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             let ts = parse_timestamp(&entry.time).ok();
 
             // Track path statistics
-            let stats = path_stats
+            let path_stats = state
+                .path_stats
                 .entry(path.to_string())
                 .or_insert_with(PathStats::new);
-            stats.operations += 1;
-            stats.entities.insert(entity_id.to_string());
-            *stats
+            path_stats.operations += 1;
+            path_stats.entities.insert(entity_id.to_string());
+            *path_stats
                 .operations_by_type
                 .entry(operation.to_string())
                 .or_insert(0) += 1;
-            *stats
+            *path_stats
                 .entity_operations
                 .entry(entity_id.to_string())
                 .or_insert(0) += 1;
             if let Some(t) = ts {
-                stats.timestamps.push(t);
+                path_stats.timestamps.push(t);
             }
-        }
+        },
+        HotspotsState::merge,
+        HotspotsState::new(),
+    )?;
 
-        // Ensure 100% progress for this file
-        if let Some(size) = file_size {
-            progress.update(size);
-        }
-
-        progress.finish_with_message(&format!(
-            "Processed {} lines from this file",
-            format_number(file_lines)
-        ));
-    }
+    let total_lines = stats.total_lines;
+    let total_operations = result.total_operations;
+    let path_stats = result.path_stats;
 
     eprintln!(
         "\nTotal: Processed {} lines, {} operations",
@@ -214,11 +198,10 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             .operations_by_type
             .iter()
             .max_by_key(|x| x.1)
-            .map(|x| x.0.as_str())
-            .unwrap_or("N/A");
+            .map_or("N/A", |x| x.0.as_str());
 
         let display_path = if path.len() <= 58 {
-            path.to_string()
+            (*path).to_string()
         } else {
             format!("{}...", &path[..55])
         };
@@ -295,7 +278,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             for (entity_id, entity_ops) in top_entities.iter().take(5) {
                 let entity_pct = (**entity_ops as f64 / ops as f64) * 100.0;
                 let entity_display = if entity_id.len() <= 40 {
-                    entity_id.to_string()
+                    (*entity_id).to_string()
                 } else {
                     format!("{}...", &entity_id[..37])
                 };
@@ -403,7 +386,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     println!("\n\nSUMMARY BY PATH CATEGORY");
     println!("{}", "=".repeat(120));
 
-    let mut categories: HashMap<&str, usize> = HashMap::new();
+    let mut categories: HashMap<&str, usize> = HashMap::with_capacity(10); // Small fixed set of categories
     categories.insert("Token Operations", 0);
     categories.insert("KV Secret Access", 0);
     categories.insert("Authentication", 0);
@@ -411,7 +394,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     categories.insert("System/Admin", 0);
     categories.insert("Other", 0);
 
-    for (path, stats) in path_stats.iter() {
+    for (path, stats) in &path_stats {
         let ops = stats.operations;
         if path.contains("token/") {
             *categories.get_mut("Token Operations").unwrap() += ops;
@@ -502,13 +485,13 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
     // Calculate high-frequency path caching opportunities
     let high_freq_ops: usize = path_stats
         .iter()
-        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
+        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100_000)
         .map(|(_, stats)| stats.operations)
         .sum();
 
     let high_freq_count = path_stats
         .iter()
-        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100000)
+        .filter(|(_, stats)| stats.operations > 5000 && stats.operations < 100_000)
         .count();
 
     if high_freq_ops > 10000 {

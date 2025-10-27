@@ -95,15 +95,17 @@ pub fn run_churn(
     };
 
     // Use provided map or auto-generated temp map
-    let map_to_use = entity_map.map(|s| s.as_str()).or(temp_map_file.as_deref());
+    let map_to_use = entity_map
+        .map(std::string::String::as_str)
+        .or(temp_map_file.as_deref());
 
     // Delegate to existing entity_churn implementation
     let result = crate::commands::entity_churn::run(
         log_files,
         map_to_use,
-        baseline.map(|s| s.as_str()),
-        output.map(|s| s.as_str()),
-        format.map(|s| s.as_str()),
+        baseline.map(std::string::String::as_str),
+        output.map(std::string::String::as_str),
+        format.map(std::string::String::as_str),
     );
 
     // Cleanup temp file
@@ -133,11 +135,16 @@ pub fn run_creation(
     };
 
     // Use provided map or auto-generated temp map
-    let map_to_use = entity_map.map(|s| s.as_str()).or(temp_map_file.as_deref());
+    let map_to_use = entity_map
+        .map(std::string::String::as_str)
+        .or(temp_map_file.as_deref());
 
     // Delegate to existing entity_creation implementation
-    let result =
-        crate::commands::entity_creation::run(log_files, map_to_use, output.map(|s| s.as_str()));
+    let result = crate::commands::entity_creation::run(
+        log_files,
+        map_to_use,
+        output.map(std::string::String::as_str),
+    );
 
     // Cleanup temp file
     if let Some(temp) = temp_map_file {
@@ -165,8 +172,6 @@ pub fn run_timeline(
     entity_id: &str,
     display_name: Option<&String>,
 ) -> Result<()> {
-    // Convert Option<&String> to &Option<String> for compatibility
-    let display_name_owned = display_name.cloned();
     // Delegate to existing entity_timeline implementation
-    crate::commands::entity_timeline::run(log_files, entity_id, &display_name_owned)
+    crate::commands::entity_timeline::run(log_files, entity_id, display_name)
 }

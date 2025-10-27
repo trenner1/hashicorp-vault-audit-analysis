@@ -72,7 +72,7 @@ pub struct EntityMapping {
 }
 
 /// Build entity mappings from audit logs without writing to file.
-/// Returns HashMap of entity_id -> EntityMapping for reuse by other commands.
+/// Returns `HashMap` of `entity_id` -> `EntityMapping` for reuse by other commands.
 pub fn build_entity_map(log_files: &[String]) -> Result<HashMap<String, EntityMapping>> {
     let mut entity_map: HashMap<String, EntityMapping> = HashMap::new();
     let mut login_events = 0;
@@ -122,14 +122,12 @@ pub fn build_entity_map(log_files: &[String]) -> Result<HashMap<String, EntityMa
             };
 
             // Look for login events in auth paths
-            let request = match &entry.request {
-                Some(r) => r,
-                None => continue,
+            let Some(request) = &entry.request else {
+                continue;
             };
 
-            let path = match &request.path {
-                Some(p) => p,
-                None => continue,
+            let Some(path) = &request.path else {
+                continue;
             };
 
             if !path.starts_with("auth/") {
@@ -141,9 +139,8 @@ pub fn build_entity_map(log_files: &[String]) -> Result<HashMap<String, EntityMa
             }
 
             // Skip if no auth info
-            let auth = match &entry.auth {
-                Some(a) => a,
-                None => continue,
+            let Some(auth) = &entry.auth else {
+                continue;
             };
 
             // Skip if no entity_id or display_name
@@ -171,17 +168,17 @@ pub fn build_entity_map(log_files: &[String]) -> Result<HashMap<String, EntityMa
                 .as_ref()
                 .and_then(|m| m.get("username"))
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
 
             // Update or insert entity mapping
             entity_map
                 .entry(entity_id)
                 .and_modify(|mapping| {
                     mapping.login_count += 1;
-                    mapping.last_seen = entry.time.clone();
+                    mapping.last_seen.clone_from(&entry.time);
                     // Update display_name if it's newer (handle case variations)
                     if entry.time > mapping.last_seen {
-                        mapping.display_name = display_name.clone();
+                        mapping.display_name.clone_from(&display_name);
                     }
                 })
                 .or_insert_with(|| EntityMapping {

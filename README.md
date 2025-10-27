@@ -3,7 +3,7 @@
 [![CI](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml)
 [![Security](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml)
 [![codecov](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis/graph/badge.svg?token=QYMT1SKDQ6)](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis)
-[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://trenner1.github.io/hashicorp-vault-audit-analysis/)
+[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://trenner1.github.io/hashicorp-vault-audit-analysis/vault-audit-tools/latest/index.html)
 [Browse versions](https://trenner1.github.io/hashicorp-vault-audit-analysis/versions.html)
 
 
@@ -12,6 +12,7 @@ High-performance command-line tools for analyzing HashiCorp Vault audit logs, wr
 ## Features
 
 - **Fast**: 3x faster than equivalent implementations (~17s vs 60s for 4M line logs)
+- **Parallel Processing**: Automatically processes multiple files concurrently using all available CPU cores
 - **Memory Efficient**: 10x less memory usage through streaming parser
 - **Compressed File Support**: Direct analysis of `.gz` and `.zst` files without manual decompression
 - **Multi-File Support**: Analyze weeks/months of logs without manual concatenation
@@ -95,14 +96,14 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 
 ### System Analysis
 
-- **`system-overview`** - High-level overview of all operations, entities, and auth methods
-- **`entity-gaps`** - Identify operations without entity IDs (no-entity operations)
-- **`path-hotspots`** - Find most accessed paths with optimization recommendations
+- **`system-overview`** - High-level overview of all operations, entities, and auth methods (parallel processing)
+- **`entity-gaps`** - Identify operations without entity IDs (no-entity operations) (parallel processing)
+- **`path-hotspots`** - Find most accessed paths with optimization recommendations (parallel processing)
 
 ### Authentication Analysis
 
-- **`k8s-auth`** - Analyze Kubernetes/OpenShift authentication patterns and entity churn
-- **`token-analysis`** - Unified token operations analysis with abuse detection and CSV export
+- **`k8s-auth`** - Analyze Kubernetes/OpenShift authentication patterns and entity churn (parallel processing)
+- **`token-analysis`** - Unified token operations analysis with abuse detection and CSV export (parallel processing)
   - Track token lifecycle operations (create, renew, revoke, lookup)
   - Detect excessive token lookup patterns
   - Export per-accessor detail to CSV
@@ -125,9 +126,9 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 ### KV Secrets Analysis
 
 - **`kv-analysis`** - Unified KV secrets analysis (recommended)
-  - `analyze` - Analyze KV usage by path and entity (generates CSV)
-  - `compare` - Compare KV usage between two time periods
-  - `summary` - Summarize KV secret usage from CSV exports
+  - `analyze` - Analyze KV usage by path and entity (generates CSV) (parallel processing)
+  - `compare` - Compare KV usage between two time periods (CSV comparison)
+  - `summary` - Summarize KV secret usage from CSV exports (CSV analysis)
 - **`kv-analyzer`** - ⚠️ DEPRECATED: Use `kv-analysis analyze` instead
 - **`kv-compare`** - ⚠️ DEPRECATED: Use `kv-analysis compare` instead
 - **`kv-summary`** - ⚠️ DEPRECATED: Use `kv-analysis summary` instead
@@ -172,7 +173,7 @@ vault-audit kv-analysis analyze --help
 
 ### Application-Specific
 
-- **`airflow-polling`** - Analyze Airflow secret polling patterns with burst rate detection
+- **`airflow-polling`** - Analyze Airflow secret polling patterns with burst rate detection (parallel processing)
 
 ### Utilities
 
@@ -269,6 +270,46 @@ vault-audit token-analysis logs/vault_audit.*.log --export token_ops.csv
 vault-audit path-hotspots logs/vault_audit.2025-10-*.log.zst
 ```
 
+### Parallel Processing
+
+Commands automatically use parallel processing when analyzing multiple files:
+
+```bash
+# Single file - uses sequential processing
+vault-audit system-overview vault_audit.log
+
+# Multiple files - automatically parallelizes across all CPU cores
+vault-audit system-overview day1.log day2.log day3.log day4.log
+
+# Glob expansion with many files - maximizes CPU utilization
+vault-audit path-hotspots logs/*.log.gz  # processes all files concurrently
+```
+
+**Commands with Parallel Processing:**
+- `system-overview` - System-wide audit analysis
+- `entity-analysis gaps` - Operations without entity IDs
+- `entity-gaps` - Operations without entity IDs (deprecated, use entity-analysis)
+- `path-hotspots` - Most accessed paths
+- `k8s-auth` - Kubernetes authentication analysis
+- `airflow-polling` - Airflow polling pattern detection
+- `kv-analysis analyze` - KV secrets usage analysis
+- `token-analysis` - Token operations analysis
+
+**How it works:**
+- Automatically detects when multiple files are provided
+- Processes files concurrently using all available CPU cores
+- Uses streaming approach to maintain low memory usage
+- Combines results correctly with proper aggregation
+- Provides accurate progress tracking across all files
+
+**Performance benefits:**
+- Near-linear speedup with number of CPU cores
+- 8-core system: ~7x faster on 8+ files
+- Real-world improvements: 40% faster for KV analysis, 7x for system overview
+- Memory efficient: 2x memory overhead for significant speed gains
+- No configuration needed - works automatically
+- Falls back to sequential processing for single files
+
 ### Deep Dive Analysis
 
 ```bash
@@ -301,8 +342,11 @@ vault-audit client-activity --start 2025-10-01T00:00:00Z --end 2025-11-01T00:00:
 ### KV Usage Analysis
 
 ```bash
-# Generate KV usage report (new unified command)
+# Generate KV usage report (new unified command with parallel processing)
 vault-audit kv-analysis analyze vault_audit.log --kv-prefix "appcodes/" --output kv_usage.csv
+
+# Multi-file analysis - 40% faster with parallel processing
+vault-audit kv-analysis analyze logs/*.log --output kv_usage.csv
 
 # Compare two time periods
 vault-audit kv-analysis compare old_usage.csv new_usage.csv
@@ -321,11 +365,19 @@ Tested on production audit logs:
 - **Memory Usage**: <100 MB
 - **Throughput**: ~230,000 lines/second
 
-**Multi-File (7 days):**
+**Multi-File Sequential (7 days):**
 - **Total Size**: 105 GB (26,615,476 lines)
 - **Processing Time**: ~2.5 minutes average per command
 - **Memory Usage**: <100 MB (streaming approach)
 - **Throughput**: ~175,000 lines/second sustained
+
+**Multi-File Parallel (multiple files, multi-core):**
+- **Total Size**: Varies by workload
+- **Processing Time**: 40-85% faster than sequential (command-dependent)
+- **Memory Usage**: 80-300 MB (2x overhead for parallel workers)
+- **Throughput**: 2-7x sequential performance
+- **Speedup**: Near-linear scaling with CPU cores
+- **Example**: KV analysis 40% faster (141s → 85s, ~77 MB memory)
 
 **Compressed Files:**
 - **File Size**: 1.79 GB compressed → 13.8 GB uncompressed
@@ -333,6 +385,14 @@ Tested on production audit logs:
 - **Throughput**: ~57 MB/sec compressed, ~230,000 lines/second
 - **Memory Usage**: <100 MB (streaming decompression, no temp files)
 - **Formats Supported**: gzip (.gz), zstandard (.zst)
+
+**Parallel Processing Benchmarks (Real-World):**
+- **KV Analysis** (`kv-analysis analyze`)
+  - Sequential: 2m 21.32s (140 MB/s, ~40 MB memory)
+  - Parallel: 1m 24.60s (233 MB/s, ~77 MB memory)
+  - **Improvement: 40.1% faster** (56.7 second reduction)
+  - CPU utilization: 124.68s → 175.60s user time (multi-core usage)
+  - Memory overhead: 2x (expected for parallel workers)
 
 ## Output Formats
 
@@ -350,8 +410,9 @@ CSV export commands generate standard CSV files for:
 ## Architecture
 
 - **Streaming Parser**: Processes logs line-by-line without loading entire file into memory
+- **Parallel Processing**: Multi-file workloads automatically use all CPU cores via Rayon
 - **Efficient Data Structures**: Uses HashMaps and BTreeMaps for fast aggregation
-- **Parallel-Ready**: Built with Rust's zero-cost abstractions for future parallelization
+- **Smart Processing Mode**: Auto-detects single vs multi-file operations for optimal performance
 - **Type Safety**: Comprehensive error handling with anyhow
 
 ## Development
@@ -368,6 +429,28 @@ cargo build --release
 ```bash
 cargo test
 ```
+
+### Benchmarking
+
+To measure performance and memory usage on macOS/Linux:
+
+```bash
+# macOS - shows execution time and peak memory usage
+/usr/bin/time -l ./target/release/vault-audit <command> <args> 2>&1 | grep -E "(real|maximum resident)"
+
+# Linux - shows execution time and peak memory usage
+/usr/bin/time -v ./target/release/vault-audit <command> <args> 2>&1 | grep -E "(Elapsed|Maximum resident)"
+
+# Example: Benchmark KV analysis
+/usr/bin/time -l ./target/release/vault-audit kv-analysis analyze logs/*.log
+```
+
+**Key metrics:**
+- **Real time**: Wall-clock time (actual duration)
+- **User time**: CPU time (higher with parallel processing = good!)
+- **Maximum resident set size**: Peak memory usage in bytes
+  - Divide by 1,048,576 to convert to MB
+  - Example: 80,461,824 bytes = ~77 MB
 
 ## License
 

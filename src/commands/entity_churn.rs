@@ -66,14 +66,14 @@
 //! # Output
 //!
 //! ## Entity Lifecycle Classification:
-//! - **new_day_N**: Entities first seen on day N (not in baseline)
-//! - **pre_existing_baseline**: Entities that existed before analysis period
+//! - **`new_day_N`**: Entities first seen on day N (not in baseline)
+//! - **`pre_existing_baseline`**: Entities that existed before analysis period
 //!
 //! ## Activity Patterns:
 //! - **consistent**: Appeared in most/all log files
 //! - **sporadic**: Appeared intermittently with gaps
 //! - **declining**: Activity decreased over time
-//! - **single_burst**: Appeared only once
+//! - **`single_burst`**: Appeared only once
 //!
 //! ## Ephemeral Detection:
 //! - Confidence levels: High (≥70%), Medium (50-69%), Low (40-49%)
@@ -99,6 +99,7 @@
 //! Only tracks entities that performed login operations (paths ending in `/login`).
 
 use crate::audit::types::AuditEntry;
+use crate::utils::format::format_number;
 use crate::utils::progress::ProgressBar;
 use crate::utils::reader::open_file;
 use anyhow::{Context, Result};
@@ -195,7 +196,7 @@ struct EntityChurnRecordCsv {
 
 impl From<EntityChurnRecord> for EntityChurnRecordCsv {
     fn from(record: EntityChurnRecord) -> Self {
-        EntityChurnRecordCsv {
+        Self {
             entity_id: record.entity_id,
             display_name: record.display_name,
             mount_path: record.mount_path,
@@ -228,7 +229,7 @@ impl From<EntityChurnRecord> for EntityChurnRecordCsv {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DailyStats {
     #[allow(dead_code)]
     file_name: String,
@@ -252,7 +253,7 @@ struct ShortLivedPattern {
 }
 
 impl EphemeralPatternAnalyzer {
-    fn new(total_files: usize) -> Self {
+    const fn new(total_files: usize) -> Self {
         Self {
             total_files,
             short_lived_patterns: Vec::new(),
@@ -421,18 +422,6 @@ impl EphemeralPatternAnalyzer {
     }
 }
 
-fn format_number(n: usize) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    for (i, c) in s.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    result.chars().rev().collect()
-}
-
 fn get_file_size(path: &str) -> Result<u64> {
     Ok(std::fs::metadata(path)?.len())
 }
@@ -476,7 +465,7 @@ struct BaselineEntity {
 }
 
 impl BaselineEntity {
-    /// Get the best available name (entity_name if available, otherwise alias_name)
+    /// Get the best available name (`entity_name` if available, otherwise `alias_name`)
     fn get_name(&self) -> String {
         if !self.entity_name.is_empty() {
             self.entity_name.clone()
@@ -498,7 +487,10 @@ fn load_baseline_entities(path: &str) -> Result<HashMap<String, BaselineEntity>>
 
     // Check if it's JSON or CSV based on file extension
     let path_lower = path.to_lowercase();
-    if path_lower.ends_with(".json") {
+    if std::path::Path::new(&path_lower)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    {
         // JSON format from entity-list with --format json
         let entities: Vec<BaselineEntity> =
             serde_json::from_reader(file).context("Failed to parse baseline entities JSON")?;
@@ -509,7 +501,7 @@ fn load_baseline_entities(path: &str) -> Result<HashMap<String, BaselineEntity>>
     } else {
         // CSV format (default entity-list output)
         let mut reader = csv::Reader::from_reader(file);
-        let mut entities = HashMap::new();
+        let mut entities = HashMap::with_capacity(5000); // Pre-allocate for entity mappings
 
         for result in reader.deserialize() {
             let entity: BaselineEntity = result.context("Failed to parse baseline CSV row")?;
@@ -579,7 +571,8 @@ pub fn run(
     };
 
     // Track all entities across all files
-    let mut entities: HashMap<String, EntityChurnRecord> = HashMap::new();
+    // Pre-allocate for typical entity counts in enterprise environments
+    let mut entities: HashMap<String, EntityChurnRecord> = HashMap::with_capacity(5000);
     let mut daily_stats: Vec<DailyStats> = Vec::new();
 
     // Process each log file in order
@@ -655,14 +648,13 @@ pub fn run(
             // Parse timestamp
             let first_seen_time = chrono::DateTime::parse_from_rfc3339(&entry.time)
                 .ok()
-                .map(|dt| dt.with_timezone(&Utc))
-                .unwrap_or_else(Utc::now);
+                .map_or_else(Utc::now, |dt| dt.with_timezone(&Utc));
 
             // Check if this entity exists from a previous file
             if let Some(entity_record) = entities.get_mut(entity_id) {
                 // Returning entity
                 entity_record.total_logins += 1;
-                entity_record.last_seen_file = file_name.clone();
+                entity_record.last_seen_file.clone_from(&file_name);
                 entity_record.last_seen_time = first_seen_time;
                 if !entity_record.files_appeared.contains(&file_name) {
                     entity_record.files_appeared.push(file_name.clone());
@@ -706,21 +698,21 @@ pub fn run(
                         let name = baseline_entity.get_name();
                         let created = baseline_entity.get_created();
                         (
-                            if !name.is_empty() { Some(name) } else { None },
-                            if !created.is_empty() {
+                            if name.is_empty() { None } else { Some(name) },
+                            if created.is_empty() {
+                                None
+                            } else {
                                 Some(created)
-                            } else {
-                                None
                             },
-                            if !baseline_entity.alias_name.is_empty() {
+                            if baseline_entity.alias_name.is_empty() {
+                                None
+                            } else {
                                 Some(baseline_entity.alias_name.clone())
-                            } else {
-                                None
                             },
-                            if !baseline_entity.mount_path.is_empty() {
-                                Some(baseline_entity.mount_path.clone())
-                            } else {
+                            if baseline_entity.mount_path.is_empty() {
                                 None
+                            } else {
+                                Some(baseline_entity.mount_path.clone())
                             },
                         )
                     } else {
@@ -843,8 +835,8 @@ pub fn run(
     }
 
     // Lifecycle classification
-    let mut lifecycle_counts: HashMap<String, usize> = HashMap::new();
-    let mut entities_by_file_count: HashMap<usize, usize> = HashMap::new();
+    let mut lifecycle_counts: HashMap<String, usize> = HashMap::with_capacity(20); // Small set of lifecycle categories
+    let mut entities_by_file_count: HashMap<usize, usize> = HashMap::with_capacity(log_files.len());
 
     for entity in entities.values() {
         *lifecycle_counts
@@ -882,7 +874,7 @@ pub fn run(
     }
 
     // Activity pattern analysis
-    let mut activity_pattern_counts: HashMap<String, usize> = HashMap::new();
+    let mut activity_pattern_counts: HashMap<String, usize> = HashMap::with_capacity(10); // Small set of activity patterns
     let mut ephemeral_entities = Vec::new();
 
     for entity in entities.values() {
@@ -950,11 +942,11 @@ pub fn run(
     }
 
     // Mount path breakdown
-    let mut mount_stats: HashMap<String, (usize, String)> = HashMap::new();
+    let mut mount_stats: HashMap<String, (usize, String)> = HashMap::with_capacity(100); // Typical: dozens of mount points
     for entity in entities.values() {
         let entry = mount_stats
             .entry(entity.mount_path.clone())
-            .or_insert((0, entity.mount_type.clone()));
+            .or_insert_with(|| (0, entity.mount_type.clone()));
         entry.0 += 1;
     }
 
@@ -1018,7 +1010,10 @@ pub fn run(
 
         // Determine format from parameter or file extension
         let output_format = format.unwrap_or_else(|| {
-            if output_path.ends_with(".csv") {
+            if std::path::Path::new(output_path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("csv"))
+            {
                 "csv"
             } else {
                 "json"

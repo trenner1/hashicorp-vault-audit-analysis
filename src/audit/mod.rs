@@ -1,7 +1,7 @@
 //! Core audit log parsing and data structures.
 //!
 //! This module provides the fundamental types for working with
-//! HashiCorp Vault audit logs.
+//! `HashiCorp` Vault audit logs.
 //!
 //! ## Key Components
 //!

@@ -65,7 +65,7 @@ fn test_system_overview_command() {
 
     use vault_audit_tools::commands::system_overview;
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = system_overview::run(&log_files, 10, 1);
+    let result = system_overview::run(&log_files, 10, 1, false);
 
     assert!(result.is_ok());
 }
@@ -141,7 +141,7 @@ fn test_entity_timeline_command() {
 
     use vault_audit_tools::commands::entity_timeline;
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = entity_timeline::run(&log_files, "entity-1", &None);
+    let result = entity_timeline::run(&log_files, "entity-1", None);
 
     assert!(result.is_ok());
 }
