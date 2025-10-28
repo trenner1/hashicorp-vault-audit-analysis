@@ -90,20 +90,15 @@ where
             // Count lines for completion message
             let lines_count = count_file_lines(file_path)?;
 
-            // Print completion message without interfering with progress
-            if let Ok(mut progress) = progress.lock() {
-                eprint!("\r"); // Clear current line
-                eprint!("{}", " ".repeat(100)); // Clear with spaces
-                eprint!("\r"); // Return to start
-                eprintln!(
+            // Print completion message above progress bar
+            if let Ok(progress) = progress.lock() {
+                progress.println(format!(
                     "[{}/{}] ✓ Completed: {} ({} lines)",
                     idx + 1,
                     files.len(),
                     file_path.split('/').next_back().unwrap_or(file_path),
                     crate::utils::format::format_number(lines_count)
-                );
-                // Re-render progress bar on new line
-                progress.render();
+                ));
             }
 
             Ok(FileProcessResult {
@@ -117,11 +112,7 @@ where
     let results = results?;
     let total_lines_processed = processed_lines.load(Ordering::Relaxed);
 
-    if let Ok(mut progress) = progress.lock() {
-        // Clear the progress line before final message
-        eprint!("\r");
-        eprint!("{}", " ".repeat(80));
-        eprint!("\r");
+    if let Ok(progress) = progress.lock() {
         progress.finish_with_message(&format!("Processed {} total lines", total_lines_processed));
     }
 
@@ -132,7 +123,7 @@ where
 }
 
 /// Count lines in a file for progress tracking (lightweight)
-fn count_file_lines(file_path: &str) -> Result<usize> {
+pub fn count_file_lines(file_path: &str) -> Result<usize> {
     let file =
         open_file(file_path).with_context(|| format!("Failed to open file: {}", file_path))?;
     let reader = BufReader::new(file);

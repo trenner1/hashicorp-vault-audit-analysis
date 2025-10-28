@@ -221,33 +221,24 @@ pub fn run(
             log_file
         );
 
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
+        // Count lines in file first for accurate progress tracking
+        eprintln!("Scanning file to determine total lines...");
+        let total_file_lines = crate::utils::parallel::count_file_lines(log_file)?;
 
         let file = open_file(log_file)
             .with_context(|| format!("Failed to open audit log file: {}", log_file))?;
         let reader = BufReader::new(file);
 
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
-        let mut bytes_read = 0;
+        let progress = ProgressBar::new(total_file_lines, "Processing");
         let mut file_lines = 0;
 
         for line in reader.lines() {
             file_lines += 1;
             lines_processed += 1;
             let line = line?;
-            bytes_read += line.len() + 1;
 
             if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
+                progress.update(file_lines);
             }
 
             let entry: AuditEntry = match serde_json::from_str(&line) {
@@ -328,11 +319,7 @@ pub fn run(
             }
         }
 
-        if let Some(size) = file_size {
-            progress.update(size);
-        } else {
-            progress.update(file_lines);
-        }
+        progress.update(total_file_lines);
 
         progress.finish_with_message(&format!("Processed {} lines from this file", file_lines));
     }

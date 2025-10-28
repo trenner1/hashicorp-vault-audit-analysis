@@ -85,7 +85,7 @@ pub fn run_churn(
 ) -> Result<()> {
     // Auto-preprocessing: build entity map in-memory and write to temp file
     let temp_map_file = if auto_preprocess && entity_map.is_none() {
-        eprintln!("Auto-preprocessing: Building entity mappings in-memory...");
+        eprintln!("Auto-preprocessing: Building entity mappings in-memory...\n");
         let map = crate::commands::preprocess_entities::build_entity_map(log_files)?;
         let temp_path = write_temp_entity_map(&map)?;
         eprintln!("Entity mappings ready\n");
@@ -125,7 +125,7 @@ pub fn run_creation(
 ) -> Result<()> {
     // Auto-preprocessing: build entity map in-memory and write to temp file
     let temp_map_file = if auto_preprocess && entity_map.is_none() {
-        eprintln!("Auto-preprocessing: Building entity mappings in-memory...");
+        eprintln!("Auto-preprocessing: Building entity mappings in-memory...\n");
         let map = crate::commands::preprocess_entities::build_entity_map(log_files)?;
         let temp_path = write_temp_entity_map(&map)?;
         eprintln!("Entity mappings ready\n");
