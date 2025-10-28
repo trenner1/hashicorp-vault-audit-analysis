@@ -78,16 +78,13 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
             log_file
         );
 
-        // Get file size for progress tracking
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
+        // Count lines in file first for accurate progress tracking
+        eprintln!("Scanning file to determine total lines...");
+        let total_file_lines = crate::utils::parallel::count_file_lines(log_file)?;
+
+        let progress = ProgressBar::new(total_file_lines, "Processing");
 
         let mut file_lines = 0;
-        let mut bytes_read = 0;
 
         let file = open_file(log_file)?;
         let reader = BufReader::new(file);
@@ -96,15 +93,10 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
             file_lines += 1;
             total_lines += 1;
             let line = line?;
-            bytes_read += line.len() + 1; // +1 for newline
 
             // Update progress every 10k lines for smooth animation
             if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
+                progress.update(file_lines);
             }
 
             let entry: AuditEntry = match serde_json::from_str(&line) {
@@ -178,9 +170,7 @@ pub fn run(log_files: &[String], output: Option<&str>) -> Result<()> {
         }
 
         // Ensure 100% progress for this file
-        if let Some(size) = file_size {
-            progress.update(size);
-        }
+        progress.update(total_file_lines);
 
         progress.finish_with_message(&format!(
             "Processed {} lines from this file",

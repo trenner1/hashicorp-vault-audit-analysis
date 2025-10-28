@@ -267,18 +267,14 @@ impl FileProcessor {
 
                 if self.config.show_file_completion {
                     let lines_count = count_file_lines(file_path)?;
-                    if let Ok(mut progress) = progress.lock() {
-                        eprint!("\r");
-                        eprint!("{}", " ".repeat(100));
-                        eprint!("\r");
-                        eprintln!(
+                    if let Ok(progress) = progress.lock() {
+                        progress.println(format!(
                             "[{}/{}] ✓ Completed: {} ({} lines)",
                             idx + 1,
                             files.len(),
                             file_path.split('/').next_back().unwrap_or(file_path),
                             crate::utils::format::format_number(lines_count)
-                        );
-                        progress.render();
+                        ));
                     }
                 }
 
@@ -288,11 +284,8 @@ impl FileProcessor {
 
         let results = results?;
 
-        // Clear progress and show final message
-        if let Ok(mut progress) = progress.lock() {
-            eprint!("\r");
-            eprint!("{}", " ".repeat(100));
-            eprint!("\r");
+        // Finish progress bar with final message
+        if let Ok(progress) = progress.lock() {
             progress.finish_with_message(&format!(
                 "Processed {} total lines",
                 crate::utils::format::format_number(processed_lines.load(Ordering::Relaxed))
@@ -473,7 +466,7 @@ impl FileProcessor {
             if file_stats.total_lines % self.config.progress_frequency == 0 {
                 if let Some((processed_lines, progress_bar)) = &progress {
                     processed_lines.fetch_add(self.config.progress_frequency, Ordering::Relaxed);
-                    if let Ok(mut p) = progress_bar.lock() {
+                    if let Ok(p) = progress_bar.lock() {
                         p.update(processed_lines.load(Ordering::Relaxed));
                     }
                 }
@@ -510,7 +503,7 @@ impl FileProcessor {
             let remaining = file_stats.total_lines % self.config.progress_frequency;
             if remaining > 0 {
                 processed_lines.fetch_add(remaining, Ordering::Relaxed);
-                if let Ok(mut p) = progress_bar.lock() {
+                if let Ok(p) = progress_bar.lock() {
                     p.update(processed_lines.load(Ordering::Relaxed));
                 }
             }

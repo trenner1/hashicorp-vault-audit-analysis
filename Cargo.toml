@@ -27,6 +27,7 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 rayon = "1.8"
 flate2 = "1.0"
 zstd = "0.13"
+indicatif = "0.17"
 
 [dev-dependencies]
 tempfile = "3.8"
