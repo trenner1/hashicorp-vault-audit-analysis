@@ -146,6 +146,15 @@ impl AuditEntry {
     pub fn is_token_operation(&self) -> bool {
         self.path_starts_with("auth/token/")
     }
+
+    /// Get the namespace ID from this entry
+    pub fn namespace_id(&self) -> Option<&str> {
+        self.request
+            .as_ref()?
+            .namespace
+            .as_ref()
+            .map(|ns| ns.id.as_str())
+    }
 }
 
 #[cfg(test)]

@@ -583,27 +583,30 @@ pub fn run(
             .to_string_lossy()
             .to_string();
 
-        println!("\nProcessing Day {} ({})...", file_idx + 1, file_name);
+        eprintln!("\nProcessing Day {} ({})...", file_name, file_idx + 1);
+
+        // Count lines in file first for accurate progress tracking
+        eprintln!("Scanning file to determine total lines...");
+        let total_file_lines = crate::utils::parallel::count_file_lines(log_file)?;
 
         let file = open_file(log_file)
             .with_context(|| format!("Failed to open log file: {}", log_file))?;
-        let file_size = get_file_size(log_file)? as usize;
 
         let reader = BufReader::new(file);
-        let mut progress = ProgressBar::new(file_size, "Processing");
+        let progress = ProgressBar::new(total_file_lines, "Processing");
 
         let mut new_entities_this_file = 0;
         let mut returning_entities_this_file = HashSet::new();
         let mut logins_this_file = 0;
-        let mut bytes_processed = 0;
+        let mut lines_processed = 0;
 
         for line in reader.lines() {
             let line = line.context("Failed to read line from log file")?;
-            bytes_processed += line.len() + 1; // +1 for newline
+            lines_processed += 1;
 
             // Update progress periodically
-            if bytes_processed % 10_000 == 0 {
-                progress.update(bytes_processed.min(file_size));
+            if lines_processed % 10_000 == 0 {
+                progress.update(lines_processed);
             }
 
             let trimmed = line.trim();
@@ -775,6 +778,8 @@ pub fn run(
             }
         }
 
+        // Ensure 100% progress for this file
+        progress.update(total_file_lines);
         progress.finish();
 
         daily_stats.push(DailyStats {
@@ -784,7 +789,7 @@ pub fn run(
             total_logins: logins_this_file,
         });
 
-        println!(
+        eprintln!(
             "Day {} Summary: {} new entities, {} returning, {} logins",
             file_idx + 1,
             format_number(new_entities_this_file),
