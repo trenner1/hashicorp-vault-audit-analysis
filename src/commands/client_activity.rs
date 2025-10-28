@@ -98,13 +98,14 @@ pub async fn run(
     end_time: &str,
     vault_addr: Option<&str>,
     vault_token: Option<&str>,
+    vault_namespace: Option<&str>,
     insecure: bool,
     group_by_role: bool,
     entity_map_path: Option<&str>,
     output: Option<&str>,
 ) -> Result<()> {
     let skip_verify = should_skip_verify(insecure);
-    let client = VaultClient::from_options(vault_addr, vault_token, skip_verify)?;
+    let client = VaultClient::from_options(vault_addr, vault_token, vault_namespace, skip_verify)?;
 
     eprintln!("=== Vault Client Activity Analysis ===");
     eprintln!("Vault Address: {}", client.addr());

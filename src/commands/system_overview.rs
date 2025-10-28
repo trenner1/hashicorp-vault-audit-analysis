@@ -43,11 +43,8 @@
 use crate::audit::types::AuditEntry;
 use crate::utils::format::format_number;
 use crate::utils::parallel::process_files_parallel;
-use crate::utils::progress::ProgressBar;
-use crate::utils::reader::open_file;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
-use std::io::{BufRead, BufReader};
 
 /// Path access statistics
 #[derive(Debug)]
@@ -92,7 +89,23 @@ pub fn init_parallel_progress(
 }
 
 /// Process entries from a single file using streaming to reduce memory usage
-fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult> {
+/// Optionally accepts progress tracking for sequential mode
+fn process_file_entries_streaming(
+    file_path: &str,
+    namespace_filter: Option<&str>,
+) -> Result<FileAnalysisResult> {
+    process_file_entries_streaming_with_progress(file_path, namespace_filter, None)
+}
+
+/// Process entries with optional local progress tracking
+fn process_file_entries_streaming_with_progress(
+    file_path: &str,
+    namespace_filter: Option<&str>,
+    local_progress: Option<&(
+        std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        std::sync::Arc<std::sync::Mutex<crate::utils::progress::ProgressBar>>,
+    )>,
+) -> Result<FileAnalysisResult> {
     use crate::utils::reader::open_file;
     use std::io::{BufRead, BufReader};
 
@@ -113,9 +126,15 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
 
         // Update progress every 2000 lines for responsive feedback
         if lines_processed % 2000 == 0 {
-            if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
+            // Try local progress first (sequential mode), then global (parallel mode)
+            if let Some((processed, progress)) = &local_progress {
+                processed.store(lines_processed, std::sync::atomic::Ordering::Relaxed);
+                if let Ok(p) = progress.lock() {
+                    p.update(lines_processed);
+                }
+            } else if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
                 processed_lines.fetch_add(2000, std::sync::atomic::Ordering::Relaxed);
-                if let Ok(mut p) = progress.lock() {
+                if let Ok(p) = progress.lock() {
                     p.update(processed_lines.load(std::sync::atomic::Ordering::Relaxed));
                 }
             }
@@ -131,6 +150,13 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
             Ok(entry) => entry,
             Err(_) => continue, // Skip invalid JSON lines
         };
+
+        // Apply namespace filter if specified
+        if let Some(filter_ns) = namespace_filter {
+            if entry.namespace_id() != Some(filter_ns) {
+                continue;
+            }
+        }
 
         let Some(request) = &entry.request else {
             continue;
@@ -198,9 +224,14 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
     // Update progress for remaining lines
     let remaining = lines_processed % 2000;
     if remaining > 0 {
-        if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
+        if let Some((processed, progress)) = &local_progress {
+            processed.store(lines_processed, std::sync::atomic::Ordering::Relaxed);
+            if let Ok(p) = progress.lock() {
+                p.update(lines_processed);
+            }
+        } else if let Some((processed_lines, progress)) = PARALLEL_PROGRESS.get() {
             processed_lines.fetch_add(remaining, std::sync::atomic::Ordering::Relaxed);
-            if let Ok(mut p) = progress.lock() {
+            if let Ok(p) = progress.lock() {
                 p.update(processed_lines.load(std::sync::atomic::Ordering::Relaxed));
             }
         }
@@ -213,87 +244,6 @@ fn process_file_entries_streaming(file_path: &str) -> Result<FileAnalysisResult>
         entity_paths,
         entity_names,
     })
-}
-
-/// Process entries from a single file (original non-streaming version)
-fn process_file_entries(_file_path: &str, entries: Vec<AuditEntry>) -> FileAnalysisResult {
-    let mut path_operations: HashMap<String, PathData> = HashMap::with_capacity(5000);
-    let mut operation_types: HashMap<String, usize> = HashMap::with_capacity(20);
-    let mut path_prefixes: HashMap<String, usize> = HashMap::with_capacity(100);
-    let mut entity_paths: HashMap<String, HashMap<String, usize>> = HashMap::with_capacity(2000);
-    let mut entity_names: HashMap<String, String> = HashMap::with_capacity(2000);
-
-    for entry in entries {
-        let Some(request) = &entry.request else {
-            continue;
-        };
-
-        let path = match &request.path {
-            Some(p) => p.as_str(),
-            None => continue,
-        };
-
-        let operation = match &request.operation {
-            Some(o) => o.as_str(),
-            None => continue,
-        };
-
-        let entity_id = entry
-            .auth
-            .as_ref()
-            .and_then(|a| a.entity_id.as_deref())
-            .unwrap_or("no-entity");
-
-        let display_name = entry
-            .auth
-            .as_ref()
-            .and_then(|a| a.display_name.as_deref())
-            .unwrap_or("N/A");
-
-        if path.is_empty() || operation.is_empty() {
-            continue;
-        }
-
-        // Track by full path
-        let path_data = path_operations
-            .entry(path.to_string())
-            .or_insert_with(PathData::new);
-        path_data.count += 1;
-        *path_data
-            .operations
-            .entry(operation.to_string())
-            .or_insert(0) += 1;
-        path_data.entities.insert(entity_id.to_string());
-
-        // Track by operation type
-        *operation_types.entry(operation.to_string()).or_insert(0) += 1;
-
-        // Track by path prefix
-        let parts: Vec<&str> = path.trim_matches('/').split('/').collect();
-        let prefix = if parts.len() >= 2 {
-            format!("{}/{}", parts[0], parts[1])
-        } else if !parts.is_empty() {
-            parts[0].to_string()
-        } else {
-            "root".to_string()
-        };
-        *path_prefixes.entry(prefix).or_insert(0) += 1;
-
-        // Track entity usage
-        let entity_map = entity_paths.entry(entity_id.to_string()).or_default();
-        *entity_map.entry(path.to_string()).or_insert(0) += 1;
-        entity_names
-            .entry(entity_id.to_string())
-            .or_insert_with(|| display_name.to_string());
-    }
-
-    FileAnalysisResult {
-        path_operations,
-        operation_types,
-        path_prefixes,
-        entity_paths,
-        entity_names,
-    }
 }
 
 /// Combine results from multiple files
@@ -352,7 +302,10 @@ fn combine_results(
 }
 
 /// Sequential processing fallback for compatibility and single files
-fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
+fn run_sequential(
+    log_files: &[String],
+    namespace_filter: Option<&str>,
+) -> Result<(FileAnalysisResult, usize)> {
     let mut combined_result = FileAnalysisResult {
         path_operations: HashMap::with_capacity(5000),
         operation_types: HashMap::with_capacity(20),
@@ -362,7 +315,7 @@ fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
     };
     let mut total_lines = 0;
 
-    // Process each file sequentially
+    // Process each file sequentially using streaming to avoid memory issues
     for (file_idx, log_file) in log_files.iter().enumerate() {
         eprintln!(
             "[{}/{}] Processing: {}",
@@ -371,50 +324,34 @@ fn run_sequential(log_files: &[String]) -> Result<(FileAnalysisResult, usize)> {
             log_file
         );
 
-        let file_size = std::fs::metadata(log_file).ok().map(|m| m.len() as usize);
-        let mut progress = if let Some(size) = file_size {
-            ProgressBar::new(size, "Processing")
-        } else {
-            ProgressBar::new_spinner("Processing")
-        };
+        // Count lines in file first for accurate progress tracking
+        // Works for both compressed and uncompressed files
+        eprintln!("Scanning file to determine total lines...");
+        let file_lines = crate::utils::parallel::count_file_lines(log_file)?;
 
-        let file = open_file(log_file)?;
-        let reader = BufReader::new(file);
+        // Set up progress bar with line count
+        let progress = crate::utils::progress::ProgressBar::new(file_lines, "Processing");
+        let progress = std::sync::Arc::new(std::sync::Mutex::new(progress));
+        let processed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
-        let mut file_lines = 0;
-        let mut bytes_read = 0;
-        let mut entries = Vec::new();
+        // Use streaming processor with local progress tracking
+        let local_progress_tuple = (processed.clone(), progress.clone());
+        let file_result = process_file_entries_streaming_with_progress(
+            log_file,
+            namespace_filter,
+            Some(&local_progress_tuple),
+        )?;
 
-        for line in reader.lines() {
-            file_lines += 1;
-            total_lines += 1;
-            let line = line?;
-            bytes_read += line.len() + 1;
+        total_lines += file_lines;
 
-            if file_lines % 10_000 == 0 {
-                if let Some(size) = file_size {
-                    progress.update(bytes_read.min(size));
-                } else {
-                    progress.update(file_lines);
-                }
-            }
-
-            if let Ok(entry) = serde_json::from_str::<AuditEntry>(&line) {
-                entries.push(entry);
-            }
+        // Finish progress bar
+        if let Ok(p) = progress.lock() {
+            p.update(file_lines);
+            p.finish_with_message(&format!(
+                "Processed {} lines from this file",
+                format_number(file_lines)
+            ));
         }
-
-        if let Some(size) = file_size {
-            progress.update(size);
-        }
-
-        progress.finish_with_message(&format!(
-            "Processed {} lines from this file",
-            format_number(file_lines)
-        ));
-
-        // Process the entries from this file and merge directly
-        let file_result = process_file_entries(log_file, entries);
 
         // Merge path operations
         for (path, path_data) in file_result.path_operations {
@@ -463,15 +400,19 @@ pub fn run(
     log_files: &[String],
     top: usize,
     min_operations: usize,
+    namespace_filter: Option<&str>,
     sequential: bool,
 ) -> Result<()> {
     let (combined_result, total_lines) = if sequential || log_files.len() == 1 {
         // Use sequential processing for single files or when explicitly requested
         eprintln!("Processing {} files sequentially...", log_files.len());
-        run_sequential(log_files)?
+        run_sequential(log_files, namespace_filter)?
     } else {
         // Use parallel processing for multiple files with streaming
-        process_files_parallel(log_files, process_file_entries_streaming, combine_results)?
+        // Create a closure that captures namespace_filter
+        let processor =
+            |file_path: &str| process_file_entries_streaming(file_path, namespace_filter);
+        process_files_parallel(log_files, processor, combine_results)?
     };
 
     eprintln!("\nTotal: Processed {} lines", format_number(total_lines));
