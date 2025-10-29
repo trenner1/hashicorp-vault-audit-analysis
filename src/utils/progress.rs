@@ -46,10 +46,9 @@ impl ProgressBar {
         self.bar.set_position(current as u64);
     }
 
-    /// Increment progress by 1
-    #[allow(dead_code)]
-    pub fn inc(&self) {
-        self.bar.inc(1);
+    /// Increment progress by the given amount
+    pub fn inc(&self, delta: u64) {
+        self.bar.inc(delta);
     }
 
     /// Force render (indicatif handles this automatically)

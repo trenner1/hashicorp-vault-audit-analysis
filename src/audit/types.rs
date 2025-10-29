@@ -155,6 +155,17 @@ impl AuditEntry {
             .as_ref()
             .map(|ns| ns.id.as_str())
     }
+
+    /// Get the remote address (client IP) from this entry
+    pub fn remote_address(&self) -> Option<&str> {
+        self.request.as_ref()?.remote_address.as_deref()
+    }
+
+    /// Get the remote port from this entry
+    #[allow(dead_code)]
+    pub fn remote_port(&self) -> Option<u16> {
+        self.request.as_ref()?.remote_port
+    }
 }
 
 #[cfg(test)]
