@@ -466,6 +466,52 @@ enum Commands {
         output: Option<String>,
     },
 
+    /// Analyze client traffic patterns from aggregated audit logs
+    ClientTrafficAnalysis {
+        /// Audit log files to analyze (supports compressed .gz and .zst files)
+        log_files: Vec<String>,
+
+        /// Output file path for summary client metrics (CSV or JSON)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Output format: json or csv (auto-detected from file extension if not specified)
+        #[arg(long, value_parser = ["json", "csv"])]
+        format: Option<String>,
+
+        /// Output file path for detailed error analysis with entity information (CSV)
+        #[arg(long)]
+        error_details_output: Option<String>,
+
+        /// Number of top clients to show in summary (default: 20)
+        #[arg(long, default_value = "20")]
+        top: usize,
+
+        /// Enable temporal analysis (hourly request patterns)
+        #[arg(long)]
+        temporal: bool,
+
+        /// Minimum requests threshold for client classification (default: 100)
+        #[arg(long, default_value = "100")]
+        min_requests: usize,
+
+        /// Show operation type breakdown per client
+        #[arg(long)]
+        show_operations: bool,
+
+        /// Show error details and patterns
+        #[arg(long)]
+        show_errors: bool,
+
+        /// Show detailed per-client analysis (paths, entities, mount points)
+        #[arg(long)]
+        show_details: bool,
+
+        /// Show all available information (equivalent to --show-operations --show-errors --show-details)
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// List Vault entities and aliases (queries Vault API)
     EntityList {
         /// Vault address (default: $`VAULT_ADDR` or <http://127.0.0.1:8200>)
@@ -749,6 +795,37 @@ async fn main() -> Result<()> {
                 output.as_deref(),
             )
             .await
+        }
+        Commands::ClientTrafficAnalysis {
+            log_files,
+            output,
+            format,
+            error_details_output,
+            top,
+            temporal,
+            min_requests,
+            show_operations,
+            show_errors,
+            show_details,
+            verbose,
+        } => {
+            // Verbose mode enables all display options
+            let show_ops = verbose || show_operations;
+            let show_errs = verbose || show_errors;
+            let show_dets = verbose || show_details;
+
+            commands::client_traffic_analysis::run(
+                &log_files,
+                output,
+                format.as_deref(),
+                error_details_output,
+                top,
+                temporal,
+                min_requests,
+                show_ops,
+                show_errs,
+                show_dets,
+            )
         }
         Commands::EntityList {
             vault_addr,

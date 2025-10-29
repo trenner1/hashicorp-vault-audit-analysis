@@ -50,7 +50,11 @@ where
         return Err(anyhow::anyhow!("No files provided for processing"));
     }
 
-    eprintln!("Processing {} files in parallel...", files.len());
+    if files.len() == 1 {
+        eprintln!("Processing file...");
+    } else {
+        eprintln!("Processing {} files in parallel...", files.len());
+    }
 
     // First pass: count total lines across all files for accurate progress
     eprintln!("Scanning files to determine total work...");
@@ -70,8 +74,12 @@ where
         "Processing",
     )));
 
-    // Initialize global progress for system_overview streaming
+    // Initialize global progress for commands that use streaming
     crate::commands::system_overview::init_parallel_progress(
+        processed_lines.clone(),
+        progress.clone(),
+    );
+    crate::commands::client_traffic_analysis::init_parallel_progress(
         processed_lines.clone(),
         progress.clone(),
     );
