@@ -56,10 +56,12 @@
 //! - [`system_overview`] - Generate high-level statistics about audit logs
 //! - [`path_hotspots`] - Identify most frequently accessed paths
 //! - [`client_activity`] - Analyze client access patterns
+//! - [`client_traffic_analysis`] - Comprehensive client traffic pattern analysis
 //! - [`airflow_polling`] - Detect Airflow polling behavior patterns
 
 pub mod airflow_polling;
 pub mod client_activity;
+pub mod client_traffic_analysis;
 pub mod entity_analysis;
 pub mod entity_churn;
 pub mod entity_creation;

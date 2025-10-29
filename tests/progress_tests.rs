@@ -26,9 +26,9 @@ fn test_progress_bar_update() {
 #[test]
 fn test_progress_bar_inc() {
     let pb = ProgressBar::new(10, "Inc Test");
-    pb.inc();
-    pb.inc();
-    pb.inc();
+    pb.inc(1);
+    pb.inc(1);
+    pb.inc(1);
     drop(pb);
 }
 
