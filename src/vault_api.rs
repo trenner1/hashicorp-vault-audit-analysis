@@ -201,6 +201,42 @@ impl VaultClient {
         self.get(path).await
     }
 
+    /// Make a LIST request and return raw JSON Value (for KV v2 metadata listing)
+    pub async fn list_json(&self, path: &str) -> Result<Value> {
+        let url = format!("{}{}", self.addr, path);
+
+        let mut request = self
+            .client
+            .request(reqwest::Method::from_bytes(b"LIST")?, &url)
+            .header("X-Vault-Token", &self.token);
+
+        if let Some(namespace) = &self.namespace {
+            request = request.header("X-Vault-Namespace", namespace);
+        }
+
+        let response = request
+            .send()
+            .await
+            .context("Failed to send LIST request to Vault")?;
+
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .context("Failed to read response body")?;
+
+        if !status.is_success() {
+            return Err(anyhow!(
+                "Vault API LIST request failed with status {}: {}",
+                status,
+                body
+            ));
+        }
+
+        serde_json::from_str(&body)
+            .with_context(|| format!("Failed to parse JSON response from {}", path))
+    }
+
     /// Make a GET request and return raw text (useful for NDJSON)
     pub async fn get_text(&self, path: &str) -> Result<String> {
         let url = format!("{}{}", self.addr, path);

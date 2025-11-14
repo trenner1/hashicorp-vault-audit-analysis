@@ -49,6 +49,13 @@
 //!
 //! - [`k8s_auth`] - Analyze Kubernetes authentication patterns and service accounts
 //!
+//! ### Mount Enumeration Commands
+//!
+//! List and enumerate Vault mounts:
+//!
+//! - [`kv_mounts`] - Enumerate all KV v2 secret mounts
+//! - [`auth_mounts`] - Enumerate all authentication mounts
+//!
 //! ### System Analysis Commands
 //!
 //! High-level system insights:
@@ -60,6 +67,7 @@
 //! - [`airflow_polling`] - Detect Airflow polling behavior patterns
 
 pub mod airflow_polling;
+pub mod auth_mounts;
 pub mod client_activity;
 pub mod client_traffic_analysis;
 pub mod entity_analysis;
@@ -72,6 +80,7 @@ pub mod k8s_auth;
 pub mod kv_analysis;
 pub mod kv_analyzer;
 pub mod kv_compare;
+pub mod kv_mounts;
 pub mod kv_summary;
 pub mod path_hotspots;
 pub mod preprocess_entities;

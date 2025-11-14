@@ -543,6 +543,68 @@ enum Commands {
         mount: Option<String>,
     },
 
+    /// List KV v2 mounts (queries Vault API)
+    KvMounts {
+        /// Vault address (default: $`VAULT_ADDR` or <http://127.0.0.1:8200>)
+        #[arg(long)]
+        vault_addr: Option<String>,
+
+        /// Vault token (default: $`VAULT_TOKEN` or $`VAULT_TOKEN_FILE`)
+        #[arg(long)]
+        vault_token: Option<String>,
+
+        /// Vault namespace (default: $`VAULT_NAMESPACE`)
+        #[arg(long)]
+        vault_namespace: Option<String>,
+
+        /// Skip TLS certificate verification (insecure)
+        #[arg(long)]
+        insecure: bool,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Output format: csv (default), json, or stdout
+        #[arg(long, default_value = "csv", value_parser = ["csv", "json", "stdout"])]
+        format: String,
+
+        /// Maximum depth to traverse within KV mounts (default: unlimited, 0 = mounts only, 1 = one level, etc.)
+        #[arg(short, long)]
+        depth: Option<usize>,
+    },
+
+    /// List authentication mounts (queries Vault API)
+    AuthMounts {
+        /// Vault address (default: $`VAULT_ADDR` or <http://127.0.0.1:8200>)
+        #[arg(long)]
+        vault_addr: Option<String>,
+
+        /// Vault token (default: $`VAULT_TOKEN` or $`VAULT_TOKEN_FILE`)
+        #[arg(long)]
+        vault_token: Option<String>,
+
+        /// Vault namespace (default: $`VAULT_NAMESPACE`)
+        #[arg(long)]
+        vault_namespace: Option<String>,
+
+        /// Skip TLS certificate verification (insecure)
+        #[arg(long)]
+        insecure: bool,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Output format: csv (default), json, or stdout
+        #[arg(long, default_value = "csv", value_parser = ["csv", "json", "stdout"])]
+        format: String,
+
+        /// Maximum depth to traverse within auth mounts (default: unlimited, 0 = mounts only, 1 = include roles/users)
+        #[arg(long)]
+        depth: Option<usize>,
+    },
+
     /// Generate shell completion scripts
     GenerateCompletion {
         /// Shell to generate completions for
@@ -844,6 +906,50 @@ async fn main() -> Result<()> {
                 output.as_deref(),
                 format.as_str(),
                 mount.as_deref(),
+            )
+            .await
+        }
+        Commands::KvMounts {
+            vault_addr,
+            vault_token,
+            vault_namespace,
+            insecure,
+            output,
+            format,
+            depth,
+        } => {
+            // If no depth specified, use unlimited (usize::MAX)
+            let max_depth = depth.unwrap_or(usize::MAX);
+
+            commands::kv_mounts::run(
+                vault_addr.as_deref(),
+                vault_token.as_deref(),
+                vault_namespace.as_deref(),
+                insecure,
+                output.as_deref(),
+                format.as_str(),
+                max_depth,
+            )
+            .await
+        }
+        Commands::AuthMounts {
+            vault_addr,
+            vault_token,
+            vault_namespace,
+            insecure,
+            output,
+            format,
+            depth,
+        } => {
+            let max_depth = depth.unwrap_or(usize::MAX);
+            commands::auth_mounts::run(
+                vault_addr.as_deref(),
+                vault_token.as_deref(),
+                vault_namespace.as_deref(),
+                insecure,
+                output.as_deref(),
+                format.as_str(),
+                max_depth,
             )
             .await
         }

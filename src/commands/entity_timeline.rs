@@ -248,7 +248,7 @@ pub fn run(log_files: &[String], entity_id: &str, display_name: Option<&String>)
         let display_path = if path.len() > 68 {
             format!("{}...", &path[..65])
         } else {
-            (*path).to_string()
+            (*path).clone()
         };
         println!(
             "{:<70} {:<15} {:<15.2}%",
