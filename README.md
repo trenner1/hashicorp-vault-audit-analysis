@@ -123,19 +123,37 @@ echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
 - **`client-activity`** - Query Vault for client activity metrics by mount
 - **`entity-list`** - Export complete entity list from Vault (for baseline analysis)
 
+### Mount Enumeration
+
+- **`kv-mounts`** - Enumerate KV secret mounts with optional depth-based tree traversal
+  - Automatically discovers all KV v1 and v2 mounts
+  - Recursively lists secrets and folders within each mount
+  - Supports unlimited depth (default) or limited traversal (`--depth N`)
+  - Output formats: CSV (flattened), JSON (nested tree), or stdout (visual tree)
+  - **Example**: `vault-audit kv-mounts --format stdout`
+  - **Example**: `vault-audit kv-mounts --depth 2 --format csv --output kv-inventory.csv`
+
+- **`auth-mounts`** - Enumerate authentication mounts with role/user discovery
+  - Automatically discovers all auth methods
+  - Lists roles, users, and groups within each mount (when `--depth > 0`)
+  - Supports kubernetes, approle, userpass, jwt/oidc, and ldap auth types
+  - Output formats: CSV (flattened), JSON (nested), or stdout (visual tree)
+  - **Example**: `vault-audit auth-mounts --format stdout`
+  - **Example**: `vault-audit auth-mounts --depth 0 --format json` (mounts only, no roles)
+
 ### KV Secrets Analysis
 
 - **`kv-analysis`** - Unified KV secrets analysis (recommended)
   - `analyze` - Analyze KV usage by path and entity (generates CSV) (parallel processing)
   - `compare` - Compare KV usage between two time periods (CSV comparison)
   - `summary` - Summarize KV secret usage from CSV exports (CSV analysis)
-- **`kv-analyzer`** - ⚠️ DEPRECATED: Use `kv-analysis analyze` instead
-- **`kv-compare`** - ⚠️ DEPRECATED: Use `kv-analysis compare` instead
-- **`kv-summary`** - ⚠️ DEPRECATED: Use `kv-analysis summary` instead
+- **`kv-analyzer`** - DEPRECATED: Use `kv-analysis analyze` instead
+- **`kv-compare`** - DEPRECATED: Use `kv-analysis compare` instead
+- **`kv-summary`** - DEPRECATED: Use `kv-analysis summary` instead
 
 ## Vault Token Requirements
 
-Most commands analyze audit log files and **do not require any Vault API access**. Only two commands interact with Vault's API and require a token with specific permissions.
+Most commands analyze audit log files and **do not require any Vault API access**. The following commands interact with Vault's API and require a token with specific permissions.
 
 ### Commands That Don't Need Vault Access
 
@@ -146,6 +164,55 @@ These commands only read audit log files:
 - `kv-analysis` (all subcommands)
 
 ### Commands That Need Vault API Access
+
+#### `kv-mounts` Command
+
+Enumerates all KV secret mounts and optionally lists their contents in a tree structure.
+
+**Required ACL Policy:**
+```hcl
+# List and read secret mounts
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+# List KV v2 secrets (for each mount discovered)
+path "+/metadata/*" {
+  capabilities = ["list"]
+}
+
+# List KV v1 secrets (for each mount discovered)
+path "+/*" {
+  capabilities = ["list"]
+}
+```
+
+#### `auth-mounts` Command
+
+Enumerates all authentication mounts and optionally lists roles, users, and groups within each mount.
+
+**Required ACL Policy:**
+```hcl
+# List and read auth mounts
+path "sys/auth" {
+  capabilities = ["read"]
+}
+
+# List roles for kubernetes, approle, jwt/oidc auth methods
+path "auth/+/role" {
+  capabilities = ["list"]
+}
+
+# List users for userpass and ldap auth methods
+path "auth/+/users" {
+  capabilities = ["list"]
+}
+
+# List groups for ldap auth method
+path "auth/+/groups" {
+  capabilities = ["list"]
+}
+```
 
 #### `entity-list` Command
 
@@ -478,6 +545,84 @@ vault-audit token-analysis logs/vault_audit.*.log --export token_ops.csv
 
 # Path hotspot analysis across 30 days of compressed logs
 vault-audit path-hotspots logs/vault_audit.2025-10-*.log.zst
+```
+
+### Mount Enumeration and Discovery
+
+Enumerate and discover all mounts, roles, and secrets without needing to know mount names in advance:
+
+```bash
+# Discover all KV mounts and their complete tree structure
+vault-audit kv-mounts --format stdout
+
+# List only KV mount points (no traversal into secrets)
+vault-audit kv-mounts --depth 0 --format csv
+
+# Traverse 2 levels deep and save to CSV
+vault-audit kv-mounts --depth 2 --format csv --output kv-inventory.csv
+
+# Get complete KV structure as JSON for further processing
+vault-audit kv-mounts --format json --output kv-tree.json
+
+# Discover all auth mounts with their roles and users
+vault-audit auth-mounts --format stdout
+
+# List only auth mount points (no role enumeration)
+vault-audit auth-mounts --depth 0 --format json
+
+# Export auth configuration with roles to CSV
+vault-audit auth-mounts --format csv --output auth-config.csv
+```
+
+**Example Output - KV Mounts (stdout format):**
+```
+KV Mounts:
+================================================================================
+Path: kv/
+  Mount Type: kv
+  Version: 2
+  Description: key/value secret storage
+  Accessor: kv_f1c7d8b2
+  Children (11 paths):
+  kv/
+  └── dev/
+      └── apps/
+          ├── backend-service/
+          │   ├── config
+          │   └── example
+          ├── frontend-app/
+          │   ├── config
+          │   └── example
+          └── mobile-app/
+              ├── config
+              └── example
+```
+
+**Example Output - Auth Mounts (stdout format):**
+```
+Auth Mounts:
+================================================================================
+Path: kubernetes/
+  Type: kubernetes
+  Description:
+  Accessor: auth_kubernetes_e954d6e1
+  Roles/Users (5):
+    ├── backend-service
+    ├── cache-service
+    ├── database-operator
+    ├── frontend-app
+    └── monitoring
+
+Path: approle/
+  Type: approle
+  Description:
+  Accessor: auth_approle_6a0e0046
+  Roles/Users (5):
+    ├── ansible
+    ├── automation
+    ├── ci-pipeline
+    ├── monitoring-agent
+    └── terraform
 ```
 
 ### Parallel Processing
