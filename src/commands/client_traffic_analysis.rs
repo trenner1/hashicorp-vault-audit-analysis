@@ -759,7 +759,7 @@ fn print_error_analysis(stats: &TrafficStats, top_n: usize) {
             let truncated = if error_type.len() > 50 {
                 format!("{}...", &error_type[..47])
             } else {
-                (*error_type).to_string()
+                (*error_type).clone()
             };
             println!(
                 "{:<50} {:>15} {:>14.2}%",
@@ -782,7 +782,7 @@ fn print_error_analysis(stats: &TrafficStats, top_n: usize) {
                 let truncated_path = if path.len() > 60 {
                     format!("{}...", &path[..57])
                 } else {
-                    (*path).to_string()
+                    (*path).clone()
                 };
                 println!("{:<60} {:>15}", truncated_path, format_number(**count));
             }
@@ -815,7 +815,7 @@ fn print_error_analysis(stats: &TrafficStats, top_n: usize) {
         let truncated = if error_type.len() > 50 {
             format!("{}...", &error_type[..47])
         } else {
-            (*error_type).to_string()
+            (*error_type).clone()
         };
         println!(
             "{:<50} {:>15} {:>14.2}%",
@@ -875,7 +875,7 @@ fn print_detailed_client_analysis(stats: &TrafficStats, top_n: usize) {
             let truncated_path = if path.len() > 60 {
                 format!("{}...", &path[..57])
             } else {
-                (*path).to_string()
+                (*path).clone()
             };
             println!("{:<60} {:>15}", truncated_path, format_number(**count));
         }

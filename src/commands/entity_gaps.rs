@@ -172,7 +172,7 @@ pub fn run(log_files: &[String], _window_seconds: u64) -> Result<()> {
         let display_path = if path.len() > 68 {
             format!("{}...", &path[..65])
         } else {
-            (*path).to_string()
+            (*path).clone()
         };
         println!(
             "{:<70} {:>15} {:>14.2}%",

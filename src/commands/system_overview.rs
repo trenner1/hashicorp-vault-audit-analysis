@@ -506,7 +506,7 @@ pub fn run(
         let path_display = if path.len() > 60 {
             format!("{}...", &path[..58])
         } else {
-            (*path).to_string()
+            (*path).clone()
         };
         println!(
             "{:<60} {:>10} {:>10} {:>15}",

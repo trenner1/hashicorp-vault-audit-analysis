@@ -201,7 +201,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             .map_or("N/A", |x| x.0.as_str());
 
         let display_path = if path.len() <= 58 {
-            (*path).to_string()
+            (*path).clone()
         } else {
             format!("{}...", &path[..55])
         };
@@ -278,7 +278,7 @@ pub fn run(log_files: &[String], top: usize) -> Result<()> {
             for (entity_id, entity_ops) in top_entities.iter().take(5) {
                 let entity_pct = (**entity_ops as f64 / ops as f64) * 100.0;
                 let entity_display = if entity_id.len() <= 40 {
-                    (*entity_id).to_string()
+                    (*entity_id).clone()
                 } else {
                     format!("{}...", &entity_id[..37])
                 };
