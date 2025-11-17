@@ -2,7 +2,7 @@ version: 2
 updates:
   # Keep Cargo dependencies up to date
   - package-ecosystem: "cargo"
-    directory: "/vault-audit-tools"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
