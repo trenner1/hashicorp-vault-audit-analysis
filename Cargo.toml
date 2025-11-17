@@ -25,7 +25,7 @@ thiserror = "2.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 rayon = "1.8"
-flate2 = "1.0"
+flate2 = "1.1"
 zstd = "0.13"
 indicatif = "0.18"
 
