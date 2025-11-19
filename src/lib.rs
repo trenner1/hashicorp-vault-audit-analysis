@@ -27,12 +27,13 @@
 //! ## Features
 //!
 //! - **Parallel Processing** - Automatically processes multiple files concurrently
-//! - **16 specialized analysis commands** for different use cases
+//! - **18 specialized analysis commands** for different use cases
 //! - **Compressed File Support** - Direct analysis of `.gz` and `.zst` files
 //! - **Streaming JSON parser** for memory-efficient processing
 //! - **Entity lifecycle tracking** across multiple days
 //! - **Token usage analysis** and abuse detection
 //! - **KV secrets engine analysis** (v1 and v2)
+//! - **Vault mount enumeration** (KV and auth mounts)
 //! - **Kubernetes auth analysis**
 //! - **Shell completion** for bash, zsh, fish, powershell, and elvish
 //!
@@ -61,6 +62,10 @@
 //! # KV secrets analysis (40% faster with parallel processing)
 //! vault-audit kv-analysis analyze logs/*.log --output kv_usage.csv
 //!
+//! # Enumerate Vault mounts (requires VAULT_ADDR and VAULT_TOKEN)
+//! vault-audit kv-mounts
+//! vault-audit auth-mounts
+//!
 //! # Compressed files work seamlessly
 //! vault-audit path-hotspots audit.log.gz
 //! ```
@@ -88,6 +93,10 @@
 //!
 //! ### Authentication Analysis (Parallel Processing)
 //! - `k8s-auth` - Analyze Kubernetes/OpenShift authentication patterns
+//!
+//! ### Vault Mount Enumeration (Live Vault API)
+//! - `kv-mounts` - Enumerate all KV secrets engines and their paths
+//! - `auth-mounts` - List all authentication methods and their configurations
 //!
 //! ### Application-Specific (Parallel Processing)
 //! - `airflow-polling` - Detect Airflow polling patterns
