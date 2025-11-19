@@ -85,6 +85,25 @@ async fn list_kv_v2_paths(
     current_depth: usize,
     max_depth: usize,
 ) -> Result<Vec<PathEntry>> {
+    list_kv_v2_paths_with_visited(
+        client,
+        mount_path,
+        current_depth,
+        max_depth,
+        &mut std::collections::HashSet::new(),
+    )
+    .await
+}
+
+/// Internal function with cycle detection
+#[allow(clippy::future_not_send)]
+async fn list_kv_v2_paths_with_visited(
+    client: &VaultClient,
+    mount_path: &str,
+    current_depth: usize,
+    max_depth: usize,
+    visited: &mut std::collections::HashSet<String>,
+) -> Result<Vec<PathEntry>> {
     if current_depth > max_depth {
         return Ok(Vec::new());
     }
@@ -110,16 +129,29 @@ async fn list_kv_v2_paths(
                             let children = if is_folder && current_depth < max_depth {
                                 // Pass just the relative path, not the full mount path
                                 let rel_path = key_str.trim_end_matches('/');
-                                Some(
-                                    list_kv_v2_subpath(
-                                        client,
-                                        mount_trimmed,
-                                        rel_path,
-                                        current_depth + 1,
-                                        max_depth,
+                                let full_path = format!("{}/{}", mount_trimmed, rel_path);
+
+                                // Check for cycles
+                                if visited.contains(&full_path) {
+                                    eprintln!(
+                                        "Warning: Detected circular reference at path: {}",
+                                        full_path
+                                    );
+                                    None
+                                } else {
+                                    visited.insert(full_path.clone());
+                                    Some(
+                                        list_kv_v2_subpath_with_visited(
+                                            client,
+                                            mount_trimmed,
+                                            rel_path,
+                                            current_depth + 1,
+                                            max_depth,
+                                            visited,
+                                        )
+                                        .await?,
                                     )
-                                    .await?,
-                                )
+                                }
                             } else {
                                 None
                             };
@@ -140,14 +172,15 @@ async fn list_kv_v2_paths(
     Ok(entries)
 }
 
-/// List paths within a KV v2 subpath (folder)
+/// List paths within a KV v2 subpath (folder) with cycle detection
 #[allow(clippy::future_not_send)]
-fn list_kv_v2_subpath<'a>(
+fn list_kv_v2_subpath_with_visited<'a>(
     client: &'a VaultClient,
     mount_path: &'a str,
     rel_path: &'a str,
     current_depth: usize,
     max_depth: usize,
+    visited: &'a mut std::collections::HashSet<String>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathEntry>>> + 'a>> {
     Box::pin(async move {
         if current_depth > max_depth {
@@ -174,16 +207,29 @@ fn list_kv_v2_subpath<'a>(
                                 let children = if is_folder && current_depth < max_depth {
                                     let new_rel_path =
                                         format!("{}/{}", rel_path, key_str.trim_end_matches('/'));
-                                    Some(
-                                        list_kv_v2_subpath(
-                                            client,
-                                            mount_path,
-                                            &new_rel_path,
-                                            current_depth + 1,
-                                            max_depth,
+                                    let full_path = format!("{}/{}", mount_trimmed, new_rel_path);
+
+                                    // Check for cycles
+                                    if visited.contains(&full_path) {
+                                        eprintln!(
+                                            "Warning: Detected circular reference at path: {}",
+                                            full_path
+                                        );
+                                        None
+                                    } else {
+                                        visited.insert(full_path.clone());
+                                        Some(
+                                            list_kv_v2_subpath_with_visited(
+                                                client,
+                                                mount_path,
+                                                &new_rel_path,
+                                                current_depth + 1,
+                                                max_depth,
+                                                visited,
+                                            )
+                                            .await?,
                                         )
-                                        .await?,
-                                    )
+                                    }
                                 } else {
                                     None
                                 };
@@ -213,6 +259,29 @@ fn list_kv_v1_paths<'a>(
     subpath: &'a str,
     current_depth: usize,
     max_depth: usize,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathEntry>>> + 'a>> {
+    Box::pin(async move {
+        list_kv_v1_paths_with_visited(
+            client,
+            mount_path,
+            subpath,
+            current_depth,
+            max_depth,
+            &mut std::collections::HashSet::new(),
+        )
+        .await
+    })
+}
+
+/// Internal KV v1 function with cycle detection
+#[allow(clippy::future_not_send)]
+fn list_kv_v1_paths_with_visited<'a>(
+    client: &'a VaultClient,
+    mount_path: &'a str,
+    subpath: &'a str,
+    current_depth: usize,
+    max_depth: usize,
+    visited: &'a mut std::collections::HashSet<String>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<PathEntry>>> + 'a>> {
     Box::pin(async move {
         if current_depth > max_depth {
@@ -250,16 +319,30 @@ fn list_kv_v1_paths<'a>(
                                             key_str.trim_end_matches('/')
                                         )
                                     };
-                                    Some(
-                                        list_kv_v1_paths(
-                                            client,
-                                            mount_path,
-                                            &new_subpath,
-                                            current_depth + 1,
-                                            max_depth,
+
+                                    let full_path = format!("{}/{}", mount_trimmed, new_subpath);
+
+                                    // Check for cycles
+                                    if visited.contains(&full_path) {
+                                        eprintln!(
+                                            "Warning: Detected circular reference at path: {}",
+                                            full_path
+                                        );
+                                        None
+                                    } else {
+                                        visited.insert(full_path.clone());
+                                        Some(
+                                            list_kv_v1_paths_with_visited(
+                                                client,
+                                                mount_path,
+                                                &new_subpath,
+                                                current_depth + 1,
+                                                max_depth,
+                                                visited,
+                                            )
+                                            .await?,
                                         )
-                                        .await?,
-                                    )
+                                    }
                                 } else {
                                     None
                                 };
