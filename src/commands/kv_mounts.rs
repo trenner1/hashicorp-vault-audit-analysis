@@ -126,6 +126,15 @@ async fn list_kv_v2_paths_with_visited(
                             let is_folder = key_str.ends_with('/');
                             let entry_type = if is_folder { "folder" } else { "secret" };
 
+                            // For secrets (not folders), fetch metadata to get timestamps
+                            let (created_time, updated_time) = if is_folder {
+                                (None, None)
+                            } else {
+                                let metadata_path =
+                                    format!("{}/metadata/{}", mount_trimmed, key_str);
+                                fetch_secret_metadata(client, &metadata_path).await
+                            };
+
                             let children = if is_folder && current_depth < max_depth {
                                 // Pass just the relative path, not the full mount path
                                 let rel_path = key_str.trim_end_matches('/');
@@ -160,6 +169,8 @@ async fn list_kv_v2_paths_with_visited(
                                 path: key_str.to_string(),
                                 entry_type: entry_type.to_string(),
                                 children,
+                                created_time,
+                                updated_time,
                             });
                         }
                     }
@@ -204,6 +215,17 @@ fn list_kv_v2_subpath_with_visited<'a>(
                                 let is_folder = key_str.ends_with('/');
                                 let entry_type = if is_folder { "folder" } else { "secret" };
 
+                                // For secrets (not folders), fetch metadata to get timestamps
+                                let (created_time, updated_time) = if is_folder {
+                                    (None, None)
+                                } else {
+                                    let metadata_path = format!(
+                                        "{}/metadata/{}/{}",
+                                        mount_trimmed, rel_path, key_str
+                                    );
+                                    fetch_secret_metadata(client, &metadata_path).await
+                                };
+
                                 let children = if is_folder && current_depth < max_depth {
                                     let new_rel_path =
                                         format!("{}/{}", rel_path, key_str.trim_end_matches('/'));
@@ -238,6 +260,8 @@ fn list_kv_v2_subpath_with_visited<'a>(
                                     path: key_str.to_string(),
                                     entry_type: entry_type.to_string(),
                                     children,
+                                    created_time,
+                                    updated_time,
                                 });
                             }
                         }
@@ -347,10 +371,13 @@ fn list_kv_v1_paths_with_visited<'a>(
                                     None
                                 };
 
+                                // KV v1 doesn't support metadata endpoint, so timestamps are None
                                 entries.push(PathEntry {
                                     path: key_str.to_string(),
                                     entry_type: entry_type.to_string(),
                                     children,
+                                    created_time: None,
+                                    updated_time: None,
                                 });
                             }
                         }
@@ -364,18 +391,53 @@ fn list_kv_v1_paths_with_visited<'a>(
     })
 }
 
+/// Fetch metadata for a KV v2 secret to get `created_time` and `updated_time`
+#[allow(clippy::future_not_send)]
+async fn fetch_secret_metadata(
+    client: &VaultClient,
+    metadata_path: &str,
+) -> (Option<String>, Option<String>) {
+    let full_path = format!("/v1/{}", metadata_path);
+
+    match client.get_json(&full_path).await {
+        Ok(resp) => {
+            let created = resp
+                .get("data")
+                .and_then(|d| d.get("created_time"))
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            let updated = resp
+                .get("data")
+                .and_then(|d| d.get("updated_time"))
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            (created, updated)
+        }
+        Err(_) => {
+            // Silently ignore metadata fetch errors (e.g., permissions, non-existent)
+            (None, None)
+        }
+    }
+}
+
 /// Helper function to flatten nested path entries to CSV format
 fn flatten_paths_to_csv(output: &mut String, base_path: &str, entries: &[PathEntry], depth: usize) {
     use std::fmt::Write as _;
     for entry in entries {
         let full_path = format!("{}{}", base_path, entry.path);
+        let created = entry.created_time.as_deref().unwrap_or("");
+        let updated = entry.updated_time.as_deref().unwrap_or("");
         let _ = writeln!(
             output,
-            "\"{}\",\"{}\",\"{}\",{}",
+            "\"{}\",\"{}\",\"{}\",{},\"{}\",\"{}\"",
             full_path.replace('"', "\"\""),
             entry.entry_type,
             base_path.replace('"', "\"\""),
-            depth
+            depth,
+            created.replace('"', "\"\""),
+            updated.replace('"', "\"\"")
         );
 
         if let Some(children) = &entry.children {
@@ -392,10 +454,20 @@ fn print_tree(base_path: &str, entries: &[PathEntry], prefix: &str, is_last_at_l
         let is_last = i == entries.len() - 1;
         let connector = if is_last { "└──" } else { "├──" };
 
-        println!(
+        let mut output = format!(
             "{}{} {} ({})",
             prefix, connector, entry.path, entry.entry_type
         );
+
+        // Add timestamps for secrets (if available)
+        if entry.entry_type == "secret" {
+            if let (Some(created), Some(updated)) = (&entry.created_time, &entry.updated_time) {
+                use std::fmt::Write as _;
+                let _ = write!(output, " [created: {}, updated: {}]", created, updated);
+            }
+        }
+
+        println!("{}", output);
 
         if let Some(children) = &entry.children {
             let mut new_prefix = prefix.to_string();
@@ -426,6 +498,10 @@ struct PathEntry {
     entry_type: String, // "folder" or "secret"
     #[serde(skip_serializing_if = "Option::is_none")]
     children: Option<Vec<PathEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    created_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    updated_time: Option<String>,
 }
 
 /// Run the KV mount enumeration command
@@ -537,7 +613,7 @@ pub async fn run(
             use std::fmt::Write as _;
             let mut csv_output = String::new();
             if depth > 0 {
-                csv_output.push_str("full_path,type,mount,depth\n");
+                csv_output.push_str("full_path,type,mount,depth,created_time,updated_time\n");
                 for mount in &kv_mounts {
                     // Write mount itself
                     let _ = writeln!(
