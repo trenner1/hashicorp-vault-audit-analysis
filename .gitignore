@@ -66,3 +66,4 @@ _vault-audit
 *.zsh
 *.elv
 *.ps1
+vault_tree_skipper_secret_edge.sh
