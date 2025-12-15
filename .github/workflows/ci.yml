@@ -127,7 +127,7 @@ jobs:
         run: cargo build --release --verbose
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: vault-audit-${{ matrix.os }}
           path: |
@@ -162,7 +162,7 @@ jobs:
           verbose: true
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: cobertura.xml
