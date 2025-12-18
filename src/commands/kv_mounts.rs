@@ -497,7 +497,7 @@ struct PathEntry {
     #[serde(rename = "type")]
     entry_type: String, // "folder" or "secret"
     #[serde(skip_serializing_if = "Option::is_none")]
-    children: Option<Vec<PathEntry>>,
+    children: Option<Vec<Self>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     created_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
