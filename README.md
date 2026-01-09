@@ -6,8 +6,33 @@
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://trenner1.github.io/hashicorp-vault-audit-analysis/latest/vault_audit_tools/index.html)
 [Browse versions](https://trenner1.github.io/hashicorp-vault-audit-analysis/versions.html)
 
-
 High-performance command-line tools for analyzing HashiCorp Vault audit logs, written in Rust.
+
+## Why Use This Tool?
+
+**For Security & Compliance Teams:**
+- **Audit & Compliance**: Generate comprehensive reports for SOC 2, ISO 27001, and internal security audits
+- **Anomaly Detection**: Identify unusual access patterns, token abuse, and potential security threats
+- **Access Reviews**: Track which teams and services are accessing which secrets over time
+- **Incident Investigation**: Quickly analyze who accessed what during a security incident window
+
+**For Platform & Infrastructure Teams:**
+- **Cost Optimization**: Identify unused secrets, authentication methods, and mount points to reduce Vault overhead
+- **Capacity Planning**: Understand usage patterns and peak access times for infrastructure scaling decisions
+- **Migration Planning**: Analyze current usage to inform secret consolidation and Vault restructuring projects
+- **Performance Troubleshooting**: Identify high-traffic paths and authentication bottlenecks
+
+**For DevOps & Engineering Teams:**
+- **Secret Usage Analytics**: Understand which applications and services depend on which secrets
+- **Lifecycle Management**: Track when secrets were created, last accessed, and identify stale credentials
+- **Team Activity Visibility**: Monitor team access patterns and identify potential misconfigurations
+- **Automated Reporting**: Integrate into CI/CD pipelines for continuous security monitoring
+
+**Business Value:**
+- Reduce security risk by identifying and removing unused access patterns
+- Lower operational costs through data-driven secret management decisions
+- Meet compliance requirements with detailed audit trail analysis
+- Accelerate incident response from hours to minutes with targeted log analysis
 
 ## Features
 
