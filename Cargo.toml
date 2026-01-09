@@ -23,14 +23,14 @@ chrono = { version = "0.4", features = ["serde"] }
 anyhow = "1.0"
 thiserror = "2.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.49", features = ["macros", "rt-multi-thread"] }
 rayon = "1.8"
 flate2 = "1.1"
 zstd = "0.13"
 indicatif = "0.18"
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.24"
 
 [[bin]]
 name = "vault-audit"

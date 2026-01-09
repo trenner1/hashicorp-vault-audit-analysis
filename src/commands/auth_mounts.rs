@@ -92,7 +92,7 @@ where
 struct RoleEntry {
     name: String,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    children: Vec<RoleEntry>,
+    children: Vec<Self>,
 }
 
 #[derive(Debug, Serialize)]

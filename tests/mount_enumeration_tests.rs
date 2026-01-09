@@ -13,7 +13,7 @@ mod kv_mounts_tests {
             path: String,
             entry_type: String,
             #[serde(skip_serializing_if = "Vec::is_empty", default)]
-            children: Vec<PathEntry>,
+            children: Vec<Self>,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ mod kv_mounts_tests {
             path: String,
             entry_type: String,
             #[serde(skip_serializing_if = "Vec::is_empty", default)]
-            children: Vec<PathEntry>,
+            children: Vec<Self>,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
@@ -171,7 +171,7 @@ mod auth_mounts_tests {
         struct RoleEntry {
             name: String,
             #[serde(skip_serializing_if = "Vec::is_empty", default)]
-            children: Vec<RoleEntry>,
+            children: Vec<Self>,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
@@ -224,7 +224,7 @@ mod auth_mounts_tests {
         struct RoleEntry {
             name: String,
             #[serde(skip_serializing_if = "Vec::is_empty", default)]
-            children: Vec<RoleEntry>,
+            children: Vec<Self>,
         }
 
         #[derive(Debug, Serialize, Deserialize)]
@@ -334,7 +334,7 @@ mod auth_mounts_tests {
         struct RoleEntry {
             name: String,
             #[serde(skip_serializing_if = "Vec::is_empty", default)]
-            children: Vec<RoleEntry>,
+            children: Vec<Self>,
         }
 
         let role = RoleEntry {
