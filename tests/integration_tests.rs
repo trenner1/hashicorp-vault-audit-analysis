@@ -3,7 +3,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::TempDir;
 
 /// Helper to create sample audit log file
 fn create_sample_audit_log() -> (TempDir, PathBuf) {
@@ -46,8 +46,10 @@ fn create_sample_audit_log() -> (TempDir, PathBuf) {
 }
 
 /// Helper to create sample KV CSV file
-fn create_sample_kv_csv() -> NamedTempFile {
-    let mut file = NamedTempFile::new().unwrap();
+fn create_sample_kv_csv() -> (TempDir, PathBuf) {
+    let dir = TempDir::new().unwrap();
+    let file_path = dir.path().join("kv_summary.csv");
+    let mut file = fs::File::create(&file_path).unwrap();
     writeln!(
         file,
         "kv_path,unique_clients,operations_count,entity_ids,alias_names,sample_paths_accessed"
@@ -56,7 +58,7 @@ fn create_sample_kv_csv() -> NamedTempFile {
     writeln!(file, "kv/app1/,2,5,entity-1 entity-2,,kv/data/app1/secret1").unwrap();
     writeln!(file, "kv/app2/,1,3,entity-3,,kv/data/app2/config").unwrap();
     file.flush().unwrap();
-    file
+    (dir, file_path)
 }
 
 #[test]
@@ -83,21 +85,21 @@ fn test_token_lookup_abuse_command() {
 
 #[test]
 fn test_kv_summary_command() {
-    let csv_file = create_sample_kv_csv();
+    let (_dir, csv_path) = create_sample_kv_csv();
 
     use vault_audit_tools::commands::kv_summary;
-    let result = kv_summary::run(csv_file.path().to_str().unwrap());
+    let result = kv_summary::run(csv_path.to_str().unwrap());
 
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_kv_compare_command() {
-    let csv1 = create_sample_kv_csv();
-    let csv2 = create_sample_kv_csv();
+    let (_dir1, csv1_path) = create_sample_kv_csv();
+    let (_dir2, csv2_path) = create_sample_kv_csv();
 
     use vault_audit_tools::commands::kv_compare;
-    let result = kv_compare::run(csv1.path().to_str().unwrap(), csv2.path().to_str().unwrap());
+    let result = kv_compare::run(csv1_path.to_str().unwrap(), csv2_path.to_str().unwrap());
 
     assert!(result.is_ok());
 }

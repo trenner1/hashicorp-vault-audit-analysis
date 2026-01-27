@@ -3,12 +3,16 @@ use std::process::Command;
 
 #[test]
 fn test_generate_completion_bash() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "bash"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "bash"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command should succeed");
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -47,12 +51,16 @@ fn test_generate_completion_bash() {
 
 #[test]
 fn test_generate_completion_zsh() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "zsh"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "zsh"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command should succeed");
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -80,12 +88,16 @@ fn test_generate_completion_zsh() {
 
 #[test]
 fn test_generate_completion_fish() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "fish"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "fish"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command should succeed");
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -108,12 +120,16 @@ fn test_generate_completion_fish() {
 
 #[test]
 fn test_generate_completion_powershell() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "powershell"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "powershell"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command should succeed");
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -130,12 +146,16 @@ fn test_generate_completion_powershell() {
 
 #[test]
 fn test_generate_completion_elvish() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "elvish"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "elvish"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success(), "Command should succeed");
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -149,12 +169,16 @@ fn test_generate_completion_elvish() {
 
 #[test]
 fn test_all_commands_in_completion() {
-    let output = Command::new("cargo")
-        .args(["run", "--quiet", "--", "generate-completion", "bash"])
+    let output = Command::new(env!("CARGO_BIN_EXE_vault-audit"))
+        .args(["generate-completion", "bash"])
         .output()
         .expect("Failed to execute command");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "Command failed with stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 

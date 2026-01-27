@@ -82,16 +82,19 @@ pub fn open_file(path: impl AsRef<Path>) -> Result<Box<dyn Read + Send>> {
 mod tests {
     use super::*;
     use std::io::{BufRead, BufReader, Write};
-    use tempfile::NamedTempFile;
+    use tempfile::TempDir;
 
     #[test]
     fn test_plain_file() {
-        let mut temp = NamedTempFile::new().unwrap();
-        writeln!(temp, "test line 1").unwrap();
-        writeln!(temp, "test line 2").unwrap();
-        temp.flush().unwrap();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("test.txt");
+        {
+            let mut file = std::fs::File::create(&path).unwrap();
+            writeln!(file, "test line 1").unwrap();
+            writeln!(file, "test line 2").unwrap();
+        }
 
-        let reader = open_file(temp.path()).unwrap();
+        let reader = open_file(&path).unwrap();
         let buf_reader = BufReader::new(reader);
         let lines: Vec<String> = buf_reader.lines().collect::<Result<_, _>>().unwrap();
 
@@ -105,16 +108,17 @@ mod tests {
         use flate2::write::GzEncoder;
         use flate2::Compression;
 
-        let mut temp = NamedTempFile::with_suffix(".gz").unwrap();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("test.gz");
         {
-            let mut encoder = GzEncoder::new(&mut temp, Compression::default());
+            let file = std::fs::File::create(&path).unwrap();
+            let mut encoder = GzEncoder::new(file, Compression::default());
             writeln!(encoder, "compressed line 1").unwrap();
             writeln!(encoder, "compressed line 2").unwrap();
             encoder.finish().unwrap();
         }
-        temp.flush().unwrap();
 
-        let reader = open_file(temp.path()).unwrap();
+        let reader = open_file(&path).unwrap();
         let buf_reader = BufReader::new(reader);
         let lines: Vec<String> = buf_reader.lines().collect::<Result<_, _>>().unwrap();
 
@@ -125,16 +129,17 @@ mod tests {
 
     #[test]
     fn test_zstd_file() {
-        let mut temp = NamedTempFile::with_suffix(".zst").unwrap();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("test.zst");
         {
-            let mut encoder = zstd::Encoder::new(&mut temp, 3).unwrap();
+            let file = std::fs::File::create(&path).unwrap();
+            let mut encoder = zstd::Encoder::new(file, 3).unwrap();
             writeln!(encoder, "zstd line 1").unwrap();
             writeln!(encoder, "zstd line 2").unwrap();
             encoder.finish().unwrap();
         }
-        temp.flush().unwrap();
 
-        let reader = open_file(temp.path()).unwrap();
+        let reader = open_file(&path).unwrap();
         let buf_reader = BufReader::new(reader);
         let lines: Vec<String> = buf_reader.lines().collect::<Result<_, _>>().unwrap();
 
