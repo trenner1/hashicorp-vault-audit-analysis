@@ -21,3 +21,11 @@ rustflags = [
     "-A", "clippy::option-if-let-else", # Sometimes more readable than map_or_else
     "-A", "clippy::items-after-statements", # Sometimes necessary for helper structs
 ]
+
+# Increase stack size on Windows to prevent overflow during clap command generation
+# Windows default is 1MB, we increase to 8MB to match Unix-like systems
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-args=/STACK:8388608"]
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-args=-Wl,--stack,8388608"]

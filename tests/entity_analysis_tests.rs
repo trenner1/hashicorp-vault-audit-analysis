@@ -3,7 +3,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use tempfile::{NamedTempFile, TempDir};
+use tempfile::TempDir;
 use vault_audit_tools::commands::{entity_churn, entity_creation};
 
 /// Helper to create sample audit log with entity creation events
@@ -79,13 +79,15 @@ fn create_multi_day_logs() -> (TempDir, Vec<PathBuf>) {
 }
 
 /// Helper to create baseline entities CSV
-fn create_baseline_csv() -> NamedTempFile {
-    let mut file = NamedTempFile::new().unwrap();
+fn create_baseline_csv() -> (TempDir, PathBuf) {
+    let dir = TempDir::new().unwrap();
+    let file_path = dir.path().join("baseline.csv");
+    let mut file = fs::File::create(&file_path).unwrap();
     writeln!(file, "entity_id,name,auth_mount_path").unwrap();
     writeln!(file, "entity-baseline-1,baseline-user-1,auth/github/").unwrap();
     writeln!(file, "entity-baseline-2,baseline-user-2,auth/kubernetes/").unwrap();
     file.flush().unwrap();
-    file
+    (dir, file_path)
 }
 
 #[test]
@@ -102,16 +104,17 @@ fn test_entity_creation_basic() {
 #[test]
 fn test_entity_creation_with_output() {
     let (_dir, log_path) = create_entity_creation_log();
-    let output_file = NamedTempFile::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+    let output_path = output_dir.path().join("output.json");
 
     // Run entity-creation with JSON output
     let log_files = vec![log_path.to_str().unwrap().to_string()];
-    let result = entity_creation::run(&log_files, None, Some(output_file.path().to_str().unwrap()));
+    let result = entity_creation::run(&log_files, None, Some(output_path.to_str().unwrap()));
 
     assert!(result.is_ok(), "entity-creation with output should succeed");
 
     // Verify output file was created and contains JSON
-    let contents = fs::read_to_string(output_file.path()).unwrap();
+    let contents = fs::read_to_string(&output_path).unwrap();
     assert!(
         contents.contains("entity_id"),
         "Output should contain entity data"
@@ -142,7 +145,7 @@ fn test_entity_churn_multi_day() {
 #[test]
 fn test_entity_churn_with_baseline() {
     let (_dir, log_paths) = create_multi_day_logs();
-    let baseline_csv = create_baseline_csv();
+    let (_baseline_dir, baseline_path) = create_baseline_csv();
     let log_files: Vec<String> = log_paths
         .iter()
         .map(|p| p.to_str().unwrap().to_string())
@@ -152,7 +155,7 @@ fn test_entity_churn_with_baseline() {
     let result = entity_churn::run(
         &log_files,
         None,
-        Some(baseline_csv.path().to_str().unwrap()),
+        Some(baseline_path.to_str().unwrap()),
         None,
         None,
     );
@@ -163,7 +166,8 @@ fn test_entity_churn_with_baseline() {
 #[test]
 fn test_entity_churn_with_json_output() {
     let (_dir, log_paths) = create_multi_day_logs();
-    let output_file = NamedTempFile::new().unwrap();
+    let output_dir = TempDir::new().unwrap();
+    let output_path = output_dir.path().join("output.json");
     let log_files: Vec<String> = log_paths
         .iter()
         .map(|p| p.to_str().unwrap().to_string())
@@ -174,14 +178,14 @@ fn test_entity_churn_with_json_output() {
         &log_files,
         None,
         None,
-        Some(output_file.path().to_str().unwrap()),
+        Some(output_path.to_str().unwrap()),
         None,
     );
 
     assert!(result.is_ok(), "entity-churn with output should succeed");
 
     // Verify output file contains expected data
-    let contents = fs::read_to_string(output_file.path()).unwrap();
+    let contents = fs::read_to_string(&output_path).unwrap();
     assert!(
         contents.contains("entity_id"),
         "Output should contain entity_id"

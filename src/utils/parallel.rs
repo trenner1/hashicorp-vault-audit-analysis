@@ -231,20 +231,23 @@ where
 mod tests {
     use super::*;
     use std::io::Write;
-    use tempfile::NamedTempFile;
+    use tempfile::TempDir;
 
     #[test]
     fn test_parallel_processing() {
         // Create test files
+        let dir = TempDir::new().unwrap();
         let mut files = Vec::new();
-        let _temp_files: Vec<NamedTempFile> = (0..3).map(|i| {
-            let mut temp_file = NamedTempFile::new().unwrap();
-            writeln!(temp_file, r#"{{"type":"response","time":"2025-10-07T10:00:0{}Z","auth":{{"entity_id":"entity-{}"}}}}"#, i, i).unwrap();
-            writeln!(temp_file, r#"{{"type":"response","time":"2025-10-07T10:00:0{}Z","auth":{{"entity_id":"entity-{}"}}}}"#, i+1, i).unwrap();
 
-            files.push(temp_file.path().to_str().unwrap().to_string());
-            temp_file
-        }).collect();
+        for i in 0..3 {
+            let path = dir.path().join(format!("test_{}.log", i));
+            {
+                let mut temp_file = std::fs::File::create(&path).unwrap();
+                writeln!(temp_file, r#"{{"type":"response","time":"2025-10-07T10:00:0{}Z","auth":{{"entity_id":"entity-{}"}}}}"#, i, i).unwrap();
+                writeln!(temp_file, r#"{{"type":"response","time":"2025-10-07T10:00:0{}Z","auth":{{"entity_id":"entity-{}"}}}}"#, i+1, i).unwrap();
+            }
+            files.push(path.to_str().unwrap().to_string());
+        }
 
         // Process files to count entries per file
         let (results, _total_lines) = process_files_parallel(
