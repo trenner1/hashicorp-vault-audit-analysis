@@ -31,8 +31,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Cache cargo-edit binary
+        id: cache-cargo-edit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: cargo-bin-cargo-edit-0.13.1-${{ runner.os }}
+
       - name: Install cargo-edit
-        run: cargo install cargo-edit
+        if: steps.cache-cargo-edit.outputs.cache-hit != 'true'
+        run: cargo install cargo-edit --locked --version 0.13.1
 
       - name: Get current version
         id: current_version
