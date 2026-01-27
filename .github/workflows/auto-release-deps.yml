@@ -15,10 +15,12 @@ jobs:
   auto-release:
     name: Create Patch Release for Dependency Updates
     runs-on: ubuntu-latest
+    concurrency:
+      group: auto-release-${{ github.ref }}
+      cancel-in-progress: false
     if: |
       github.event.pull_request.merged == true &&
-      (contains(github.event.pull_request.labels.*.name, 'dependencies') ||
-       github.event.pull_request.user.login == 'dependabot[bot]')
+      github.event.pull_request.user.login == 'dependabot[bot]'
 
     steps:
       - name: Checkout code
@@ -26,6 +28,9 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Configure git
         run: |
@@ -60,6 +65,7 @@ jobs:
 
       - name: Commit version bump
         run: |
+          git pull --rebase origin main
           git add Cargo.toml Cargo.lock
           git commit -m "chore: bump version to v${{ steps.bump_version.outputs.new_version }} for dependency updates"
           git push origin main
@@ -68,23 +74,6 @@ jobs:
         run: |
           git tag "v${{ steps.bump_version.outputs.new_version }}"
           git push origin "v${{ steps.bump_version.outputs.new_version }}"
-
-      - name: Create release notes
-        id: release_notes
-        run: |
-          cat << EOF > release_notes.md
-          # Dependency Updates
-
-          This patch release includes dependency updates from PR #${{ github.event.pull_request.number }}.
-
-          **PR Title:** ${{ github.event.pull_request.title }}
-
-          ## Changes
-          ${{ github.event.pull_request.body }}
-
-          ## Full Changelog
-          View the [full changelog](https://github.com/${{ github.repository }}/compare/v${{ steps.current_version.outputs.version }}...v${{ steps.bump_version.outputs.new_version }})
-          EOF
 
       - name: Trigger release workflow
         env:
