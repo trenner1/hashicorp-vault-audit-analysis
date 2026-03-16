@@ -30,7 +30,7 @@ zstd = "0.13"
 indicatif = "0.18"
 
 [dev-dependencies]
-tempfile = "3.24"
+tempfile = "3.27"
 
 [[bin]]
 name = "vault-audit"
