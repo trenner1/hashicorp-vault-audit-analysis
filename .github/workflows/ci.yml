@@ -152,7 +152,7 @@ jobs:
         run: cargo tarpaulin --out xml --all-features
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         continue-on-error: true
         with:
           files: cobertura.xml
