@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api, UploadedFile } from '../api/client'
@@ -18,6 +18,15 @@ export function Files() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [deletingFile, setDeletingFile] = useState<string | null>(null)
+  const [tabWarning, setTabWarning] = useState(false)
+
+  // Show a warning banner when the user switches away during an upload
+  useEffect(() => {
+    if (!uploading) { setTabWarning(false); return }
+    const handleVisibility = () => setTabWarning(document.hidden)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [uploading])
 
   const { data: files = [], isLoading, refetch } = useQuery<UploadedFile[]>({
     queryKey: ['files'],
@@ -36,40 +45,58 @@ export function Files() {
     setUploadSuccess(null)
     setUploading(true)
     setUploadProgress(0)
+
+    // Warn if the user tries to close/navigate away mid-upload
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    const doUpload = () => new Promise<{ filename: string; path: string; size: number }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', `${(import.meta.env.VITE_API_URL ?? '')}/api/v1/ingest/upload`)
+
+      const apiKey = import.meta.env.VITE_API_KEY
+      if (apiKey) xhr.setRequestHeader('X-API-Key', apiKey)
+
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)) }
+          catch { reject(new Error('Invalid server response')) }
+        } else {
+          try { reject(new Error(JSON.parse(xhr.responseText).error || xhr.statusText)) }
+          catch { reject(new Error(xhr.statusText)) }
+        }
+      }
+      xhr.onerror = () => reject(new Error('Network error during upload'))
+      xhr.onabort = () => reject(new Error('Upload cancelled'))
+
+      const fd = new FormData()
+      fd.append('file', file)
+      xhr.send(fd)
+    })
+
     try {
-      // Use XHR instead of fetch so we get upload progress events
-      const result = await new Promise<{ filename: string; path: string; size: number }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', `${(import.meta.env.VITE_API_URL ?? '')}/api/v1/ingest/upload`)
-
-        const apiKey = import.meta.env.VITE_API_KEY
-        if (apiKey) xhr.setRequestHeader('X-API-Key', apiKey)
-
-        xhr.upload.onprogress = e => {
-          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
-        }
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)) }
-            catch { reject(new Error('Invalid server response')) }
-          } else {
-            try { reject(new Error(JSON.parse(xhr.responseText).error || xhr.statusText)) }
-            catch { reject(new Error(xhr.statusText)) }
-          }
-        }
-        xhr.onerror = () => reject(new Error('Network error during upload'))
-        xhr.onabort = () => reject(new Error('Upload cancelled'))
-
-        const fd = new FormData()
-        fd.append('file', file)
-        xhr.send(fd)
-      })
-
-      setUploadSuccess(`Uploaded: ${result.filename} (${formatBytes(result.size)})`)
+      // navigator.locks keeps the tab alive (prevents browser tab-freeze) for
+      // the duration of the upload, so switching away doesn't kill the transfer.
+      let result: { filename: string; path: string; size: number }
+      if ('locks' in navigator) {
+        await navigator.locks.request('file-upload', async () => {
+          result = await doUpload()
+        })
+      } else {
+        result = await doUpload()
+      }
+      setUploadSuccess(`Uploaded: ${result!.filename} (${formatBytes(result!.size)})`)
       queryClient.invalidateQueries({ queryKey: ['files'] })
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
       setUploading(false)
       setUploadProgress(0)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -118,6 +145,16 @@ export function Files() {
           onChange={handleInputChange}
         />
       </div>
+
+      {/* Tab-switch warning during upload */}
+      {uploading && tabWarning && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 flex items-center gap-3">
+          <span className="text-amber-500 text-lg">⚠️</span>
+          <p className="text-sm text-amber-800 font-medium">
+            Upload in progress — keep this tab open until it completes ({uploadProgress}%)
+          </p>
+        </div>
+      )}
 
       {/* Upload feedback */}
       {uploadSuccess && (
