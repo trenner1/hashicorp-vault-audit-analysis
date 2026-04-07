@@ -112,17 +112,11 @@ export function Analysis() {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    const files = e.dataTransfer.files
-    if (files) {
-      for (let i = 0; i < files.length; i++) uploadMutation.mutate(files[i])
-    }
+    Array.from(e.dataTransfer.files).forEach(f => uploadMutation.mutate(f))
   }
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.currentTarget.files
-    if (files) {
-      for (let i = 0; i < files.length; i++) uploadMutation.mutate(files[i])
-    }
+    Array.from(e.currentTarget.files ?? []).forEach(f => uploadMutation.mutate(f))
   }
 
   const removeUploadedFile = (index: number) => {
@@ -247,7 +241,6 @@ export function Analysis() {
                   <input
                     type="file"
                     multiple
-                    accept=".json,.log,.gz,.zst"
                     onChange={handleFileInputChange}
                     className="hidden"
                   />

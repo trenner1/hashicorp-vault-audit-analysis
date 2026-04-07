@@ -142,7 +142,13 @@ export const api = {
       method: 'POST',
       headers: authHeaders(), // no Content-Type — browser sets multipart boundary
       body: fd,
-    }).then(r => r.json()) as Promise<UploadResult>
+    }).then(async r => {
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: r.statusText }))
+        throw new Error(err.error || r.statusText)
+      }
+      return r.json() as Promise<UploadResult>
+    })
   },
 
   listFiles: () =>

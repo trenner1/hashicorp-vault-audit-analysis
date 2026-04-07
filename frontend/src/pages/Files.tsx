@@ -14,6 +14,7 @@ export function Files() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0) // 0-100
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [deletingFile, setDeletingFile] = useState<string | null>(null)
@@ -30,25 +31,54 @@ export function Files() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['files'] }),
   })
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
+  const uploadFile = async (file: File) => {
     setUploadError(null)
     setUploadSuccess(null)
     setUploading(true)
-
+    setUploadProgress(0)
     try {
-      const result = await api.uploadLog(file)
+      // Use XHR instead of fetch so we get upload progress events
+      const result = await new Promise<{ filename: string; path: string; size: number }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', `${(import.meta.env.VITE_API_URL ?? '')}/api/v1/ingest/upload`)
+
+        const apiKey = import.meta.env.VITE_API_KEY
+        if (apiKey) xhr.setRequestHeader('X-API-Key', apiKey)
+
+        xhr.upload.onprogress = e => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100))
+        }
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try { resolve(JSON.parse(xhr.responseText)) }
+            catch { reject(new Error('Invalid server response')) }
+          } else {
+            try { reject(new Error(JSON.parse(xhr.responseText).error || xhr.statusText)) }
+            catch { reject(new Error(xhr.statusText)) }
+          }
+        }
+        xhr.onerror = () => reject(new Error('Network error during upload'))
+        xhr.onabort = () => reject(new Error('Upload cancelled'))
+
+        const fd = new FormData()
+        fd.append('file', file)
+        xhr.send(fd)
+      })
+
       setUploadSuccess(`Uploaded: ${result.filename} (${formatBytes(result.size)})`)
       queryClient.invalidateQueries({ queryKey: ['files'] })
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
-      // Reset file input so the same file can be re-uploaded
+      setUploadProgress(0)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) uploadFile(file)
   }
 
   const totalSize = files.reduce((sum, f) => sum + f.size, 0)
@@ -75,7 +105,7 @@ export function Files() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Uploading…
+              {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading…'}
             </>
           ) : (
             <>↑ Upload File</>
@@ -85,8 +115,7 @@ export function Files() {
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept=".log,.json,.txt,.gz"
-          onChange={handleUpload}
+          onChange={handleInputChange}
         />
       </div>
 
@@ -112,16 +141,26 @@ export function Files() {
         onDrop={e => {
           e.preventDefault()
           const file = e.dataTransfer.files?.[0]
-          if (!file || !fileInputRef.current) return
-          const dt = new DataTransfer()
-          dt.items.add(file)
-          fileInputRef.current.files = dt.files
-          handleUpload({ target: fileInputRef.current } as React.ChangeEvent<HTMLInputElement>)
+          if (file) uploadFile(file)
         }}
       >
         <div className="text-4xl mb-3">📁</div>
         <p className="text-sm font-medium text-gray-700">Drop a log file here, or click to browse</p>
-        <p className="text-xs text-gray-400 mt-1">Supported: .log · .json · .txt · .gz · up to 2 GB</p>
+        <p className="text-xs text-gray-400 mt-1">Any format accepted · no size limit</p>
+        {uploading && (
+          <div className="mt-4 w-full max-w-xs mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Uploading…</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-indigo-500 h-2 rounded-full transition-all duration-200"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* File table */}

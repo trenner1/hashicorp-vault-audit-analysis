@@ -20,15 +20,18 @@ type UploadResponse struct {
 }
 
 // handleUpload accepts a multipart log file upload (field name "file").
+// Files are streamed directly to disk — there is no server-side size limit.
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if err := os.MkdirAll(s.uploadDir, 0755); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create upload directory")
 		return
 	}
 
-	// 2 GB max
-	if err := r.ParseMultipartForm(2 << 30); err != nil {
-		writeError(w, http.StatusBadRequest, "failed to parse multipart form")
+	// Use a 32 MB memory budget — anything larger spills to a temp file on disk,
+	// so even 15+ GB uploads never blow up RAM.
+	const memBudget = 32 << 20 // 32 MB
+	if err := r.ParseMultipartForm(memBudget); err != nil {
+		writeError(w, http.StatusBadRequest, "failed to parse multipart form: "+err.Error())
 		return
 	}
 
@@ -51,9 +54,11 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer dst.Close()
 
-	written, err := io.Copy(dst, file)
+	// Stream in 4 MB chunks — keeps memory flat regardless of file size.
+	written, err := io.CopyBuffer(dst, file, make([]byte, 4<<20))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to write file")
+		os.Remove(destPath) // clean up partial write
+		writeError(w, http.StatusInternalServerError, "failed to write file: "+err.Error())
 		return
 	}
 
