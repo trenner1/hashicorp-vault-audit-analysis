@@ -256,7 +256,15 @@ func (q *Queue) executeJob(job *Job) {
 	}()
 
 	// Read combined output line by line — this unblocks when pw is closed.
+	// Vault audit log lines are JSON objects and can exceed the default 64 KB
+	// scanner limit, causing the scanner to stop reading while the process is
+	// still writing. That deadlocks cmd.Wait() permanently.
+	// Use a 10 MB per-line buffer to handle large entries, and always drain
+	// the pipe on scanner error so the child process is never stuck.
+	const maxLineBytes = 10 * 1024 * 1024 // 10 MB
 	scanner := bufio.NewScanner(pr)
+	scanner.Buffer(make([]byte, 64*1024), maxLineBytes)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -267,6 +275,19 @@ func (q *Queue) executeJob(job *Job) {
 		if q.broker != nil {
 			q.broker.Publish(job.ID, line)
 		}
+	}
+
+	// If the scanner hit a buffer-overflow or any other error, drain the pipe
+	// so the child process can finish writing and exit normally.
+	if scanner.Err() != nil {
+		errLine := "[truncated: output line exceeded 10 MB limit — " + scanner.Err().Error() + "]"
+		q.mu.Lock()
+		job.Output = append(job.Output, errLine)
+		q.mu.Unlock()
+		if q.broker != nil {
+			q.broker.Publish(job.ID, errLine)
+		}
+		io.Copy(io.Discard, pr) //nolint:errcheck
 	}
 
 	// Collect exit status.
