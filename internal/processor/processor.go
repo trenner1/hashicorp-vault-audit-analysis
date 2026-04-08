@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -283,39 +284,51 @@ func processOneFile[T any](
 	defer rc.Close()
 
 	var stats Stats
-	scanner := bufio.NewScanner(rc)
-	scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024) // 4 MB line buffer
+	// Use bufio.Reader instead of bufio.Scanner so there is no hard line-length
+	// limit.  bufio.Scanner hard-fails with "token too long" when a single JSON
+	// audit entry exceeds the buffer ceiling (previously 4 MB); vault audit logs
+	// can contain large response payloads that blow past that.
+	// bufio.Reader.ReadString reads the full line regardless of length.
+	br := bufio.NewReaderSize(rc, 64*1024)
 
 	plainFreq := cfg.PlainProgressFreq
 	if plainFreq <= 0 {
 		plainFreq = 100_000
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		stats.TotalLines++
+	for {
+		raw, readErr := br.ReadString('\n')
+		line := strings.TrimRight(raw, "\r\n")
 
-		if cfg.PlainProgress {
-			if stats.TotalLines%plainFreq == 0 {
-				fmt.Fprintf(os.Stderr, "[progress] %s entries processed...\n", formatNum(stats.TotalLines))
+		if line != "" {
+			stats.TotalLines++
+
+			if cfg.PlainProgress {
+				if stats.TotalLines%plainFreq == 0 {
+					fmt.Fprintf(os.Stderr, "[progress] %s entries processed...\n", formatNum(stats.TotalLines))
+				}
+			} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
+				pb.Add(cfg.ProgressFrequency) //nolint:errcheck
 			}
-		} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
-			pb.Add(cfg.ProgressFrequency) //nolint:errcheck
+
+			var entry audit.AuditEntry
+			if jerr := json.Unmarshal([]byte(line), &entry); jerr != nil {
+				stats.SkippedLines++
+				if cfg.StrictParsing {
+					return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, jerr)
+				}
+			} else {
+				stats.ParsedEntries++
+				process(&entry, state)
+			}
 		}
 
-		if line == "" {
-			continue
+		if readErr == io.EOF {
+			break
 		}
-		var entry audit.AuditEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			stats.SkippedLines++
-			if cfg.StrictParsing {
-				return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, err)
-			}
-			continue
+		if readErr != nil {
+			return stats, fmt.Errorf("read %s: %w", path, readErr)
 		}
-		stats.ParsedEntries++
-		process(&entry, state)
 	}
 
 	// Flush remaining TTY progress.
@@ -326,9 +339,6 @@ func processOneFile[T any](
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return stats, fmt.Errorf("read %s: %w", path, err)
-	}
 	stats.FilesProcessed = 1
 	return stats, nil
 }
@@ -351,43 +361,50 @@ func processOneFileParallel[T any](
 	defer rc.Close()
 
 	var stats Stats
-	scanner := bufio.NewScanner(rc)
-	scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024)
+	br := bufio.NewReaderSize(rc, 64*1024)
 
 	plainFreq := cfg.PlainProgressFreq
 	if plainFreq <= 0 {
 		plainFreq = 100_000
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		stats.TotalLines++
+	for {
+		raw, readErr := br.ReadString('\n')
+		line := strings.TrimRight(raw, "\r\n")
 
-		if cfg.PlainProgress {
-			if stats.TotalLines%plainFreq == 0 {
-				fmt.Fprintf(os.Stderr, "[progress] %s entries processed (%s)...\n",
-					formatNum(stats.TotalLines), baseName(path))
+		if line != "" {
+			stats.TotalLines++
+
+			if cfg.PlainProgress {
+				if stats.TotalLines%plainFreq == 0 {
+					fmt.Fprintf(os.Stderr, "[progress] %s entries processed (%s)...\n",
+						formatNum(stats.TotalLines), baseName(path))
+				}
+			} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
+				n := processed.Add(int64(cfg.ProgressFrequency))
+				pbMu.Lock()
+				pb.Set(int(n)) //nolint:errcheck
+				pbMu.Unlock()
 			}
-		} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
-			n := processed.Add(int64(cfg.ProgressFrequency))
-			pbMu.Lock()
-			pb.Set(int(n)) //nolint:errcheck
-			pbMu.Unlock()
+
+			var entry audit.AuditEntry
+			if jerr := json.Unmarshal([]byte(line), &entry); jerr != nil {
+				stats.SkippedLines++
+				if cfg.StrictParsing {
+					return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, jerr)
+				}
+			} else {
+				stats.ParsedEntries++
+				process(&entry, state)
+			}
 		}
 
-		if line == "" {
-			continue
+		if readErr == io.EOF {
+			break
 		}
-		var entry audit.AuditEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			stats.SkippedLines++
-			if cfg.StrictParsing {
-				return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, err)
-			}
-			continue
+		if readErr != nil {
+			return stats, fmt.Errorf("read %s: %w", path, readErr)
 		}
-		stats.ParsedEntries++
-		process(&entry, state)
 	}
 
 	if !cfg.PlainProgress {
@@ -400,9 +417,6 @@ func processOneFileParallel[T any](
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return stats, fmt.Errorf("read %s: %w", path, err)
-	}
 	stats.FilesProcessed = 1
 	return stats, nil
 }
