@@ -100,10 +100,19 @@ func (q *Queue) SetStore(s *Store) {
 	}
 }
 
-// Submit creates a job, starts it in the background, and returns it immediately.
+// Submit creates a job with a new UUID, starts it in the background, and
+// returns it immediately.
 func (q *Queue) Submit(cmd string, args []string) *Job {
+	return q.SubmitWithID(uuid.New().String(), cmd, args)
+}
+
+// SubmitWithID is like Submit but uses a caller-supplied ID.  Use this when
+// the ID must be known before submission — e.g. to embed a short form of it
+// inside an output filename so the file can be traced back to the job that
+// created it.
+func (q *Queue) SubmitWithID(id, cmd string, args []string) *Job {
 	job := &Job{
-		ID:        uuid.New().String(),
+		ID:        id,
 		Command:   cmd,
 		Args:      args,
 		Status:    "pending",
@@ -117,7 +126,7 @@ func (q *Queue) Submit(cmd string, args []string) *Job {
 	q.mu.Unlock()
 
 	if q.store != nil {
-		_ = q.store.Save(job) // persist immediately so it survives a restart
+		_ = q.store.Save(job)
 	}
 
 	go q.executeJob(job)
