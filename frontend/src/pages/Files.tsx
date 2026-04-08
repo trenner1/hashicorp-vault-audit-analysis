@@ -254,7 +254,6 @@ function SectionTable({
 
 export function Files() {
   const queryClient = useQueryClient()
-  const navigate    = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading,       setUploading]       = useState(false)
   const [uploadProgress,  setUploadProgress]  = useState(0)
