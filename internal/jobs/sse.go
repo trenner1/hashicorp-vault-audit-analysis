@@ -3,6 +3,7 @@ package jobs
 import (
 	"net/http"
 	"sync"
+	"time"
 )
 
 // Broker manages SSE subscriptions, one channel set per job ID.
@@ -79,6 +80,9 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, jobID string, broker *Brok
 	ch, unsubscribe := broker.Subscribe(jobID)
 	defer unsubscribe()
 
+	heartbeat := time.NewTicker(10 * time.Second)
+	defer heartbeat.Stop()
+
 	for {
 		select {
 		case line, open := <-ch:
@@ -88,7 +92,11 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, jobID string, broker *Brok
 				flusher.Flush()
 				return
 			}
-			w.Write([]byte("data: " + line + "\n\n")) //nolint:errcheck
+			w.Write([]byte("event: output\ndata: " + line + "\n\n")) //nolint:errcheck
+			flusher.Flush()
+		case <-heartbeat.C:
+			// SSE comment keeps the connection alive through proxies.
+			w.Write([]byte(": heartbeat\n\n")) //nolint:errcheck
 			flusher.Flush()
 		case <-r.Context().Done():
 			return

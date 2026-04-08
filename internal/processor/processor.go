@@ -53,16 +53,23 @@ type Config struct {
 	ShowFileCompletion bool   // print a line when each file finishes
 	ProgressLabel      string // label shown in the progress bar
 	StrictParsing      bool   // fail on any JSON parse error
+	PlainProgress      bool   // use plain-text progress (set automatically when stderr is not a TTY)
+	PlainProgressFreq  int    // emit a plain-text progress line every N entries (default 100_000)
 }
 
 // DefaultConfig returns sensible defaults matching the Rust implementation.
+// When stderr is not a TTY (e.g. piped to the server), it automatically
+// switches to plain-text progress output so no ANSI escape codes appear.
 func DefaultConfig() Config {
+	plain := !isTTY(os.Stderr)
 	return Config{
 		Mode:               ModeAuto,
 		ProgressFrequency:  2000,
 		ShowFileCompletion: true,
 		ProgressLabel:      "Processing",
 		StrictParsing:      false,
+		PlainProgress:      plain,
+		PlainProgressFreq:  100_000,
 	}
 }
 
@@ -142,19 +149,28 @@ func runSequential[T any](
 	for i, path := range files {
 		fmt.Fprintf(os.Stderr, "[%d/%d] Processing: %s\n", i+1, len(files), path)
 
-		lineCount, err := countLines(path)
-		if err != nil {
-			return combined, totalStats, err
+		var pb *progressbar.ProgressBar
+		if cfg.PlainProgress {
+			// Skip line pre-count and use a silent bar; plain progress is
+			// printed inside processOneFile via fmt.Fprintf instead.
+			pb = newSilentBar()
+		} else {
+			lineCount, err := countLines(path)
+			if err != nil {
+				return combined, totalStats, err
+			}
+			pb = newBar(lineCount, cfg.ProgressLabel)
 		}
 
-		pb := newBar(lineCount, cfg.ProgressLabel)
 		state := newState()
 		stats, err := processOneFile(path, process, &state, pb, cfg)
 		if err != nil {
 			return combined, totalStats, err
 		}
-		pb.Finish()
-		fmt.Fprintln(os.Stderr)
+		if !cfg.PlainProgress {
+			pb.Finish()
+			fmt.Fprintln(os.Stderr)
+		}
 
 		if cfg.ShowFileCompletion {
 			fmt.Fprintf(os.Stderr, "[%d/%d] ✓ Completed: %s (%s lines)\n",
@@ -185,15 +201,19 @@ func runParallel[T any](
 	zero := newState()
 	fmt.Fprintf(os.Stderr, "Processing %d files in parallel...\n", len(files))
 
-	// Pre-scan total line count for accurate progress.
-	fmt.Fprintln(os.Stderr, "Scanning files to determine total work...")
-	total := parallelCount(files)
-	fmt.Fprintf(os.Stderr, "Total lines to process: %s\n", formatNum(total))
-
-	// Shared progress bar (mutex-protected).
-	pb := newBar(total, cfg.ProgressLabel)
+	var pb *progressbar.ProgressBar
 	var pbMu sync.Mutex
 	var processed atomic.Int64
+
+	if cfg.PlainProgress {
+		pb = newSilentBar()
+	} else {
+		// Pre-scan total line count for accurate TTY progress bar.
+		fmt.Fprintln(os.Stderr, "Scanning files to determine total work...")
+		total := parallelCount(files)
+		fmt.Fprintf(os.Stderr, "Total lines to process: %s\n", formatNum(total))
+		pb = newBar(total, cfg.ProgressLabel)
+	}
 
 	results := make([]fileResult[T], len(files))
 
@@ -216,7 +236,9 @@ func runParallel[T any](
 				msg := fmt.Sprintf("[%d/%d] ✓ Completed: %s (%s lines)",
 					i+1, len(files), baseName(path), formatNum(stats.TotalLines))
 				pbMu.Lock()
-				pb.Clear() //nolint:errcheck
+				if !cfg.PlainProgress {
+					pb.Clear() //nolint:errcheck
+				}
 				fmt.Fprintln(os.Stderr, msg)
 				pbMu.Unlock()
 			}
@@ -225,8 +247,10 @@ func runParallel[T any](
 		}()
 	}
 	wg.Wait()
-	pb.Finish() //nolint:errcheck
-	fmt.Fprintln(os.Stderr)
+	if !cfg.PlainProgress {
+		pb.Finish() //nolint:errcheck
+		fmt.Fprintln(os.Stderr)
+	}
 
 	// Check errors and aggregate.
 	combined := newState()
@@ -262,11 +286,20 @@ func processOneFile[T any](
 	scanner := bufio.NewScanner(rc)
 	scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024) // 4 MB line buffer
 
+	plainFreq := cfg.PlainProgressFreq
+	if plainFreq <= 0 {
+		plainFreq = 100_000
+	}
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		stats.TotalLines++
 
-		if stats.TotalLines%cfg.ProgressFrequency == 0 {
+		if cfg.PlainProgress {
+			if stats.TotalLines%plainFreq == 0 {
+				fmt.Fprintf(os.Stderr, "[progress] %s entries processed...\n", formatNum(stats.TotalLines))
+			}
+		} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
 			pb.Add(cfg.ProgressFrequency) //nolint:errcheck
 		}
 
@@ -285,10 +318,12 @@ func processOneFile[T any](
 		process(&entry, state)
 	}
 
-	// Flush remaining progress.
-	rem := stats.TotalLines % cfg.ProgressFrequency
-	if rem > 0 {
-		pb.Add(rem) //nolint:errcheck
+	// Flush remaining TTY progress.
+	if !cfg.PlainProgress {
+		rem := stats.TotalLines % cfg.ProgressFrequency
+		if rem > 0 {
+			pb.Add(rem) //nolint:errcheck
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -319,11 +354,21 @@ func processOneFileParallel[T any](
 	scanner := bufio.NewScanner(rc)
 	scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024)
 
+	plainFreq := cfg.PlainProgressFreq
+	if plainFreq <= 0 {
+		plainFreq = 100_000
+	}
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		stats.TotalLines++
 
-		if stats.TotalLines%cfg.ProgressFrequency == 0 {
+		if cfg.PlainProgress {
+			if stats.TotalLines%plainFreq == 0 {
+				fmt.Fprintf(os.Stderr, "[progress] %s entries processed (%s)...\n",
+					formatNum(stats.TotalLines), baseName(path))
+			}
+		} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
 			n := processed.Add(int64(cfg.ProgressFrequency))
 			pbMu.Lock()
 			pb.Set(int(n)) //nolint:errcheck
@@ -345,12 +390,14 @@ func processOneFileParallel[T any](
 		process(&entry, state)
 	}
 
-	rem := stats.TotalLines % cfg.ProgressFrequency
-	if rem > 0 {
-		n := processed.Add(int64(rem))
-		pbMu.Lock()
-		pb.Set(int(n)) //nolint:errcheck
-		pbMu.Unlock()
+	if !cfg.PlainProgress {
+		rem := stats.TotalLines % cfg.ProgressFrequency
+		if rem > 0 {
+			n := processed.Add(int64(rem))
+			pbMu.Lock()
+			pb.Set(int(n)) //nolint:errcheck
+			pbMu.Unlock()
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -407,6 +454,15 @@ func parallelCount(files []string) int {
 
 // ---------- Progress bar ----------
 
+// isTTY reports whether the given file is connected to a terminal.
+func isTTY(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) != 0
+}
+
 func newBar(total int, label string) *progressbar.ProgressBar {
 	return progressbar.NewOptions(total,
 		progressbar.OptionSetDescription(label),
@@ -416,6 +472,14 @@ func newBar(total int, label string) *progressbar.ProgressBar {
 		progressbar.OptionThrottle(150*time.Millisecond),
 		progressbar.OptionSetRenderBlankState(true),
 		progressbar.OptionClearOnFinish(),
+	)
+}
+
+// newSilentBar returns a no-op progress bar that discards all output.
+// Used in non-TTY mode where ANSI escape codes would corrupt the output stream.
+func newSilentBar() *progressbar.ProgressBar {
+	return progressbar.NewOptions(-1,
+		progressbar.OptionSetWriter(io.Discard),
 	)
 }
 

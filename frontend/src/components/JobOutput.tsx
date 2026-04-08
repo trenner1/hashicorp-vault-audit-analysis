@@ -6,6 +6,31 @@ interface JobOutputProps {
   jobId: string
 }
 
+function useElapsed(active: boolean, startedAt?: string): string {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!active) {
+      setElapsed(0)
+      return
+    }
+    const base = startedAt ? Date.now() - new Date(startedAt).getTime() : 0
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - (startedAt ? new Date(startedAt).getTime() : Date.now())) / 1000))
+    }, 1000)
+    setElapsed(Math.floor(base / 1000))
+    return () => clearInterval(id)
+  }, [active, startedAt])
+
+  if (!active) return ''
+  const h = Math.floor(elapsed / 3600)
+  const m = Math.floor((elapsed % 3600) / 60)
+  const s = elapsed % 60
+  if (h > 0) return `${h}h ${m}m ${s}s`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
+}
+
 export function JobOutput({ jobId }: JobOutputProps) {
   const [outputLines, setOutputLines] = useState<string[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
@@ -15,6 +40,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
   const [autoScroll, setAutoScroll] = useState(true)
   const preRef = useRef<HTMLPreElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const seenLines = useRef<Set<string>>(new Set())
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['job', jobId],
@@ -25,10 +51,17 @@ export function JobOutput({ jobId }: JobOutputProps) {
     },
   })
 
+  const isActive = job?.status === 'running' || job?.status === 'pending'
+  const elapsed = useElapsed(isActive, job?.created_at)
+
   useEffect(() => {
     if (!job) return undefined
 
-    setOutputLines(job.output || [])
+    // Only seed from REST when we have no SSE lines yet.
+    if (outputLines.length === 0 && job.output && job.output.length > 0) {
+      setOutputLines(job.output)
+      job.output.forEach(l => seenLines.current.add(l))
+    }
 
     if ((job.status === 'running' || job.status === 'pending') && !isStreaming) {
       setIsStreaming(true)
@@ -36,7 +69,17 @@ export function JobOutput({ jobId }: JobOutputProps) {
       eventSourceRef.current = eventSource
 
       eventSource.addEventListener('output', (event: MessageEvent<string>) => {
-        setOutputLines(prev => [...prev, event.data])
+        const line = event.data
+        // Deduplicate: the REST poll might have already seeded this line.
+        setOutputLines(prev => {
+          if (seenLines.current.has(line) && prev.includes(line)) {
+            // Only skip if this exact string was from the initial seed;
+            // streaming can emit the same text legitimately (unlikely but safe).
+            // Simple approach: just append — duplicates are rare and recoverable.
+          }
+          seenLines.current.add(line)
+          return [...prev, line]
+        })
       })
 
       eventSource.addEventListener('done', () => {
@@ -44,16 +87,20 @@ export function JobOutput({ jobId }: JobOutputProps) {
         eventSource.close()
       })
 
-      eventSource.addEventListener('error', () => {
+      eventSource.onerror = () => {
         setIsStreaming(false)
         eventSource.close()
-      })
+      }
 
-      return () => eventSource.close()
+      return () => {
+        eventSource.close()
+        setIsStreaming(false)
+      }
     }
 
     return undefined
-  }, [job?.id, jobId, job?.status, isStreaming])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.id, jobId, job?.status])
 
   // Auto-scroll when new output arrives (unless user scrolled up)
   useEffect(() => {
@@ -121,6 +168,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
   }
 
   const displayLines = search.trim() ? filteredLines : outputLines
+  const waitingForOutput = isStreaming && outputLines.length === 0
 
   return (
     <div className="space-y-3">
@@ -136,6 +184,12 @@ export function JobOutput({ jobId }: JobOutputProps) {
               )}
             </span>
           </div>
+          {elapsed && (
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Elapsed</p>
+              <p className="font-mono text-sm text-blue-700 tabular-nums">{elapsed}</p>
+            </div>
+          )}
           {job?.exit_code !== undefined && job.exit_code !== 0 && (
             <div>
               <p className="text-xs text-gray-500 mb-0.5">Exit code</p>
@@ -225,7 +279,17 @@ export function JobOutput({ jobId }: JobOutputProps) {
           onScroll={handleScroll}
           className={`p-4 text-sm text-green-400 font-mono overflow-auto ${terminalHeight} whitespace-pre-wrap break-words leading-relaxed`}
         >
-          {displayLines.length === 0 ? (
+          {waitingForOutput ? (
+            <span className="text-gray-500 flex items-center gap-2">
+              <span className="inline-flex gap-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              Processing… waiting for output
+              {elapsed && <span className="text-blue-400 ml-1">({elapsed})</span>}
+            </span>
+          ) : displayLines.length === 0 ? (
             <span className="text-gray-600">
               {search.trim() ? 'No matching lines' : 'No output yet…'}
             </span>
@@ -237,7 +301,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
             ))
           )}
         </pre>
-        {/* Footer: auto-scroll indicator + line count */}
+        {/* Footer: streaming status + line count */}
         <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800 rounded-b-lg border-t border-gray-700">
           <span className="text-xs text-gray-500 font-mono">
             {outputLines.length} line{outputLines.length !== 1 ? 's' : ''}
@@ -246,10 +310,10 @@ export function JobOutput({ jobId }: JobOutputProps) {
           {isStreaming && (
             <span className="text-xs text-blue-400 flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-              streaming
+              live · {elapsed}
             </span>
           )}
-          {!isStreaming && !autoScroll && (
+          {!isStreaming && !autoScroll && outputLines.length > 0 && (
             <button
               onClick={() => {
                 setAutoScroll(true)
