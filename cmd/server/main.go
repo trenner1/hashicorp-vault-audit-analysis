@@ -19,6 +19,19 @@ func main() {
 	corsOrigins := getEnv("CORS_ORIGINS", "*")
 	uploadDir := getEnv("UPLOAD_DIR", "./uploads")
 	dataDir := getEnv("DATA_DIR", "./data")
+
+	// Resolve uploadDir and binaryPath to absolute paths immediately so that
+	// all downstream consumers (file listing API, job args, child process CWD)
+	// see consistent absolute paths regardless of how the server was started.
+	if abs, err := filepath.Abs(uploadDir); err == nil {
+		uploadDir = abs
+	}
+	if abs, err := filepath.Abs(binaryPath); err == nil {
+		binaryPath = abs
+	}
+	if abs, err := filepath.Abs(dataDir); err == nil {
+		dataDir = abs
+	}
 	anthropicKey := os.Getenv("ANTHROPIC_API_KEY")
 	apiKey := os.Getenv("API_KEY")
 
