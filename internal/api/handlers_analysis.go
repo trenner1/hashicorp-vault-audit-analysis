@@ -2,9 +2,12 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/jobs"
 )
 
@@ -75,8 +78,62 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	job := s.queue.Submit(req.Command, allArgs)
+	// Pre-generate the job ID so we can embed it in output filenames for
+	// lineage tracking.  Commands that would otherwise silently write to a
+	// fixed default path (e.g. entity_mappings.json) get a unique name that
+	// encodes when it was produced and which job produced it.
+	jobID := uuid.New().String()
+	allArgs = injectUniqueOutput(req.Command, req.Subcommand, allArgs, jobID)
+
+	job := s.queue.SubmitWithID(jobID, req.Command, allArgs)
 	writeJSON(w, http.StatusAccepted, job)
+}
+
+// injectUniqueOutput rewrites or adds the --output flag for commands whose
+// defaults would silently overwrite previous results.
+//
+// The generated filename embeds:
+//   - the command type  (e.g. "entity_mappings")
+//   - a UTC timestamp   (YYYYMMDD_HHMMSS)
+//   - the first 8 chars of the job UUID
+//
+// This triple lets the file be sorted chronologically, unambiguously traced
+// to a specific job, and understood at a glance in the Files tab.
+//
+// If the caller already passed an explicit --output / -o flag, that value is
+// left untouched — we only intervene on the default-overwrite case.
+func injectUniqueOutput(command, subcommand string, args []string, jobID string) []string {
+	type outputRule struct {
+		prefix string // e.g. "entity_mappings"
+		ext    string // e.g. "json"
+		flag   string // e.g. "--output"
+	}
+
+	// Commands whose defaults always write (and therefore silently overwrite).
+	rules := map[string]outputRule{
+		"entity-analysis/preprocess": {prefix: "entity_mappings", ext: "json", flag: "--output"},
+	}
+
+	key := command
+	if subcommand != "" {
+		key = command + "/" + subcommand
+	}
+	rule, ok := rules[key]
+	if !ok {
+		return args // nothing to do for this command
+	}
+
+	// Check whether an output flag is already present.
+	for _, a := range args {
+		if a == rule.flag || a == "-o" {
+			return args // caller is explicit — leave it alone
+		}
+	}
+
+	ts := time.Now().UTC().Format("20060102_150405")
+	short := jobID[:8]
+	filename := fmt.Sprintf("%s_%s_%s.%s", rule.prefix, ts, short, rule.ext)
+	return append(args, rule.flag, filename)
 }
 
 // handleListJobs returns all jobs.
