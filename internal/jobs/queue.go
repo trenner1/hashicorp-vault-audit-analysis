@@ -31,8 +31,9 @@ type Queue struct {
 	mu         sync.RWMutex
 	jobs       map[string]*Job
 	binaryPath string
+	workDir    string       // CWD for child processes; "" = inherit server CWD
 	broker     *Broker
-	store      *Store    // nil = no persistence
+	store      *Store       // nil = no persistence
 	sem        chan struct{} // nil = unlimited concurrency
 }
 
@@ -61,6 +62,16 @@ func (q *Queue) SetBinaryPath(path string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.binaryPath = path
+}
+
+// SetWorkDir sets the working directory for all child processes spawned by
+// this queue. When set to the uploads directory, relative output-file paths
+// written by vault-audit (e.g. "entity_mappings.json") land there
+// automatically and become visible through the /ingest/files API.
+func (q *Queue) SetWorkDir(dir string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.workDir = dir
 }
 
 // SetStore attaches a persistent store and loads all previously saved jobs.
@@ -225,11 +236,17 @@ func (q *Queue) executeJob(job *Job) {
 
 	q.mu.RLock()
 	binaryPath := q.binaryPath
+	workDir := q.workDir
 	q.mu.RUnlock()
 
 	// Build: vault-audit <command> [args...]
 	cmdArgs := append([]string{job.Command}, job.Args...)
 	cmd := exec.Command(binaryPath, cmdArgs...)
+	// Set working directory so relative output paths (e.g. entity_mappings.json)
+	// land in the uploads directory and become visible through the Files API.
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
 
 	// Use io.Pipe so stdout and stderr both feed the same scanner.
 	pr, pw := io.Pipe()

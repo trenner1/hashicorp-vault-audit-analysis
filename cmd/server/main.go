@@ -40,6 +40,9 @@ func main() {
 	queue := jobs.NewQueue(broker)
 	queue.SetBinaryPath(binaryPath)
 	queue.SetMaxConcurrent(maxConcurrent)
+	// CWD for child processes = uploads dir so relative output files (e.g.
+	// entity_mappings.json) land where the Files API can see them.
+	queue.SetWorkDir(uploadDir)
 
 	// Attach persistent store — non-fatal if unavailable
 	jobsDir := filepath.Join(dataDir, "jobs")

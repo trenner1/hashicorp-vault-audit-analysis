@@ -1,8 +1,124 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { api, QueryResponse, Job } from '../api/client'
 import { JobOutput } from '../components/JobOutput'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Return just the filename portion of a path. */
+function basename(p: string): string {
+  return p.replace(/.*[\\/]/, '')
+}
+
+/** True if arg looks like a file path rather than a flag or subcommand. */
+function isFilePath(arg: string): boolean {
+  return (
+    arg.startsWith('/') ||
+    arg.startsWith('./') ||
+    arg.startsWith('../') ||
+    /\.(log|gz|zst|json|csv|txt)$/i.test(arg)
+  )
+}
+
+/**
+ * Render a job's args as readable chips.
+ * File paths → grey chip showing just the filename (full path on hover).
+ * Flags      → individual indigo-tinted chips.
+ * Subcommands (no leading '--') → plain text.
+ */
+function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: boolean }) {
+  if (!args || args.length === 0) return null
+
+  const chips = args.map((arg, i) => {
+    if (isFilePath(arg)) {
+      return (
+        <span
+          key={i}
+          title={arg}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-mono border border-gray-200 ${compact ? 'text-xs' : 'text-sm'}`}
+        >
+          <span className="text-gray-400">📄</span>
+          {basename(arg)}
+        </span>
+      )
+    }
+    if (arg.startsWith('--') || arg.startsWith('-')) {
+      return (
+        <span
+          key={i}
+          className={`inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
+        >
+          {arg}
+        </span>
+      )
+    }
+    // Subcommand or positional value
+    return (
+      <span
+        key={i}
+        className={`inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium ${compact ? 'text-xs' : 'text-sm'}`}
+      >
+        {arg}
+      </span>
+    )
+  })
+
+  if (compact) {
+    // In the table row, only show file chips + a "+N more" if there are many
+    const fileChips = args.filter(isFilePath)
+    const otherCount = args.filter(a => !isFilePath(a)).length
+    return (
+      <div className="flex flex-wrap gap-1 mt-0.5">
+        {fileChips.slice(0, 3).map((arg, i) => (
+          <span
+            key={i}
+            title={arg}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded bg-gray-100 text-gray-600 font-mono text-xs border border-gray-200"
+          >
+            <span className="text-gray-400 text-xs">📄</span>
+            {basename(arg)}
+          </span>
+        ))}
+        {fileChips.length > 3 && (
+          <span className="text-xs text-gray-400">+{fileChips.length - 3} more files</span>
+        )}
+        {otherCount > 0 && fileChips.length > 0 && (
+          <span className="text-xs text-gray-400">{otherCount} flag{otherCount !== 1 ? 's' : ''}</span>
+        )}
+        {fileChips.length === 0 && chips.slice(0, 4)}
+      </div>
+    )
+  }
+
+  return <div className="flex flex-wrap gap-1.5 mt-1">{chips}</div>
+}
+
+/**
+ * Scan job output lines for file-write messages emitted by vault-audit commands.
+ * Returns deduplicated list of filenames (basenames) that were written.
+ *
+ * Patterns matched (case-insensitive):
+ *   "Output written to: <file>"
+ *   "CSV written to: <file>"
+ *   "JSON written to: <file>"
+ *   "Writing entity mappings to: <file>"
+ *   "Writing detailed entity creation data to: <file>"
+ *   "Done. Output written to: <file>"
+ *   Any line ending with a known extension after ": "
+ */
+function detectArtifacts(output: string[]): string[] {
+  const pattern = /(?:written to|writing.*to|output written to|done\.\s*output written to)\s*:\s*(\S+\.(json|csv|txt))/i
+  const seen = new Set<string>()
+  for (const line of output) {
+    const m = line.match(pattern)
+    if (m) {
+      const name = basename(m[1])
+      if (name) seen.add(name)
+    }
+  }
+  return Array.from(seen)
+}
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
@@ -175,6 +291,12 @@ export function Jobs() {
   // Reset to page 1 when filters or page size change
   useEffect(() => { setPage(1) }, [filterStatus, filterCommand, pageSize])
 
+  // Artifact files detected from job output
+  const artifacts = useMemo(
+    () => (selectedJob?.status === 'done' ? detectArtifacts(selectedJob.output ?? []) : []),
+    [selectedJob?.id, selectedJob?.status, selectedJob?.output?.length]
+  )
+
   const statusColor = (status: string) => {
     switch (status) {
       case 'pending':   return 'bg-gray-100 text-gray-700'
@@ -277,13 +399,13 @@ export function Jobs() {
           {/* Job output card */}
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-xl font-bold text-gray-900">
                   {selectedJob?.command ?? 'Job'}
-                  {selectedJob?.args?.length ? (
-                    <span className="ml-2 text-base font-normal text-gray-500">{selectedJob.args.join(' ')}</span>
-                  ) : null}
                 </h1>
+                {selectedJob?.args?.length ? (
+                  <ArgsDisplay args={selectedJob.args} />
+                ) : null}
                 <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
               </div>
 
@@ -349,6 +471,43 @@ export function Jobs() {
                 )}
               </div>
             </div>
+
+            {/* ── Artifacts ── */}
+            {artifacts.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+                  <span>📎</span>
+                  <span>Output files</span>
+                  <span className="text-xs text-emerald-600 font-normal">— written to the uploads directory</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {artifacts.map(name => (
+                    <div key={name} className="flex items-center gap-1 bg-white border border-emerald-200 rounded-lg px-3 py-2 shadow-sm">
+                      <span className="text-emerald-600 text-sm font-mono font-medium">{name}</span>
+                      <div className="flex gap-1 ml-2">
+                        <button
+                          onClick={() => navigate('/files')}
+                          className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                          title="View in Files tab"
+                        >
+                          📁 Files
+                        </button>
+                        <button
+                          onClick={() => navigate('/analysis', { state: { preloadFile: name } })}
+                          className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                          title="Use as input in a new analysis"
+                        >
+                          🔍 Use in Analysis
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-emerald-600">
+                  These files are now available in the <button onClick={() => navigate('/files')} className="underline hover:text-emerald-800">Files tab</button> and can be used as inputs for subsequent analysis steps.
+                </p>
+              </div>
+            )}
 
             <JobOutput jobId={selectedJobId} />
           </div>
@@ -474,9 +633,7 @@ export function Jobs() {
                       <td className="px-6 py-4">
                         <p className="text-sm text-gray-900 font-medium">{job.command}</p>
                         {job.args?.length > 0 && (
-                          <p className="text-xs text-gray-400 font-mono truncate max-w-xs mt-0.5">
-                            {job.args.join(' ')}
-                          </p>
+                          <ArgsDisplay args={job.args} compact />
                         )}
                       </td>
                       <td className="px-6 py-4">

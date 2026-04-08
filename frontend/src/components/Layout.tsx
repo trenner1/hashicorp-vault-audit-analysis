@@ -19,7 +19,10 @@ export function Layout({ children }: { children: ReactNode }) {
   const { data: sysInfo } = useQuery({
     queryKey: ['system'],
     queryFn: api.systemInfo,
-    staleTime: 60_000,
+    // Poll every 5 s so the active-jobs counter stays current.
+    // When there are running jobs the badge should update without a page refresh.
+    refetchInterval: 5_000,
+    staleTime: 0,
   })
 
   return (
