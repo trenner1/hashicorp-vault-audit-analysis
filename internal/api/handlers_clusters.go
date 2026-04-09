@@ -54,12 +54,15 @@ func injectClusterArgs(args []string, c *Cluster) []string {
 	return args
 }
 
-// snapshotClusters returns a shallow copy of the clusters map.
+// snapshotClusters returns a deep copy of the clusters map (Cluster values are
+// copied by value so that concurrent modifications after the snapshot do not
+// affect the data being persisted).
 // Must be called with clustersMu held.
 func (s *Server) snapshotClusters() map[string]*Cluster {
 	snap := make(map[string]*Cluster, len(s.clusters))
 	for k, v := range s.clusters {
-		snap[k] = v
+		c := *v // copy the struct value so the snapshot is independent
+		snap[k] = &c
 	}
 	return snap
 }

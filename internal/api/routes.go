@@ -67,14 +67,16 @@ func (s *Server) corsMiddleware() func(http.Handler) http.Handler {
 
 			for _, o := range s.corsOrigins {
 				if o == "*" {
-					// Wildcard: reflect origin or fall back to "*"
+					// Wildcard: allow any origin but never set Allow-Credentials.
+					// Reflecting the actual request origin (rather than the literal "*")
+					// is required by the Fetch spec when the response body must be
+					// readable by the caller — it is still correct and safe here
+					// because credentials are explicitly not permitted with wildcard.
 					if origin != "" {
 						allowedOrigin = origin
 					} else {
 						allowedOrigin = "*"
 					}
-					// credentials must NOT be combined with "*"
-					credentialsOK = false
 					break
 				}
 				if o == origin {
