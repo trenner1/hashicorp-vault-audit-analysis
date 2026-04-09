@@ -1,0 +1,75 @@
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  disable-all: true
+  enable:
+    # Correctness
+    - errcheck        # check that errors are handled
+    - govet           # go vet checks
+    - staticcheck     # comprehensive static analysis
+    - ineffassign     # detect ineffectual assignments
+    - typecheck       # type-checks the code (always required)
+    - unused          # report unused code
+
+    # Style / maintainability
+    - gofmt           # code is gofmt-formatted
+    - goimports       # imports are grouped and sorted
+    - misspell        # fix spelling in comments and strings
+    - whitespace      # unnecessary blank lines
+    - unconvert       # remove unnecessary type conversions
+
+    # Security
+    - gosec           # common security issues
+
+    # Performance
+    - prealloc        # slice pre-allocation opportunities
+
+linters-settings:
+  errcheck:
+    # Ignore errors from fmt.Fprint* and common write/close calls
+    # that are intentionally fire-and-forget in CLI/progress output.
+    exclude-functions:
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (io.Closer).Close
+      - (*github.com/schollz/progressbar/v3.ProgressBar).Add
+      - (*github.com/schollz/progressbar/v3.ProgressBar).Set
+      - (*github.com/schollz/progressbar/v3.ProgressBar).Finish
+      - (*github.com/schollz/progressbar/v3.ProgressBar).Clear
+
+  gosec:
+    excludes:
+      - G304  # file inclusion via variable — intentional (user-supplied log paths)
+      - G306  # file permissions — we use 0600/0700 explicitly
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # don't enforce struct field ordering
+
+  staticcheck:
+    checks:
+      - "all"
+      - "-ST1000"  # package comment — not enforced for internal packages
+      - "-ST1003"  # naming conventions — too opinionated for this codebase
+
+issues:
+  # Show all issues, not just the first 3 per linter
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Test files get more relaxed rules
+    - path: "_test\\.go"
+      linters:
+        - errcheck
+        - gosec
+        - prealloc
+
+    # The sse.go write is covered by nosemgrep; allow nolint there
+    - path: "internal/jobs/sse\\.go"
+      linters:
+        - errcheck
