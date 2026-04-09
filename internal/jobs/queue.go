@@ -249,8 +249,12 @@ func (q *Queue) executeJob(job *Job) {
 	q.mu.RUnlock()
 
 	// Build: vault-audit <command> [args...]
+	// binaryPath is a fixed absolute path set at server startup (not user input).
+	// job.Command is validated against the allowedCommands allowlist in
+	// internal/api/handlers_analysis.go before the job is ever enqueued, so
+	// only known subcommand names reach this call site.
 	cmdArgs := append([]string{job.Command}, job.Args...)
-	cmd := exec.Command(binaryPath, cmdArgs...)
+	cmd := exec.Command(binaryPath, cmdArgs...) //nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	// Set working directory so relative output paths (e.g. entity_mappings.json)
 	// land in the uploads directory and become visible through the Files API.
 	if workDir != "" {

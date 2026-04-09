@@ -13,7 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -105,7 +105,7 @@ var (
 // generateLogEntries produces n request+response pairs with varied content.
 func generateLogEntries(n int, startTime time.Time) []logEntry {
 	entries := make([]logEntry, 0, n*2)
-	rng := rand.New(rand.NewSource(42))
+	rng := rand.New(rand.NewPCG(42, 0))
 	t := startTime
 
 	for i := 0; i < n; i++ {

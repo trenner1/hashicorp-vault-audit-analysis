@@ -11,6 +11,26 @@ import (
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/jobs"
 )
 
+// allowedCommands is the exhaustive allowlist of vault-audit commands and their
+// permitted subcommands.  An empty slice means the command takes no subcommand.
+// Any command or subcommand not in this map is rejected by handleSubmitJob before
+// it reaches exec.Command — this is the primary control that addresses the
+// dangerous-exec-command finding in queue.go.
+var allowedCommands = map[string][]string{
+	"system-overview":         {},
+	"path-hotspots":           {},
+	"token-analysis":          {},
+	"kv-analysis":             {"analyze", "compare", "summary"},
+	"entity-analysis":         {"churn", "creation", "preprocess", "gaps", "timeline"},
+	"k8s-auth":                {},
+	"airflow-polling":         {},
+	"client-traffic-analysis": {},
+	"client-activity":         {},
+	"entity-list":             {},
+	"kv-mounts":               {},
+	"auth-mounts":             {},
+}
+
 // CommandInfo describes a vault-audit command for the UI.
 type CommandInfo struct {
 	Name        string   `json:"name"`
@@ -58,6 +78,27 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 	if req.Command == "" {
 		writeError(w, http.StatusBadRequest, "command is required")
 		return
+	}
+
+	// Validate command and subcommand against the static allowlist.
+	// This is the control that prevents arbitrary strings reaching exec.Command.
+	allowedSubs, knownCmd := allowedCommands[req.Command]
+	if !knownCmd {
+		writeError(w, http.StatusBadRequest, "unknown command")
+		return
+	}
+	if req.Subcommand != "" {
+		validSub := false
+		for _, s := range allowedSubs {
+			if s == req.Subcommand {
+				validSub = true
+				break
+			}
+		}
+		if !validSub {
+			writeError(w, http.StatusBadRequest, "unknown subcommand")
+			return
+		}
 	}
 
 	// Build full arg list: [subcommand] [files...] [flags...]

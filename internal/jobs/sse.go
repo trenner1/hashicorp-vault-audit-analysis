@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -64,6 +65,16 @@ func (b *Broker) CloseJob(jobID string) {
 	delete(b.subscribers, jobID)
 }
 
+// sanitizeSSELine removes characters that would break SSE framing.
+// A bare newline ends a data field; a blank line dispatches the event.
+// Stripping \r and replacing \n with a space prevents framing injection
+// while preserving the intent of multi-line output as a single data value.
+func sanitizeSSELine(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return s
+}
+
 // ServeSSE streams job output to an HTTP client using Server-Sent Events.
 func ServeSSE(w http.ResponseWriter, r *http.Request, jobID string, broker *Broker) {
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -92,7 +103,11 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, jobID string, broker *Brok
 				flusher.Flush()
 				return
 			}
-			w.Write([]byte("event: output\ndata: " + line + "\n\n")) //nolint:errcheck
+			// sanitizeSSELine strips \r/\n to prevent SSE framing injection.
+			// This is SSE text data delivered via EventSource, not HTML rendered
+			// by the browser, so html/template escaping is not applicable here.
+			safe := sanitizeSSELine(line)
+			w.Write([]byte("event: output\ndata: " + safe + "\n\n")) //nolint:errcheck //nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 			flusher.Flush()
 		case <-heartbeat.C:
 			// SSE comment keeps the connection alive through proxies.
