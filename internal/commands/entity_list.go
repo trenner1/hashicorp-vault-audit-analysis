@@ -114,7 +114,7 @@ func RunEntityList(
 	}
 
 	entityCount := len(entityList.Keys)
-	fmt.Fprintf(os.Stderr, "Found %d entities\n", utils.FormatNumber(entityCount))
+	fmt.Fprintf(os.Stderr, "Found %s entities\n", utils.FormatNumber(entityCount))
 	fmt.Fprintf(os.Stderr, "\n")
 
 	// Fetch each entity's details

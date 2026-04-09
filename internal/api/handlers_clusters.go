@@ -168,5 +168,5 @@ func (s *Server) handleDeleteCluster(w http.ResponseWriter, r *http.Request) {
 
 	delete(s.clusters, clusterID)
 	s.persistClusters()
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	w.WriteHeader(http.StatusNoContent)
 }

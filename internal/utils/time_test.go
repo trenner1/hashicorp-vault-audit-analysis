@@ -15,7 +15,7 @@ func TestParseTimestamp(t *testing.T) {
 		{
 			name:    "RFC3339Nano",
 			input:   "2025-01-15T10:30:00.123456789Z",
-			wantUTC: "2025-01-15 10:30:00 +0000 UTC",
+			wantUTC: "2025-01-15 10:30:00.123456789 +0000 UTC",
 		},
 		{
 			name:    "RFC3339 no nanos",
