@@ -16,7 +16,7 @@ import (
 // RunEntityPreprocess extracts entity mappings from audit logs and exports them.
 func RunEntityPreprocess(logFiles []string, output, format string) error {
 	fmt.Fprintln(os.Stderr, "Preprocessing audit logs...")
-	fmt.Fprintln(os.Stderr, "Extracting entity → display_name mappings from login events...\n")
+	fmt.Fprintln(os.Stderr, "Extracting entity → display_name mappings from login events...")
 
 	type preprocessState struct {
 		entityMap map[string]EntityMapping
@@ -125,7 +125,7 @@ func RunEntityPreprocess(logFiles []string, output, format string) error {
 			return fmt.Errorf("failed to write JSON output: %w", err)
 		}
 
-		fmt.Fprintln(os.Stderr, "JSON entity mapping file created successfully!\n")
+		fmt.Fprintln(os.Stderr, "JSON entity mapping file created successfully!")
 
 	case "csv":
 		file, err := os.Create(output)
@@ -163,7 +163,7 @@ func RunEntityPreprocess(logFiles []string, output, format string) error {
 			}
 		}
 
-		fmt.Fprintln(os.Stderr, "CSV entity mapping file created successfully!\n")
+		fmt.Fprintln(os.Stderr, "CSV entity mapping file created successfully!")
 
 	default:
 		return fmt.Errorf("invalid format '%s'. Use 'csv' or 'json'", format)

@@ -133,7 +133,7 @@ func RunChurn(logFiles []string, entityMap, baseline, output, format *string, au
 
 	// Auto-preprocessing: build entity map in-memory and write to temp file
 	if autoPreprocess && (entityMap == nil || *entityMap == "") {
-		fmt.Fprintln(os.Stderr, "Auto-preprocessing: Building entity mappings in-memory...\n")
+		fmt.Fprintln(os.Stderr, "Auto-preprocessing: Building entity mappings in-memory...")
 		entityMapData, err := buildEntityMap(logFiles)
 		if err != nil {
 			return err
@@ -143,7 +143,7 @@ func RunChurn(logFiles []string, entityMap, baseline, output, format *string, au
 			return err
 		}
 		tempMapFile = tempPath
-		fmt.Fprintln(os.Stderr, "Entity mappings ready\n")
+		fmt.Fprintln(os.Stderr, "Entity mappings ready")
 	}
 
 	// Use provided map or auto-generated temp map
@@ -171,7 +171,7 @@ func RunCreation(logFiles []string, entityMap, output *string, autoPreprocess bo
 
 	// Auto-preprocessing: build entity map in-memory and write to temp file
 	if autoPreprocess && (entityMap == nil || *entityMap == "") {
-		fmt.Fprintln(os.Stderr, "Auto-preprocessing: Building entity mappings in-memory...\n")
+		fmt.Fprintln(os.Stderr, "Auto-preprocessing: Building entity mappings in-memory...")
 		entityMapData, err := buildEntityMap(logFiles)
 		if err != nil {
 			return err
@@ -181,7 +181,7 @@ func RunCreation(logFiles []string, entityMap, output *string, autoPreprocess bo
 			return err
 		}
 		tempMapFile = tempPath
-		fmt.Fprintln(os.Stderr, "Entity mappings ready\n")
+		fmt.Fprintln(os.Stderr, "Entity mappings ready")
 	}
 
 	// Use provided map or auto-generated temp map

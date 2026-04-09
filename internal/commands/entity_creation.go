@@ -35,7 +35,7 @@ type MountStats struct {
 
 // RunEntityCreation analyzes entity creation by authentication path.
 func RunEntityCreation(logFiles []string, entityMap, output *string) error {
-	fmt.Fprintln(os.Stderr, "Analyzing entity creation by authentication path...\n")
+	fmt.Fprintln(os.Stderr, "Analyzing entity creation by authentication path...")
 
 	// Load entity mappings if provided
 	var entityMappings map[string]EntityMapping

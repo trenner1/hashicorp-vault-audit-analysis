@@ -109,21 +109,21 @@ func generateLogEntries(n int, startTime time.Time) []logEntry {
 	t := startTime
 
 	for i := 0; i < n; i++ {
-		t = t.Add(time.Duration(rng.Intn(5000)) * time.Millisecond)
+		t = t.Add(time.Duration(rng.IntN(5000)) * time.Millisecond)
 
-		ent := entities[rng.Intn(len(entities))]
-		op := operations[rng.Intn(len(operations))]
-		ns := namespaces[rng.Intn(len(namespaces))]
+		ent := entities[rng.IntN(len(entities))]
+		op := operations[rng.IntN(len(operations))]
+		ns := namespaces[rng.IntN(len(namespaces))]
 		reqID := fmt.Sprintf("req-%06d", i+1)
 
 		// Pick path based on operation style
 		var path, mountType, mountPoint string
-		switch rng.Intn(4) {
+		switch rng.IntN(4) {
 		case 0: // token op
 			tokenOps := []string{"auth/token/lookup-self", "auth/token/renew-self", "auth/token/lookup"}
-			path = tokenOps[rng.Intn(len(tokenOps))]
+			path = tokenOps[rng.IntN(len(tokenOps))]
 			mountType, mountPoint = "token", "auth/token/"
-			op = []string{"lookup", "update", "lookup"}[rng.Intn(3)]
+			op = []string{"lookup", "update", "lookup"}[rng.IntN(3)]
 		case 1: // k8s login
 			path = "auth/kubernetes/login"
 			mountType, mountPoint = "kubernetes", "auth/kubernetes/"
@@ -133,7 +133,7 @@ func generateLogEntries(n int, startTime time.Time) []logEntry {
 			mountType, mountPoint = "approle", "auth/approle/"
 			op = "update"
 		default: // kv
-			kv := kvPaths[rng.Intn(len(kvPaths))]
+			kv := kvPaths[rng.IntN(len(kvPaths))]
 			path, mountPoint = kv.path, kv.mount
 			mountType = "kv"
 		}
@@ -172,12 +172,12 @@ func generateLogEntries(n int, startTime time.Time) []logEntry {
 		tStr := t.UTC().Format(time.RFC3339Nano)
 		entries = append(entries, logEntry{Time: tStr, Type: "request", Auth: auth, Request: req})
 
-		t = t.Add(time.Duration(rng.Intn(200)) * time.Millisecond)
+		t = t.Add(time.Duration(rng.IntN(200)) * time.Millisecond)
 		tStr = t.UTC().Format(time.RFC3339Nano)
 
 		// Occasionally inject an error response (≈8% of ops)
 		var errStr *string
-		if rng.Intn(12) == 0 {
+		if rng.IntN(12) == 0 {
 			s := "permission denied"
 			errStr = &s
 		}
