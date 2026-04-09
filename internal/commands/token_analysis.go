@@ -317,8 +317,8 @@ func RunTokenAnalysis(logFiles []string, abuseThreshold *int, operationFilter []
 // displaySummary shows operations summary
 func displaySummary(opsMap map[string]*tokenOps, totalLines int) {
 	type opEntry struct {
-		id   string
-		ops  *tokenOps
+		id    string
+		ops   *tokenOps
 		total int
 	}
 
@@ -421,8 +421,8 @@ func displaySummary(opsMap map[string]*tokenOps, totalLines int) {
 // displayAbuse shows entities exceeding the lookup threshold
 func displayAbuse(opsMap map[string]*tokenOps, threshold int) {
 	type abuserEntry struct {
-		id   string
-		ops  *tokenOps
+		id    string
+		ops   *tokenOps
 		count int
 	}
 
@@ -503,7 +503,7 @@ func exportTokenCSV(accessorMap map[string]*entityAccessors, output string, minO
 	}
 
 	type rowData struct {
-		entityID   string
+		entityID    string
 		displayName string
 		accessor    string
 		data        *accessorData

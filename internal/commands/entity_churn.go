@@ -18,44 +18,44 @@ import (
 
 // EntityChurnRecord represents a single entity's churn status.
 type EntityChurnRecord struct {
-	EntityID              string        `json:"entity_id"`
-	DisplayName           string        `json:"display_name"`
-	MountPath             string        `json:"mount_path"`
-	MountType             string        `json:"mount_type"`
-	TokenType             string        `json:"token_type"`
-	FirstSeenFile         string        `json:"first_seen_file"`
-	FirstSeenTime         time.Time     `json:"first_seen_time"`
-	LastSeenFile          string        `json:"last_seen_file"`
-	LastSeenTime          time.Time     `json:"last_seen_time"`
-	FilesAppeared         []string      `json:"files_appeared"`
-	TotalLogins           int           `json:"total_logins"`
-	Lifecycle             string        `json:"lifecycle"`
-	ActivityPattern       string        `json:"activity_pattern"`
-	IsEphemeralPattern    bool          `json:"is_ephemeral_pattern"`
-	EphemeralConfidence   float32       `json:"ephemeral_confidence"`
-	EphemeralReasons      []string      `json:"ephemeral_reasons"`
-	BaselineEntityName    *string       `json:"baseline_entity_name,omitempty"`
-	BaselineCreated       *string       `json:"baseline_created,omitempty"`
-	BaselineAliasName     *string       `json:"baseline_alias_name,omitempty"`
-	BaselineMount         *string       `json:"baseline_mount_path,omitempty"`
-	HistoricalDisplayName *string       `json:"historical_display_name,omitempty"`
-	HistoricalFirstSeen   *string       `json:"historical_first_seen,omitempty"`
-	HistoricalLastSeen    *string       `json:"historical_last_seen,omitempty"`
-	HistoricalLoginCount  *int          `json:"historical_login_count,omitempty"`
+	EntityID              string    `json:"entity_id"`
+	DisplayName           string    `json:"display_name"`
+	MountPath             string    `json:"mount_path"`
+	MountType             string    `json:"mount_type"`
+	TokenType             string    `json:"token_type"`
+	FirstSeenFile         string    `json:"first_seen_file"`
+	FirstSeenTime         time.Time `json:"first_seen_time"`
+	LastSeenFile          string    `json:"last_seen_file"`
+	LastSeenTime          time.Time `json:"last_seen_time"`
+	FilesAppeared         []string  `json:"files_appeared"`
+	TotalLogins           int       `json:"total_logins"`
+	Lifecycle             string    `json:"lifecycle"`
+	ActivityPattern       string    `json:"activity_pattern"`
+	IsEphemeralPattern    bool      `json:"is_ephemeral_pattern"`
+	EphemeralConfidence   float32   `json:"ephemeral_confidence"`
+	EphemeralReasons      []string  `json:"ephemeral_reasons"`
+	BaselineEntityName    *string   `json:"baseline_entity_name,omitempty"`
+	BaselineCreated       *string   `json:"baseline_created,omitempty"`
+	BaselineAliasName     *string   `json:"baseline_alias_name,omitempty"`
+	BaselineMount         *string   `json:"baseline_mount_path,omitempty"`
+	HistoricalDisplayName *string   `json:"historical_display_name,omitempty"`
+	HistoricalFirstSeen   *string   `json:"historical_first_seen,omitempty"`
+	HistoricalLastSeen    *string   `json:"historical_last_seen,omitempty"`
+	HistoricalLoginCount  *int      `json:"historical_login_count,omitempty"`
 }
 
 // DailyStats records statistics for a single log file.
 type DailyStats struct {
-	FileName           string
-	NewEntities        int
-	ReturningEntities  int
-	TotalLogins        int
+	FileName          string
+	NewEntities       int
+	ReturningEntities int
+	TotalLogins       int
 }
 
 // EphemeralPatternAnalyzer detects ephemeral entities.
 type EphemeralPatternAnalyzer struct {
-	totalFiles          int
-	shortLivedPatterns  []ShortLivedPattern
+	totalFiles         int
+	shortLivedPatterns []ShortLivedPattern
 }
 
 // ShortLivedPattern tracks patterns seen in entities that appeared 1-2 days.
@@ -177,7 +177,7 @@ func (e *EphemeralPatternAnalyzer) classifyActivityPattern(entity *EntityChurnRe
 		return "consistent"
 	}
 
-	if daysActive >= (e.totalFiles * 2) / 3 {
+	if daysActive >= (e.totalFiles*2)/3 {
 		return "consistent"
 	}
 

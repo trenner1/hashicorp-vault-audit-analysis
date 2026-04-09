@@ -426,7 +426,10 @@ func clientActivityCmd() *cobra.Command {
 	var start, end string
 	var groupByRole bool
 	var entityMap, output string
-	addr := ""; token := ""; ns := ""; ins := false
+	addr := ""
+	token := ""
+	ns := ""
+	ins := false
 
 	cmd := &cobra.Command{
 		Use:   "client-activity",
@@ -459,7 +462,10 @@ func clientActivityCmd() *cobra.Command {
 
 func entityListCmd() *cobra.Command {
 	var format, mount, output string
-	addr := ""; token := ""; ns := ""; ins := false
+	addr := ""
+	token := ""
+	ns := ""
+	ins := false
 
 	cmd := &cobra.Command{
 		Use:   "entity-list",
@@ -490,7 +496,10 @@ func kvMountsCmd() *cobra.Command {
 	var format, output string
 	var depth int
 	var depthSet bool
-	addr := ""; token := ""; ns := ""; ins := false
+	addr := ""
+	token := ""
+	ns := ""
+	ins := false
 
 	cmd := &cobra.Command{
 		Use:   "kv-mounts",
@@ -529,7 +538,10 @@ func authMountsCmd() *cobra.Command {
 	var format, output string
 	var depth int
 	var depthSet bool
-	addr := ""; token := ""; ns := ""; ins := false
+	addr := ""
+	token := ""
+	ns := ""
+	ins := false
 
 	cmd := &cobra.Command{
 		Use:   "auth-mounts",

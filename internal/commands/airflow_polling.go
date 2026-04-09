@@ -200,11 +200,11 @@ func AirflowPollingRun(logFiles []string, outputFile *string) error {
 	fmt.Println(stringRepeat("-", 100))
 
 	type pollingPattern struct {
-		path             string
-		operations       int
-		timeSpanHours    float64
-		opsPerHour       float64
-		avgIntervalSecs  float64
+		path            string
+		operations      int
+		timeSpanHours   float64
+		opsPerHour      float64
+		avgIntervalSecs float64
 	}
 
 	var pollingPatterns []pollingPattern
@@ -264,9 +264,9 @@ func AirflowPollingRun(logFiles []string, outputFile *string) error {
 	fmt.Println(stringRepeat("-", 100))
 
 	type entityPathCombo struct {
-		entity      string
-		path        string
-		operations  int
+		entity     string
+		path       string
+		operations int
 	}
 
 	var combos []entityPathCombo

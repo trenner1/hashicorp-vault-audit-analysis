@@ -19,39 +19,39 @@ type EntityListResponse struct {
 
 // AliasData represents an alias within an entity.
 type AliasData struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	MountAccessor   string            `json:"mount_accessor"`
-	CreationTime    string            `json:"creation_time"`
-	LastUpdateTime  string            `json:"last_update_time"`
-	Metadata        map[string]string `json:"metadata"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	MountAccessor  string            `json:"mount_accessor"`
+	CreationTime   string            `json:"creation_time"`
+	LastUpdateTime string            `json:"last_update_time"`
+	Metadata       map[string]string `json:"metadata"`
 }
 
 // EntityData represents a complete entity with its aliases.
 type EntityData struct {
-	ID              string       `json:"id"`
-	Name            string       `json:"name"`
-	Disabled        bool         `json:"disabled"`
-	CreationTime    string       `json:"creation_time"`
-	LastUpdateTime  string       `json:"last_update_time"`
-	Aliases         []AliasData  `json:"aliases"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Disabled       bool        `json:"disabled"`
+	CreationTime   string      `json:"creation_time"`
+	LastUpdateTime string      `json:"last_update_time"`
+	Aliases        []AliasData `json:"aliases"`
 }
 
 // EntityOutput is the flattened output record.
 type EntityOutput struct {
-	EntityID        string `json:"entity_id"`
-	EntityName      string `json:"entity_name"`
-	EntityDisabled  bool   `json:"entity_disabled"`
-	EntityCreated   string `json:"entity_created"`
-	EntityUpdated   string `json:"entity_updated"`
-	AliasID         string `json:"alias_id"`
-	AliasName       string `json:"alias_name"`
-	MountPath       string `json:"mount_path"`
-	MountType       string `json:"mount_type"`
-	MountAccessor   string `json:"mount_accessor"`
-	AliasCreated    string `json:"alias_created"`
-	AliasUpdated    string `json:"alias_updated"`
-	AliasMetadata   string `json:"alias_metadata"`
+	EntityID       string `json:"entity_id"`
+	EntityName     string `json:"entity_name"`
+	EntityDisabled bool   `json:"entity_disabled"`
+	EntityCreated  string `json:"entity_created"`
+	EntityUpdated  string `json:"entity_updated"`
+	AliasID        string `json:"alias_id"`
+	AliasName      string `json:"alias_name"`
+	MountPath      string `json:"mount_path"`
+	MountType      string `json:"mount_type"`
+	MountAccessor  string `json:"mount_accessor"`
+	AliasCreated   string `json:"alias_created"`
+	AliasUpdated   string `json:"alias_updated"`
+	AliasMetadata  string `json:"alias_metadata"`
 }
 
 // RunEntityList queries Vault for entities and their aliases.

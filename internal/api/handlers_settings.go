@@ -83,7 +83,7 @@ func (s *Server) handlePruneJobs(w http.ResponseWriter, r *http.Request) {
 	deleted := s.queue.Prune(maxAge)
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"deleted":           deleted,
-		"older_than_hours":  req.OlderThanHours,
+		"deleted":          deleted,
+		"older_than_hours": req.OlderThanHours,
 	})
 }

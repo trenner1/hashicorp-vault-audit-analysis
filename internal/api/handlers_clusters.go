@@ -12,12 +12,12 @@ import (
 // clusterView is the safe API representation of a cluster.
 // The token is masked so it is never returned in full to clients.
 type clusterView struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	VaultAddr  string    `json:"vault_addr"`
-	Namespace  string    `json:"namespace"`
-	TokenSet   bool      `json:"token_set"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	VaultAddr string    `json:"vault_addr"`
+	Namespace string    `json:"namespace"`
+	TokenSet  bool      `json:"token_set"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func toView(c *Cluster) clusterView {

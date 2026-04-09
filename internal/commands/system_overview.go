@@ -12,9 +12,9 @@ import (
 
 // PathData holds statistics for a single path.
 type PathData struct {
-	Count       int
-	Operations  map[string]int
-	Entities    map[string]bool
+	Count      int
+	Operations map[string]int
+	Entities   map[string]bool
 }
 
 // SystemOverviewState accumulates statistics across audit entries.

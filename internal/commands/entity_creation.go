@@ -26,11 +26,11 @@ type EntityCreation struct {
 
 // MountStats tracks statistics per authentication mount.
 type MountStats struct {
-	MountPath      string
-	MountType      string
+	MountPath       string
+	MountType       string
 	EntitiesCreated int
-	TotalLogins    int
-	SampleEntities []string
+	TotalLogins     int
+	SampleEntities  []string
 }
 
 // RunEntityCreation analyzes entity creation by authentication path.
@@ -158,11 +158,11 @@ func RunEntityCreation(logFiles []string, entityMap, output *string) error {
 			}
 		} else {
 			mountStats[key] = &MountStats{
-				MountPath:      creation.MountPath,
-				MountType:      creation.MountType,
+				MountPath:       creation.MountPath,
+				MountType:       creation.MountType,
 				EntitiesCreated: 1,
-				TotalLogins:    creation.LoginCount,
-				SampleEntities: []string{creation.DisplayName},
+				TotalLogins:     creation.LoginCount,
+				SampleEntities:  []string{creation.DisplayName},
 			}
 		}
 	}

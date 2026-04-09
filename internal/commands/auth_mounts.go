@@ -13,21 +13,21 @@ import (
 
 // RoleEntry represents a role/user within an auth mount.
 type RoleEntry struct {
-	Name     string       `json:"name"`
-	Children []RoleEntry  `json:"children,omitempty"`
+	Name     string      `json:"name"`
+	Children []RoleEntry `json:"children,omitempty"`
 }
 
 // AuthMountOutput represents a single auth mount with its configuration.
 type AuthMountOutput struct {
-	Path            string       `json:"path"`
-	AuthType        string       `json:"auth_type"`
-	Description     string       `json:"description"`
-	Accessor        string       `json:"accessor"`
-	Local           bool         `json:"local"`
-	SealWrap        bool         `json:"seal_wrap"`
+	Path            string      `json:"path"`
+	AuthType        string      `json:"auth_type"`
+	Description     string      `json:"description"`
+	Accessor        string      `json:"accessor"`
+	Local           bool        `json:"local"`
+	SealWrap        bool        `json:"seal_wrap"`
 	DefaultLeaseTTL string      `json:"default_lease_ttl"`
-	MaxLeaseTTL    string       `json:"max_lease_ttl"`
-	Roles           []RoleEntry  `json:"roles,omitempty"`
+	MaxLeaseTTL     string      `json:"max_lease_ttl"`
+	Roles           []RoleEntry `json:"roles,omitempty"`
 }
 
 // RunAuthMounts queries Vault for auth mounts and optionally enumerates roles.

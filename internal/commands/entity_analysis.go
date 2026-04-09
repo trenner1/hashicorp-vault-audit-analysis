@@ -257,13 +257,13 @@ func loadEntityMappingsFromFile(path string) (map[string]EntityMapping, error) {
 
 // loadBaselineEntities loads entity baseline from JSON file.
 type baselineEntity struct {
-	EntityID       string `json:"entity_id"`
-	EntityName     string `json:"entity_name"`
-	EntityCreated  string `json:"entity_created"`
-	AliasName      string `json:"alias_name"`
-	MountPath      string `json:"mount_path"`
-	MountType      string `json:"mount_type"`
-	MountAccessor  string `json:"mount_accessor"`
+	EntityID      string `json:"entity_id"`
+	EntityName    string `json:"entity_name"`
+	EntityCreated string `json:"entity_created"`
+	AliasName     string `json:"alias_name"`
+	MountPath     string `json:"mount_path"`
+	MountType     string `json:"mount_type"`
+	MountAccessor string `json:"mount_accessor"`
 }
 
 func (b *baselineEntity) getName() string {

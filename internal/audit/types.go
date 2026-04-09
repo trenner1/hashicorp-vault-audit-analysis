@@ -22,16 +22,16 @@ type AuditEntry struct {
 // Describes the token used to make the request, including the associated
 // entity, policies, and metadata.
 type AuthInfo struct {
-	Accessor      *string                        `json:"accessor,omitempty"`
-	ClientToken   *string                        `json:"client_token,omitempty"`
-	DisplayName   *string                        `json:"display_name,omitempty"`
-	EntityID      *string                        `json:"entity_id,omitempty"`
-	Metadata      map[string]json.RawMessage     `json:"metadata,omitempty"`
-	Policies      []string                       `json:"policies,omitempty"`
-	TokenPolicies []string                       `json:"token_policies,omitempty"`
-	TokenType     *string                        `json:"token_type,omitempty"`
-	TokenTTL      *uint64                        `json:"token_ttl,omitempty"`
-	TokenIssueTime *string                       `json:"token_issue_time,omitempty"`
+	Accessor       *string                    `json:"accessor,omitempty"`
+	ClientToken    *string                    `json:"client_token,omitempty"`
+	DisplayName    *string                    `json:"display_name,omitempty"`
+	EntityID       *string                    `json:"entity_id,omitempty"`
+	Metadata       map[string]json.RawMessage `json:"metadata,omitempty"`
+	Policies       []string                   `json:"policies,omitempty"`
+	TokenPolicies  []string                   `json:"token_policies,omitempty"`
+	TokenType      *string                    `json:"token_type,omitempty"`
+	TokenTTL       *uint64                    `json:"token_ttl,omitempty"`
+	TokenIssueTime *string                    `json:"token_issue_time,omitempty"`
 }
 
 // RequestInfo describes the Vault operation being performed.

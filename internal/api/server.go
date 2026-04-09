@@ -22,17 +22,17 @@ type Cluster struct {
 
 // Server encapsulates the API server and its dependencies.
 type Server struct {
-	router        *chi.Mux
-	queue         *jobs.Queue
-	broker        *jobs.Broker
-	clusters      map[string]*Cluster
-	clustersMu    sync.RWMutex
-	clusterStore  *clusterStore // nil = no persistence
-	uploadDir     string
-	anthropicKey  string
-	apiKey        string
-	corsOrigins   []string
-	startTime     time.Time
+	router       *chi.Mux
+	queue        *jobs.Queue
+	broker       *jobs.Broker
+	clusters     map[string]*Cluster
+	clustersMu   sync.RWMutex
+	clusterStore *clusterStore // nil = no persistence
+	uploadDir    string
+	anthropicKey string
+	apiKey       string
+	corsOrigins  []string
+	startTime    time.Time
 }
 
 // New creates a new API server with the given queue and broker.

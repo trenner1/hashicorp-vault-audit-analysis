@@ -23,8 +23,8 @@ type PathHotspotStats struct {
 
 // PathHotspotsState accumulates path hotspot statistics.
 type PathHotspotsState struct {
-	PathStats         map[string]*PathHotspotStats
-	TotalOperations   int
+	PathStats       map[string]*PathHotspotStats
+	TotalOperations int
 }
 
 // PathHotspotsRun processes audit logs and outputs path hotspot analysis.
@@ -348,12 +348,12 @@ func PathHotspotsRun(logFiles []string, top int) error {
 	fmt.Println(stringRepeat("=", 120))
 
 	categories := map[string]int{
-		"Token Operations":  0,
-		"KV Secret Access":  0,
-		"Authentication":    0,
-		"Airflow Secrets":   0,
-		"System/Admin":      0,
-		"Other":             0,
+		"Token Operations": 0,
+		"KV Secret Access": 0,
+		"Authentication":   0,
+		"Airflow Secrets":  0,
+		"System/Admin":     0,
+		"Other":            0,
 	}
 
 	for path, stats := range result.PathStats {
@@ -402,11 +402,11 @@ func PathHotspotsRun(logFiles []string, top int) error {
 	fmt.Println(stringRepeat("=", 120))
 
 	type opportunity struct {
-		name                string
-		currentOps          int
-		potentialReduction  int
-		effort              string
-		priority            int
+		name               string
+		currentOps         int
+		potentialReduction int
+		effort             string
+		priority           int
 	}
 
 	var opportunities []opportunity

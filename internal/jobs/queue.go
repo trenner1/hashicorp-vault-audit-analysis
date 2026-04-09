@@ -31,9 +31,9 @@ type Queue struct {
 	mu         sync.RWMutex
 	jobs       map[string]*Job
 	binaryPath string
-	workDir    string       // CWD for child processes; "" = inherit server CWD
+	workDir    string // CWD for child processes; "" = inherit server CWD
 	broker     *Broker
-	store      *Store       // nil = no persistence
+	store      *Store        // nil = no persistence
 	sem        chan struct{} // nil = unlimited concurrency
 }
 

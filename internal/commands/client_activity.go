@@ -15,33 +15,33 @@ import (
 
 // ActivityRecord represents a single activity record from Vault API.
 type ActivityRecord struct {
-	ClientID         string `json:"client_id"`
-	ClientType       string `json:"client_type"`
-	MountAccessor    string `json:"mount_accessor"`
-	MountPath        string `json:"mount_path"`
-	MountType        string `json:"mount_type"`
-	EntityAliasName  string `json:"entity_alias_name"`
+	ClientID        string `json:"client_id"`
+	ClientType      string `json:"client_type"`
+	MountAccessor   string `json:"mount_accessor"`
+	MountPath       string `json:"mount_path"`
+	MountType       string `json:"mount_type"`
+	EntityAliasName string `json:"entity_alias_name"`
 }
 
 // EntityMapping represents entity metadata from the entity map.
 // MountActivity represents aggregated activity for a mount.
 type MountActivity struct {
-	Mount    string `json:"mount"`
-	Type     string `json:"type"`
-	Accessor string `json:"accessor"`
-	Total    int    `json:"total"`
-	Entity   int    `json:"entity"`
-	NonEntity int   `json:"non_entity"`
+	Mount     string `json:"mount"`
+	Type      string `json:"type"`
+	Accessor  string `json:"accessor"`
+	Total     int    `json:"total"`
+	Entity    int    `json:"entity"`
+	NonEntity int    `json:"non_entity"`
 }
 
 // mountActivityData tracks clients for a mount during aggregation.
 type mountActivityData struct {
-	mount          string
-	mountType      string
-	accessor       string
-	role           string
-	totalClients   map[string]bool
-	entityClients  map[string]bool
+	mount            string
+	mountType        string
+	accessor         string
+	role             string
+	totalClients     map[string]bool
+	entityClients    map[string]bool
 	nonEntityClients map[string]bool
 }
 
@@ -183,13 +183,13 @@ func RunClientActivity(
 		// Get or create activity entry
 		if _, ok := mountActivities[key]; !ok {
 			mountActivities[key] = &mountActivityData{
-				mount:             mountPath,
-				mountType:         mountType,
-				accessor:          accessor,
-				role:              role,
-				totalClients:      make(map[string]bool),
-				entityClients:     make(map[string]bool),
-				nonEntityClients:  make(map[string]bool),
+				mount:            mountPath,
+				mountType:        mountType,
+				accessor:         accessor,
+				role:             role,
+				totalClients:     make(map[string]bool),
+				entityClients:    make(map[string]bool),
+				nonEntityClients: make(map[string]bool),
 			}
 		}
 

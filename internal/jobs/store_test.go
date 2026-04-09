@@ -79,8 +79,8 @@ func TestStore_SaveOverwrite(t *testing.T) {
 func TestStore_Delete(t *testing.T) {
 	s, _ := NewStore(t.TempDir())
 
-	s.Save(makeJob("job-001", "done"))   //nolint:errcheck
-	s.Save(makeJob("job-002", "error"))  //nolint:errcheck
+	s.Save(makeJob("job-001", "done"))  //nolint:errcheck
+	s.Save(makeJob("job-002", "error")) //nolint:errcheck
 
 	if err := s.Delete("job-001"); err != nil {
 		t.Fatalf("Delete: %v", err)

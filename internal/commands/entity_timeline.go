@@ -22,7 +22,7 @@ type Operation struct {
 
 // TimelineState tracks operations for a specific entity.
 type TimelineState struct {
-	operations      []Operation
+	operations       []Operation
 	operationsByType map[string]int
 	pathsAccessed    map[string]int
 	operationsByHour map[string]map[string]int

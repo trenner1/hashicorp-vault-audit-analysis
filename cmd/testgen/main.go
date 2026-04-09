@@ -45,12 +45,12 @@ func bold(s string) string   { return colBold + s + colReset }
 // ── Log generation ────────────────────────────────────────────────────────────
 
 type logEntry struct {
-	Time     string       `json:"time"`
-	Type     string       `json:"type"`
-	Auth     *authBlock   `json:"auth,omitempty"`
-	Request  *reqBlock    `json:"request,omitempty"`
-	Response *respBlock   `json:"response,omitempty"`
-	Error    *string      `json:"error,omitempty"`
+	Time     string     `json:"time"`
+	Type     string     `json:"type"`
+	Auth     *authBlock `json:"auth,omitempty"`
+	Request  *reqBlock  `json:"request,omitempty"`
+	Response *respBlock `json:"response,omitempty"`
+	Error    *string    `json:"error,omitempty"`
 }
 
 type authBlock struct {
@@ -63,39 +63,41 @@ type authBlock struct {
 }
 
 type reqBlock struct {
-	ID            string    `json:"id,omitempty"`
-	Operation     string    `json:"operation,omitempty"`
-	Path          string    `json:"path,omitempty"`
-	MountType     string    `json:"mount_type,omitempty"`
-	MountPoint    string    `json:"mount_point,omitempty"`
-	Namespace     *nsBlock  `json:"namespace,omitempty"`
-	RemoteAddress string    `json:"remote_address,omitempty"`
+	ID            string   `json:"id,omitempty"`
+	Operation     string   `json:"operation,omitempty"`
+	Path          string   `json:"path,omitempty"`
+	MountType     string   `json:"mount_type,omitempty"`
+	MountPoint    string   `json:"mount_point,omitempty"`
+	Namespace     *nsBlock `json:"namespace,omitempty"`
+	RemoteAddress string   `json:"remote_address,omitempty"`
 }
 
-type nsBlock  struct{ ID string `json:"id"` }
+type nsBlock struct {
+	ID string `json:"id"`
+}
 type respBlock struct{}
 
 var (
 	entities = []struct{ id, display, accessor, ip string }{
-		{"e001-web",     "kubernetes-default-web",      "hvs.ACC001", "10.0.0.10"},
-		{"e002-api",     "kubernetes-prod-api",          "hvs.ACC002", "10.0.1.20"},
-		{"e003-worker",  "kubernetes-default-worker",    "hvs.ACC003", "10.0.0.30"},
-		{"e004-airflow", "airflow-worker",               "hvs.ACC004", "10.2.0.40"},
-		{"e005-cicd",    "approle-cicd",                 "hvs.ACC005", "10.5.0.50"},
-		{"e006-trevor",  "github-trevor",                "hvs.ACC006", "192.168.1.1"},
-		{"e007-batch",   "kubernetes-batch-processor",   "hvs.ACC007", "10.0.2.70"},
-		{"e008-svc",     "kubernetes-infra-svcmesh",     "hvs.ACC008", "10.0.3.80"},
+		{"e001-web", "kubernetes-default-web", "hvs.ACC001", "10.0.0.10"},
+		{"e002-api", "kubernetes-prod-api", "hvs.ACC002", "10.0.1.20"},
+		{"e003-worker", "kubernetes-default-worker", "hvs.ACC003", "10.0.0.30"},
+		{"e004-airflow", "airflow-worker", "hvs.ACC004", "10.2.0.40"},
+		{"e005-cicd", "approle-cicd", "hvs.ACC005", "10.5.0.50"},
+		{"e006-trevor", "github-trevor", "hvs.ACC006", "192.168.1.1"},
+		{"e007-batch", "kubernetes-batch-processor", "hvs.ACC007", "10.0.2.70"},
+		{"e008-svc", "kubernetes-infra-svcmesh", "hvs.ACC008", "10.0.3.80"},
 	}
 
 	kvPaths = []struct{ path, mount string }{
-		{"kv/data/web/config",             "kv/"},
-		{"kv/data/api/database",           "kv/"},
-		{"kv/data/api/redis",              "kv/"},
-		{"kv/data/worker/jobs",            "kv/"},
+		{"kv/data/web/config", "kv/"},
+		{"kv/data/api/database", "kv/"},
+		{"kv/data/api/redis", "kv/"},
+		{"kv/data/worker/jobs", "kv/"},
 		{"kv/data/airflow/connections/pg", "kv/"},
-		{"kv/data/airflow/connections/rds","kv/"},
-		{"kv/data/cicd/github-token",      "kv/"},
-		{"kv/data/shared/tls-cert",        "kv/"},
+		{"kv/data/airflow/connections/rds", "kv/"},
+		{"kv/data/cicd/github-token", "kv/"},
+		{"kv/data/shared/tls-cert", "kv/"},
 	}
 
 	operations = []string{"read", "read", "read", "list", "update", "create"}
@@ -316,32 +318,32 @@ func buildScenarios(smallPath, largePath, blackholeAddr string) []scenario {
 
 	return []scenario{
 		// ── Passing jobs ───────────────────────────────────────────────────────
-		pass("system-overview (small)",         "system-overview",         "",          sf, []string{"--top", "5"}),
-		pass("system-overview (large)",         "system-overview",         "",          lf, []string{"--top", "20"}),
-		pass("path-hotspots (small)",           "path-hotspots",           "",          sf, []string{"--top", "10"}),
-		pass("path-hotspots (large)",           "path-hotspots",           "",          lf, nil),
-		pass("token-analysis (small)",          "token-analysis",          "",          sf, nil),
-		pass("token-analysis (large)",          "token-analysis",          "",          lf, nil),
-		pass("kv-analysis analyze (small)",     "kv-analysis",             "analyze",   sf, nil),
-		pass("kv-analysis analyze (large)",     "kv-analysis",             "analyze",   lf, nil),
-		pass("entity-analysis preprocess",      "entity-analysis",         "preprocess",sf, nil),
-		pass("entity-analysis creation",        "entity-analysis",         "creation",  sf, nil),
-		pass("entity-analysis gaps",            "entity-analysis",         "gaps",      sf, nil),
-		pass("k8s-auth (small)",                "k8s-auth",                "",          sf, nil),
-		pass("k8s-auth (large)",                "k8s-auth",                "",          lf, nil),
-		pass("airflow-polling (small)",         "airflow-polling",         "",          sf, nil),
-		pass("client-traffic-analysis (small)", "client-traffic-analysis", "",          sf, nil),
-		pass("client-traffic-analysis (large)", "client-traffic-analysis", "",          lf, nil),
+		pass("system-overview (small)", "system-overview", "", sf, []string{"--top", "5"}),
+		pass("system-overview (large)", "system-overview", "", lf, []string{"--top", "20"}),
+		pass("path-hotspots (small)", "path-hotspots", "", sf, []string{"--top", "10"}),
+		pass("path-hotspots (large)", "path-hotspots", "", lf, nil),
+		pass("token-analysis (small)", "token-analysis", "", sf, nil),
+		pass("token-analysis (large)", "token-analysis", "", lf, nil),
+		pass("kv-analysis analyze (small)", "kv-analysis", "analyze", sf, nil),
+		pass("kv-analysis analyze (large)", "kv-analysis", "analyze", lf, nil),
+		pass("entity-analysis preprocess", "entity-analysis", "preprocess", sf, nil),
+		pass("entity-analysis creation", "entity-analysis", "creation", sf, nil),
+		pass("entity-analysis gaps", "entity-analysis", "gaps", sf, nil),
+		pass("k8s-auth (small)", "k8s-auth", "", sf, nil),
+		pass("k8s-auth (large)", "k8s-auth", "", lf, nil),
+		pass("airflow-polling (small)", "airflow-polling", "", sf, nil),
+		pass("client-traffic-analysis (small)", "client-traffic-analysis", "", sf, nil),
+		pass("client-traffic-analysis (large)", "client-traffic-analysis", "", lf, nil),
 
 		// ── Failing jobs ───────────────────────────────────────────────────────
-		fail("system-overview — no files",       "system-overview",   "",        nil, nil),
-		fail("path-hotspots — bad file path",    "path-hotspots",     "",        []string{"/does/not/exist.log"}, nil),
-		fail("token-analysis — no files",        "token-analysis",    "",        nil, nil),
-		fail("kv-analysis — no subcommand",      "kv-analysis",       "",        sf,  nil),
-		fail("kv-analysis compare — wrong args", "kv-analysis",       "compare", nil, []string{"/only-one-arg.csv"}),
-		fail("entity-analysis — no files",       "entity-analysis",   "gaps",    nil, nil),
-		fail("entity-analysis — bad flag value", "entity-analysis",   "gaps",    sf,  []string{"--window-seconds", "not-a-number"}),
-		fail("nonexistent command",              "does-not-exist",    "",        sf,  nil),
+		fail("system-overview — no files", "system-overview", "", nil, nil),
+		fail("path-hotspots — bad file path", "path-hotspots", "", []string{"/does/not/exist.log"}, nil),
+		fail("token-analysis — no files", "token-analysis", "", nil, nil),
+		fail("kv-analysis — no subcommand", "kv-analysis", "", sf, nil),
+		fail("kv-analysis compare — wrong args", "kv-analysis", "compare", nil, []string{"/only-one-arg.csv"}),
+		fail("entity-analysis — no files", "entity-analysis", "gaps", nil, nil),
+		fail("entity-analysis — bad flag value", "entity-analysis", "gaps", sf, []string{"--window-seconds", "not-a-number"}),
+		fail("nonexistent command", "does-not-exist", "", sf, nil),
 
 		// ── Hanging jobs ───────────────────────────────────────────────────────
 		hang("client-activity — blackhole (hang 1)",
@@ -358,10 +360,10 @@ func buildScenarios(smallPath, largePath, blackholeAddr string) []scenario {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 func main() {
-	apiBase  := flag.String("api",        "http://localhost:8080", "API base URL")
-	smallN   := flag.Int("small-entries", 500,   "entries in the small synthetic log")
-	largeN   := flag.Int("large-entries", 8000,  "entries in the large synthetic log")
-	delay    := flag.Duration("delay",    200*time.Millisecond, "delay between job submissions")
+	apiBase := flag.String("api", "http://localhost:8080", "API base URL")
+	smallN := flag.Int("small-entries", 500, "entries in the small synthetic log")
+	largeN := flag.Int("large-entries", 8000, "entries in the large synthetic log")
+	delay := flag.Duration("delay", 200*time.Millisecond, "delay between job submissions")
 	flag.Parse()
 
 	fmt.Println()
@@ -425,11 +427,11 @@ func main() {
 	fmt.Printf("  Submitting %s scenarios…\n\n", bold(fmt.Sprint(len(scenarios))))
 
 	var (
-		mu       sync.Mutex
-		passed   int32
-		failed   int32
-		hanging  int32
-		errored  int32
+		mu      sync.Mutex
+		passed  int32
+		failed  int32
+		hanging int32
+		errored int32
 	)
 
 	maxLabel := 0
@@ -473,9 +475,9 @@ func main() {
 
 	fmt.Println()
 	fmt.Println(bold("  ── Summary ─────────────────────────────────────────"))
-	fmt.Printf("     %s  pass      (should succeed)\n",    green(fmt.Sprintf("%3d", passed)))
-	fmt.Printf("     %s  fail      (expected errors)\n",   cyan(fmt.Sprintf("%3d", failed)))
-	fmt.Printf("     %s  hanging   (TCP blackhole)\n",     yellow(fmt.Sprintf("%3d", hanging)))
+	fmt.Printf("     %s  pass      (should succeed)\n", green(fmt.Sprintf("%3d", passed)))
+	fmt.Printf("     %s  fail      (expected errors)\n", cyan(fmt.Sprintf("%3d", failed)))
+	fmt.Printf("     %s  hanging   (TCP blackhole)\n", yellow(fmt.Sprintf("%3d", hanging)))
 	if errored > 0 {
 		fmt.Printf("     %s  errored   (submission error)\n", red(fmt.Sprintf("%3d", errored)))
 	}

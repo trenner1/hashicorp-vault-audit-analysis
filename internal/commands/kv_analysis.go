@@ -16,9 +16,9 @@ import (
 
 // kvUsageData tracks statistics for a specific KV path.
 type kvUsageData struct {
-	entityIDs        map[string]bool // Set of unique entity IDs
-	operationsCount  int
-	pathsAccessed    map[string]bool // Set of unique paths
+	entityIDs       map[string]bool // Set of unique entity IDs
+	operationsCount int
+	pathsAccessed   map[string]bool // Set of unique paths
 }
 
 // kvAnalyzerState aggregates KV usage data during processing.
@@ -342,8 +342,8 @@ func RunKVCompare(csv1, csv2 string) error {
 	fmt.Println(strings.Repeat("=", 95))
 
 	var results []struct {
-		name    string
-		data    map[string]interface{}
+		name string
+		data map[string]interface{}
 	}
 	totalOps := 0
 	totalPaths := 0

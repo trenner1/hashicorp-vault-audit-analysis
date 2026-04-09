@@ -12,21 +12,21 @@ import (
 
 // pathEntry represents a single entry in the KV mount hierarchy.
 type pathEntry struct {
-	Path        string        `json:"path"`
-	Type        string        `json:"type"` // "folder" or "secret"
-	Children    []pathEntry   `json:"children,omitempty"`
-	CreatedTime *string       `json:"created_time,omitempty"`
-	UpdatedTime *string       `json:"updated_time,omitempty"`
+	Path        string      `json:"path"`
+	Type        string      `json:"type"` // "folder" or "secret"
+	Children    []pathEntry `json:"children,omitempty"`
+	CreatedTime *string     `json:"created_time,omitempty"`
+	UpdatedTime *string     `json:"updated_time,omitempty"`
 }
 
 // kvMountOutput represents a single KV mount with optional children.
 type kvMountOutput struct {
-	Path        string         `json:"path"`
-	MountType   string         `json:"mount_type"`
-	Description string         `json:"description"`
-	Version     string         `json:"version"`
-	Accessor    string         `json:"accessor"`
-	Children    []pathEntry    `json:"children,omitempty"`
+	Path        string      `json:"path"`
+	MountType   string      `json:"mount_type"`
+	Description string      `json:"description"`
+	Version     string      `json:"version"`
+	Accessor    string      `json:"accessor"`
+	Children    []pathEntry `json:"children,omitempty"`
 }
 
 // mountInfo represents the response structure for a mount from /sys/mounts.

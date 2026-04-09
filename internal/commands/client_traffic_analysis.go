@@ -26,45 +26,45 @@ type errorInstance struct {
 
 // clientStats tracks statistics for a single client IP.
 type clientStats struct {
-	requestCount      int
-	operations        map[string]int      // operation type -> count
-	paths             map[string]int      // path -> count
-	mountPoints       map[string]int      // mount point -> count
-	entities          map[string]string   // entity_id -> display_name
-	firstSeen         *string
-	lastSeen          *string
-	errorCount        int
-	errorTypes        map[string]int      // error type -> count
-	errorPaths        map[string]int      // error path -> count
-	errorInstances    []errorInstance
-	hourlyDistribution map[uint32]int      // hour -> count
+	requestCount       int
+	operations         map[string]int    // operation type -> count
+	paths              map[string]int    // path -> count
+	mountPoints        map[string]int    // mount point -> count
+	entities           map[string]string // entity_id -> display_name
+	firstSeen          *string
+	lastSeen           *string
+	errorCount         int
+	errorTypes         map[string]int // error type -> count
+	errorPaths         map[string]int // error path -> count
+	errorInstances     []errorInstance
+	hourlyDistribution map[uint32]int // hour -> count
 }
 
 // clientExport is the export format for client metrics.
 type clientExport struct {
-	ClientIP                string `csv:"client_ip"`
-	TotalRequests           int    `csv:"total_requests"`
-	UniqueEntities          int    `csv:"unique_entities"`
-	UniquePaths             int    `csv:"unique_paths"`
-	UniqueMountPoints       int    `csv:"unique_mount_points"`
-	ErrorCount              int    `csv:"error_count"`
-	ErrorRate               float64 `csv:"error_rate"`
-	FirstSeen               string `csv:"first_seen"`
-	LastSeen                string `csv:"last_seen"`
-	TopOperation            string `csv:"top_operation"`
-	TopOperationCount       int    `csv:"top_operation_count"`
-	TopPath                 string `csv:"top_path"`
-	TopPathCount            int    `csv:"top_path_count"`
-	TopErrorType            string `csv:"top_error_type"`
-	TopErrorTypeCount       int    `csv:"top_error_type_count"`
-	TopErrorTypePercentage  float64 `csv:"top_error_type_percentage"`
-	SecondErrorType         string `csv:"second_error_type"`
-	SecondErrorTypeCount    int    `csv:"second_error_type_count"`
-	ThirdErrorType          string `csv:"third_error_type"`
-	ThirdErrorTypeCount     int    `csv:"third_error_type_count"`
-	TopErrorPath            string `csv:"top_error_path"`
-	TopErrorPathCount       int    `csv:"top_error_path_count"`
-	Classification          string `csv:"classification"`
+	ClientIP               string  `csv:"client_ip"`
+	TotalRequests          int     `csv:"total_requests"`
+	UniqueEntities         int     `csv:"unique_entities"`
+	UniquePaths            int     `csv:"unique_paths"`
+	UniqueMountPoints      int     `csv:"unique_mount_points"`
+	ErrorCount             int     `csv:"error_count"`
+	ErrorRate              float64 `csv:"error_rate"`
+	FirstSeen              string  `csv:"first_seen"`
+	LastSeen               string  `csv:"last_seen"`
+	TopOperation           string  `csv:"top_operation"`
+	TopOperationCount      int     `csv:"top_operation_count"`
+	TopPath                string  `csv:"top_path"`
+	TopPathCount           int     `csv:"top_path_count"`
+	TopErrorType           string  `csv:"top_error_type"`
+	TopErrorTypeCount      int     `csv:"top_error_type_count"`
+	TopErrorTypePercentage float64 `csv:"top_error_type_percentage"`
+	SecondErrorType        string  `csv:"second_error_type"`
+	SecondErrorTypeCount   int     `csv:"second_error_type_count"`
+	ThirdErrorType         string  `csv:"third_error_type"`
+	ThirdErrorTypeCount    int     `csv:"third_error_type_count"`
+	TopErrorPath           string  `csv:"top_error_path"`
+	TopErrorPathCount      int     `csv:"top_error_path_count"`
+	Classification         string  `csv:"classification"`
 }
 
 // detailedErrorExport represents a detailed error export record.

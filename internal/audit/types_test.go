@@ -24,11 +24,11 @@ func withAuth(e *AuditEntry, entityID, displayName, accessor string) *AuditEntry
 
 func withRequest(e *AuditEntry, op, path, mountType, mountPoint, ns, ip string) *AuditEntry {
 	e.Request = &RequestInfo{
-		Operation:  sp(op),
-		Path:       sp(path),
-		MountType:  sp(mountType),
-		MountPoint: sp(mountPoint),
-		Namespace:  &Namespace{ID: ns},
+		Operation:     sp(op),
+		Path:          sp(path),
+		MountType:     sp(mountType),
+		MountPoint:    sp(mountPoint),
+		Namespace:     &Namespace{ID: ns},
 		RemoteAddress: sp(ip),
 	}
 	return e

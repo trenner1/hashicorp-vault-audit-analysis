@@ -177,7 +177,6 @@ func pathEndsWithLogin(path string) bool {
 		path[len(path)-len(suffix):] == suffix
 }
 
-
 // repeatChar repeats a character n times.
 func repeatChar(c string, n int) string {
 	return strings.Repeat(c, n)
