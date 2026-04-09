@@ -107,7 +107,7 @@ func ServeSSE(w http.ResponseWriter, r *http.Request, jobID string, broker *Brok
 			// This is SSE text data delivered via EventSource, not HTML rendered
 			// by the browser, so html/template escaping is not applicable here.
 			safe := sanitizeSSELine(line)
-			w.Write([]byte("event: output\ndata: " + safe + "\n\n")) //nolint:errcheck //nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
+			_, _ = w.Write([]byte("event: output\ndata: " + safe + "\n\n")) // nosemgrep: go.lang.security.audit.xss.no-direct-write-to-responsewriter.no-direct-write-to-responsewriter
 			flusher.Flush()
 		case <-heartbeat.C:
 			// SSE comment keeps the connection alive through proxies.

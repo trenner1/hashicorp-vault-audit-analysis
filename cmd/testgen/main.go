@@ -13,7 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand/v2"
+	"math/rand/v2" // nosemgrep: go.lang.security.audit.crypto.math_random.math-random-used
 	"mime/multipart"
 	"net"
 	"net/http"
