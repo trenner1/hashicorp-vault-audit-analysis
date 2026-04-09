@@ -125,7 +125,8 @@ func TestAuthMiddleware_DynamicKey(t *testing.T) {
 // ── corsMiddleware ────────────────────────────────────────────────────────────
 
 func TestCORSMiddleware_SetsHeaders(t *testing.T) {
-	h := corsMiddleware(okHandler)
+	s := &Server{corsOrigins: []string{"http://localhost:3000"}}
+	h := s.corsMiddleware()(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	rr := httptest.NewRecorder()
@@ -137,10 +138,43 @@ func TestCORSMiddleware_SetsHeaders(t *testing.T) {
 	if got := rr.Header().Get("Access-Control-Allow-Methods"); got == "" {
 		t.Error("Access-Control-Allow-Methods header missing")
 	}
+	if got := rr.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Errorf("Allow-Credentials = %q, want true for specific origin", got)
+	}
+}
+
+func TestCORSMiddleware_WildcardNoCredentials(t *testing.T) {
+	s := &Server{corsOrigins: []string{"*"}}
+	h := s.corsMiddleware()(okHandler)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
+	req.Header.Set("Origin", "http://evil.example.com")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://evil.example.com" {
+		t.Errorf("Allow-Origin = %q, want reflected origin for wildcard", got)
+	}
+	if got := rr.Header().Get("Access-Control-Allow-Credentials"); got != "" {
+		t.Errorf("Allow-Credentials should be absent for wildcard, got %q", got)
+	}
+}
+
+func TestCORSMiddleware_UnknownOriginNotReflected(t *testing.T) {
+	s := &Server{corsOrigins: []string{"http://allowed.example.com"}}
+	h := s.corsMiddleware()(okHandler)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
+	req.Header.Set("Origin", "http://other.example.com")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("unexpected Allow-Origin %q for unlisted origin", got)
+	}
 }
 
 func TestCORSMiddleware_Options(t *testing.T) {
-	h := corsMiddleware(okHandler)
+	s := &Server{corsOrigins: []string{"*"}}
+	h := s.corsMiddleware()(okHandler)
 	req := httptest.NewRequest(http.MethodOptions, "/api/v1/jobs", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)

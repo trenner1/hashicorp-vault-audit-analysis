@@ -302,7 +302,7 @@ func getFileBaseName(path string) string {
 func parseTime(ts string) time.Time {
 	t, err := utils.ParseTimestamp(ts)
 	if err != nil {
-		return time.Now().UTC()
+		return time.Time{}
 	}
 	return t
 }

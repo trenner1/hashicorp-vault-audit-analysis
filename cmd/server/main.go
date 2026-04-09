@@ -80,6 +80,7 @@ func main() {
 	} else {
 		fmt.Println("Anthropic API key: not set (agentic queries disabled)")
 	}
+	server.SetCORSOrigins(corsOrigins)
 	if apiKey != "" {
 		server.SetAPIKey(apiKey)
 		fmt.Println("API authentication: enabled")

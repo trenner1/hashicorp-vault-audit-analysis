@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, Cluster } from '../api/client'
 
@@ -205,8 +205,8 @@ export function Clusters() {
               {[...(clusters as Cluster[])].sort(
                 (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
               ).map(cluster => (
-                <>
-                  <tr key={cluster.id} className={`hover:bg-gray-50 transition-colors ${editingId === cluster.id ? 'bg-indigo-50' : ''}`}>
+                <React.Fragment key={cluster.id}>
+                  <tr className={`hover:bg-gray-50 transition-colors ${editingId === cluster.id ? 'bg-indigo-50' : ''}`}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{cluster.name}</td>
                     <td className="px-6 py-4 text-sm text-gray-600 font-mono">{cluster.vault_addr}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{cluster.namespace || '—'}</td>
@@ -266,7 +266,7 @@ export function Clusters() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

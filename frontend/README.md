@@ -7,7 +7,7 @@ A modern React + TypeScript + Vite frontend for the HashiCorp Vault Audit Analys
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Vite** - Build tooling
-- **Tailwind CSS** - Styling (via CDN)
+- **Tailwind CSS** - Styling (build-time via `@tailwindcss/vite`)
 - **TanStack Query v5** - Data fetching and caching
 - **React Router v6** - Navigation
 - **Recharts** - Charts (optional, for future analytics)
@@ -126,7 +126,7 @@ frontend/
 
 ## Styling
 
-The app uses **Tailwind CSS** via CDN (`<script src="https://cdn.tailwindcss.com">`). No build step required for CSS.
+The app uses **Tailwind CSS v4** processed at build time via `@tailwindcss/vite` (configured in `vite.config.ts`). Import is `@import "tailwindcss"` in `src/index.css`. No CDN script tag is required.
 
 Color scheme:
 - **Sidebar**: `bg-gray-900` (dark)

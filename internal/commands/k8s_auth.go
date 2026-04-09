@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/processor"
@@ -102,10 +103,14 @@ func RunK8sAuth(logFiles []string, output *string) error {
 		defer f.Close()
 
 		w := csv.NewWriter(f)
-		w.Write([]string{"entity_id", "login_count"})
+		if err := w.Write([]string{"entity_id", "login_count"}); err != nil {
+			return fmt.Errorf("write csv header: %w", err)
+		}
 
 		for entity, count := range entitiesSeen {
-			w.Write([]string{entity, fmt.Sprintf("%d", count)})
+			if err := w.Write([]string{entity, fmt.Sprintf("%d", count)}); err != nil {
+				return fmt.Errorf("write csv record: %w", err)
+			}
 		}
 
 		w.Flush()
@@ -175,9 +180,5 @@ func pathEndsWithLogin(path string) bool {
 
 // repeatChar repeats a character n times.
 func repeatChar(c string, n int) string {
-	result := ""
-	for i := 0; i < n; i++ {
-		result += c
-	}
-	return result
+	return strings.Repeat(c, n)
 }

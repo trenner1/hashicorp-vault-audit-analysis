@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,18 +31,20 @@ type Server struct {
 	uploadDir     string
 	anthropicKey  string
 	apiKey        string
+	corsOrigins   []string
 	startTime     time.Time
 }
 
 // New creates a new API server with the given queue and broker.
 func New(queue *jobs.Queue, broker *jobs.Broker) *Server {
 	s := &Server{
-		router:    chi.NewMux(),
-		queue:     queue,
-		broker:    broker,
-		clusters:  make(map[string]*Cluster),
-		uploadDir: "./uploads",
-		startTime: time.Now(),
+		router:      chi.NewMux(),
+		queue:       queue,
+		broker:      broker,
+		clusters:    make(map[string]*Cluster),
+		uploadDir:   "./uploads",
+		corsOrigins: []string{"*"},
+		startTime:   time.Now(),
 	}
 
 	// Setup routes
@@ -91,4 +94,20 @@ func (s *Server) SetAnthropicKey(key string) {
 // If empty, authentication is disabled.
 func (s *Server) SetAPIKey(key string) {
 	s.apiKey = key
+}
+
+// SetCORSOrigins sets the allowed CORS origins from a comma-separated string.
+// Use "*" to allow all origins (credentials will not be set for wildcard responses).
+// Defaults to ["*"] if never called.
+func (s *Server) SetCORSOrigins(origins string) {
+	parts := strings.Split(origins, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	if len(result) > 0 {
+		s.corsOrigins = result
+	}
 }

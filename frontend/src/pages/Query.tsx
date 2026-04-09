@@ -19,7 +19,7 @@ export default function Query() {
   const [question, setQuestion] = useState('')
   const [selectedClusterId, setSelectedClusterId] = useState<string>('')
   const [uploadedFiles, setUploadedFiles] = useState<UploadResult[]>([])
-  const [uploading, setUploading] = useState(false)
+  const [uploadingCount, setUploadingCount] = useState(0)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -41,14 +41,14 @@ export default function Query() {
   })
 
   const uploadFile = useCallback(async (file: File) => {
-    setUploading(true)
+    setUploadingCount(c => c + 1)
     try {
       const result = await api.uploadLog(file)
       setUploadedFiles(prev => [...prev, result])
     } catch (e) {
       console.error('Upload failed', e)
     } finally {
-      setUploading(false)
+      setUploadingCount(c => c - 1)
     }
   }, [])
 
@@ -75,7 +75,7 @@ export default function Query() {
   const canSubmit =
     question.trim().length > 0 &&
     !queryMutation.isPending &&
-    !uploading
+    uploadingCount === 0
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -175,7 +175,7 @@ export default function Query() {
             className="hidden"
             onChange={handleFileChange}
           />
-          {uploading ? (
+          {uploadingCount > 0 ? (
             <p className="text-sm text-indigo-600 animate-pulse">Uploading…</p>
           ) : (
             <>

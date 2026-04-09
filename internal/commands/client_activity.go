@@ -209,7 +209,7 @@ func RunClientActivity(
 		// Concatenate mount + role if grouping by role
 		mountDisplay := data.mount
 		if groupByRole && data.role != "" {
-			mountDisplay = data.mount + data.role
+			mountDisplay = data.mount + " / " + data.role
 		}
 
 		results = append(results, MountActivity{

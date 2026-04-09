@@ -12,7 +12,7 @@ func (s *Server) setupRoutes() {
 	// Middleware
 	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
-	s.router.Use(corsMiddleware)
+	s.router.Use(s.corsMiddleware())
 	s.router.Use(authMiddleware(func() string { return s.apiKey }))
 
 	// Health check
@@ -52,26 +52,55 @@ func (s *Server) setupRoutes() {
 	})
 }
 
-// corsMiddleware adds CORS headers to all responses.
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
-		}
+// corsMiddleware returns a CORS middleware that only reflects origins present in
+// s.corsOrigins.  When the wildcard "*" is in the list every origin is reflected
+// but Access-Control-Allow-Credentials is NOT set (browsers reject credentials
+// with a wildcard origin anyway).  For explicit non-wildcard origins credentials
+// are allowed.
+func (s *Server) corsMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
 
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
+			allowedOrigin := ""
+			credentialsOK := false
 
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
+			for _, o := range s.corsOrigins {
+				if o == "*" {
+					// Wildcard: reflect origin or fall back to "*"
+					if origin != "" {
+						allowedOrigin = origin
+					} else {
+						allowedOrigin = "*"
+					}
+					// credentials must NOT be combined with "*"
+					credentialsOK = false
+					break
+				}
+				if o == origin {
+					allowedOrigin = origin
+					credentialsOK = true
+					break
+				}
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			if allowedOrigin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+				if credentialsOK {
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				}
+			}
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // handleHealthz returns a health check response.

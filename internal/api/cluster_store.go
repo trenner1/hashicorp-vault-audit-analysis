@@ -55,7 +55,7 @@ func (cs *clusterStore) save(clusters map[string]*Cluster) error {
 		return fmt.Errorf("cluster store: marshal: %w", err)
 	}
 	tmp := cs.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
 		return fmt.Errorf("cluster store: write tmp: %w", err)
 	}
 	if err := os.Rename(tmp, cs.path); err != nil {

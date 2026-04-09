@@ -54,10 +54,22 @@ func injectClusterArgs(args []string, c *Cluster) []string {
 	return args
 }
 
-// persistClusters saves the current cluster map to disk (call with clustersMu held).
-func (s *Server) persistClusters() {
+// snapshotClusters returns a shallow copy of the clusters map.
+// Must be called with clustersMu held.
+func (s *Server) snapshotClusters() map[string]*Cluster {
+	snap := make(map[string]*Cluster, len(s.clusters))
+	for k, v := range s.clusters {
+		snap[k] = v
+	}
+	return snap
+}
+
+// persistClusters saves the provided cluster snapshot to disk.
+// It must be called WITHOUT clustersMu held to avoid blocking readers
+// during filesystem I/O.
+func (s *Server) persistClusters(snapshot map[string]*Cluster) {
 	if s.clusterStore != nil {
-		_ = s.clusterStore.save(s.clusters)
+		_ = s.clusterStore.save(snapshot)
 	}
 }
 
@@ -108,8 +120,9 @@ func (s *Server) handleCreateCluster(w http.ResponseWriter, r *http.Request) {
 
 	s.clustersMu.Lock()
 	s.clusters[cluster.ID] = cluster
-	s.persistClusters()
+	snapshot := s.snapshotClusters()
 	s.clustersMu.Unlock()
+	s.persistClusters(snapshot)
 
 	writeJSON(w, http.StatusCreated, toView(cluster))
 }
@@ -134,10 +147,10 @@ func (s *Server) handleUpdateCluster(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.clustersMu.Lock()
-	defer s.clustersMu.Unlock()
 
 	cluster, ok := s.clusters[clusterID]
 	if !ok {
+		s.clustersMu.Unlock()
 		writeError(w, http.StatusNotFound, "cluster not found")
 		return
 	}
@@ -149,7 +162,9 @@ func (s *Server) handleUpdateCluster(w http.ResponseWriter, r *http.Request) {
 	if req.Token != "" {
 		cluster.Token = req.Token
 	}
-	s.persistClusters()
+	snapshot := s.snapshotClusters()
+	s.clustersMu.Unlock()
+	s.persistClusters(snapshot)
 
 	writeJSON(w, http.StatusOK, toView(cluster))
 }
@@ -159,14 +174,16 @@ func (s *Server) handleDeleteCluster(w http.ResponseWriter, r *http.Request) {
 	clusterID := chi.URLParam(r, "id")
 
 	s.clustersMu.Lock()
-	defer s.clustersMu.Unlock()
 
 	if _, exists := s.clusters[clusterID]; !exists {
+		s.clustersMu.Unlock()
 		writeError(w, http.StatusNotFound, "cluster not found")
 		return
 	}
 
 	delete(s.clusters, clusterID)
-	s.persistClusters()
+	snapshot := s.snapshotClusters()
+	s.clustersMu.Unlock()
+	s.persistClusters(snapshot)
 	w.WriteHeader(http.StatusNoContent)
 }
