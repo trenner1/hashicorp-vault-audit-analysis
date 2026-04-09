@@ -62,7 +62,10 @@ func NewFromOptions(opts Options) (*Client, error) {
 
 	skipVerify := opts.SkipVerify || shouldSkipVerify()
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipVerify}, //nolint:gosec
+		TLSClientConfig: &tls.Config{ //nolint:gosec
+			InsecureSkipVerify: skipVerify,
+			MinVersion:         tls.VersionTLS12,
+		},
 	}
 
 	return &Client{

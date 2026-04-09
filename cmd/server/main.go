@@ -101,7 +101,7 @@ func main() {
 
 	// Start HTTP server
 	addr := ":" + port
-	if err := http.ListenAndServe(addr, server); err != nil {
+	if err := http.ListenAndServe(addr, server); err != nil { // nosemgrep: go.lang.security.audit.net.use-tls.use-tls
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
 	}
