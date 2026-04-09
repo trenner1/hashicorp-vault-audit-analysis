@@ -23,61 +23,46 @@ jobs:
       github.event.pull_request.user.login == 'dependabot[bot]'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Cache cargo-edit binary
-        id: cache-cargo-edit
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin
-          key: cargo-bin-cargo-edit-0.13.1-${{ runner.os }}
-
-      - name: Install cargo-edit
-        if: steps.cache-cargo-edit.outputs.cache-hit != 'true'
-        run: cargo install cargo-edit --locked --version 0.13.1
-
-      - name: Get current version
+      - name: Get current version from latest tag
         id: current_version
         run: |
-          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Current version: $VERSION"
 
       - name: Bump patch version
         id: bump_version
+        env:
+          CURRENT_VERSION: ${{ steps.current_version.outputs.version }}
         run: |
-          cargo set-version --bump patch
-          NEW_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          STRIPPED="${CURRENT_VERSION#v}"
+          IFS='.' read -r major minor patch <<< "$STRIPPED"
+          patch="${patch:-0}"
+          NEW_VERSION="v${major}.${minor}.$((patch + 1))"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "New version: $NEW_VERSION"
 
-      - name: Commit version bump
-        run: |
-          git pull --rebase origin main
-          git add Cargo.toml Cargo.lock
-          git commit -m "chore: bump version to v${{ steps.bump_version.outputs.new_version }} for dependency updates"
-          git push origin main
-
       - name: Create and push tag
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
-          git tag "v${{ steps.bump_version.outputs.new_version }}"
-          git push origin "v${{ steps.bump_version.outputs.new_version }}"
+          git tag "$NEW_VERSION"
+          git push origin "$NEW_VERSION"
 
       - name: Trigger release workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
           gh workflow run release.yml \
-            --field version="v${{ steps.bump_version.outputs.new_version }}"
+            --field version="$NEW_VERSION"

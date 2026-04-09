@@ -14,9 +14,6 @@ on:
 permissions:
   contents: write
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   create-release:
     name: Create Release
@@ -25,8 +22,7 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Get version
         id: get_version
@@ -35,156 +31,138 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
-            echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create Release
-        id: create_release
+      - name: Write release notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.get_version.outputs.version }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release create ${{ steps.get_version.outputs.version }} \
-            --title "Release ${{ steps.get_version.outputs.version }}" \
-            --notes "# Vault Audit Tools ${{ steps.get_version.outputs.version }}
+          cat > notes.md << 'NOTES'
+          ## vault-audit RELEASE_VERSION_PLACEHOLDER
 
-          High-performance Rust CLI for HashiCorp Vault audit log analysis.
-
-          ## Features
-          - 12 comprehensive analysis commands
-          - 3x faster than Python implementation
-          - 10x less memory usage
-          - Single static binary
+          HashiCorp Vault audit log analysis CLI.
 
           ## Installation
 
           ### Linux (x86_64)
-          \`\`\`bash
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-unknown-linux-gnu.tar.gz
-          tar -xzf vault-audit-x86_64-unknown-linux-gnu.tar.gz
+          ```bash
+          curl -L https://github.com/REPO_PLACEHOLDER/releases/download/RELEASE_VERSION_PLACEHOLDER/vault-audit-linux-amd64.tar.gz | tar -xz
           sudo mv vault-audit /usr/local/bin/
-          \`\`\`
-
-          ### macOS (Intel)
-          \`\`\`bash
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-x86_64-apple-darwin.tar.gz
-          tar -xzf vault-audit-x86_64-apple-darwin.tar.gz
-          sudo mv vault-audit /usr/local/bin/
-          \`\`\`
+          ```
 
           ### macOS (Apple Silicon)
-          \`\`\`bash
-          wget https://github.com/${{ github.repository }}/releases/download/${{ steps.get_version.outputs.version }}/vault-audit-aarch64-apple-darwin.tar.gz
-          tar -xzf vault-audit-aarch64-apple-darwin.tar.gz
+          ```bash
+          curl -L https://github.com/REPO_PLACEHOLDER/releases/download/RELEASE_VERSION_PLACEHOLDER/vault-audit-darwin-arm64.tar.gz | tar -xz
           sudo mv vault-audit /usr/local/bin/
-          \`\`\`
+          ```
+
+          ### macOS (Intel)
+          ```bash
+          curl -L https://github.com/REPO_PLACEHOLDER/releases/download/RELEASE_VERSION_PLACEHOLDER/vault-audit-darwin-amd64.tar.gz | tar -xz
+          sudo mv vault-audit /usr/local/bin/
+          ```
 
           ### Windows
-          Download \`vault-audit-x86_64-pc-windows-msvc.zip\` and extract to your PATH.
+          Download `vault-audit-windows-amd64.zip` and extract to your PATH.
 
-          ## Checksums
-          See \`checksums.txt\` for SHA256 hashes of all artifacts."
+          See `checksums.txt` for SHA256 hashes.
+          NOTES
+          sed -i "s|RELEASE_VERSION_PLACEHOLDER|${RELEASE_VERSION}|g" notes.md
+          sed -i "s|REPO_PLACEHOLDER|${REPO}|g" notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          gh release create "$RELEASE_VERSION" \
+            --title "Release $RELEASE_VERSION" \
+            --notes-file notes.md
 
   build-release:
-    name: Build Release Binary
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     needs: create-release
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: vault-audit
-            archive_name: vault-audit-x86_64-unknown-linux-gnu.tar.gz
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            archive: vault-audit-linux-amd64.tar.gz
+            binary: vault-audit
 
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            artifact_name: vault-audit
-            archive_name: vault-audit-x86_64-unknown-linux-musl.tar.gz
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            archive: vault-audit-linux-arm64.tar.gz
+            binary: vault-audit
 
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: vault-audit
-            archive_name: vault-audit-x86_64-apple-darwin.tar.gz
+          - goos: darwin
+            goarch: amd64
+            runner: macos-latest
+            archive: vault-audit-darwin-amd64.tar.gz
+            binary: vault-audit
 
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            artifact_name: vault-audit
-            archive_name: vault-audit-aarch64-apple-darwin.tar.gz
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+            archive: vault-audit-darwin-arm64.tar.gz
+            binary: vault-audit
 
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: vault-audit.exe
-            archive_name: vault-audit-x86_64-pc-windows-msvc.zip
+          - goos: windows
+            goarch: amd64
+            runner: windows-latest
+            archive: vault-audit-windows-amd64.zip
+            binary: vault-audit.exe
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
         with:
-          targets: ${{ matrix.target }}
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
 
-      - name: Install musl tools (Linux musl only)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
+      - name: Build vault-audit
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+          RELEASE_VERSION: ${{ needs.create-release.outputs.version }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
-      - name: Cache dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }} --verbose
-
-      - name: Strip binary (Unix)
-        if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          go build \
+            -ldflags="-s -w -X main.version=${RELEASE_VERSION}" \
+            -o "${{ matrix.binary }}" \
+            ./cmd/vault-audit/...
 
       - name: Create archive (Unix)
-        if: matrix.os != 'windows-latest'
+        if: matrix.goos != 'windows'
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+          BINARY: ${{ matrix.binary }}
         run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf ../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
-          cd ../../../
-          sha256sum ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
+          tar -czf "$ARCHIVE" "$BINARY"
+          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
 
       - name: Create archive (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.goos == 'windows'
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+          BINARY: ${{ matrix.binary }}
         run: |
-          cd target/${{ matrix.target }}/release
-          7z a ../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
-          cd ../../../
-          certutil -hashfile ${{ matrix.archive_name }} SHA256 > ${{ matrix.archive_name }}.sha256
+          7z a "$env:ARCHIVE" "$env:BINARY"
+          certutil -hashfile "$env:ARCHIVE" SHA256 > "$env:ARCHIVE.sha256"
 
-      - name: Upload Release Assets
+      - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ needs.create-release.outputs.version }} ${{ matrix.archive_name }} ${{ matrix.archive_name }}.sha256
-
-  publish-crates:
-    name: Publish to crates.io
-    needs: build-release
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish to crates.io
-        if: env.CARGO_REGISTRY_TOKEN != ''
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish --token $CARGO_REGISTRY_TOKEN
+          RELEASE_VERSION: ${{ needs.create-release.outputs.version }}
+          ARCHIVE: ${{ matrix.archive }}
+        run: |
+          gh release upload "$RELEASE_VERSION" "$ARCHIVE" "${ARCHIVE}.sha256"
