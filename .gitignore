@@ -53,6 +53,9 @@ coverage.html
 /vault-audit-server
 /server
 
+# Built binaries in build/ subdirectory
+/build/
+
 # Shell script sources (reference only, not committed)
 new_files/
 
