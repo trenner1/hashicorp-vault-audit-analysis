@@ -13,7 +13,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(corsMiddleware)
-	s.router.Use(authMiddleware(s.apiKey))
+	s.router.Use(authMiddleware(func() string { return s.apiKey }))
 
 	// Health check
 	s.router.Get("/healthz", s.handleHealthz)

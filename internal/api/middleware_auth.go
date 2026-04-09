@@ -6,15 +6,18 @@ import (
 )
 
 // authMiddleware returns a middleware that enforces API key authentication.
-// If apiKey is empty the middleware is a no-op (auth disabled).
+// getKey is called on every request so that the key can be changed after
+// route setup (e.g. via SetAPIKey).  If getKey returns an empty string,
+// authentication is disabled (pass-through).
 // The key is accepted via:
 //   - X-API-Key: <key>
 //   - Authorization: Bearer <key>
 //
 // /healthz is always allowed without authentication.
-func authMiddleware(apiKey string) func(http.Handler) http.Handler {
+func authMiddleware(getKey func() string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			apiKey := getKey()
 			// Auth disabled — pass through.
 			if apiKey == "" {
 				next.ServeHTTP(w, r)

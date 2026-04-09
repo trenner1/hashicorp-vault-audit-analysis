@@ -15,7 +15,7 @@ var okHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 func TestAuthMiddleware_Disabled(t *testing.T) {
 	// Empty apiKey = auth disabled, all requests pass through.
-	h := authMiddleware("")(okHandler)
+	h := authMiddleware(func() string { return "" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -25,7 +25,7 @@ func TestAuthMiddleware_Disabled(t *testing.T) {
 }
 
 func TestAuthMiddleware_HealthzAlwaysAllowed(t *testing.T) {
-	h := authMiddleware("secret")(okHandler)
+	h := authMiddleware(func() string { return "secret" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -35,7 +35,7 @@ func TestAuthMiddleware_HealthzAlwaysAllowed(t *testing.T) {
 }
 
 func TestAuthMiddleware_XAPIKeyHeader(t *testing.T) {
-	h := authMiddleware("mysecret")(okHandler)
+	h := authMiddleware(func() string { return "mysecret" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	req.Header.Set("X-API-Key", "mysecret")
 	rr := httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestAuthMiddleware_XAPIKeyHeader(t *testing.T) {
 }
 
 func TestAuthMiddleware_BearerToken(t *testing.T) {
-	h := authMiddleware("tok")(okHandler)
+	h := authMiddleware(func() string { return "tok" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	req.Header.Set("Authorization", "Bearer tok")
 	rr := httptest.NewRecorder()
@@ -57,7 +57,7 @@ func TestAuthMiddleware_BearerToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_QueryParam(t *testing.T) {
-	h := authMiddleware("qkey")(okHandler)
+	h := authMiddleware(func() string { return "qkey" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs/abc/stream?api_key=qkey", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -67,7 +67,7 @@ func TestAuthMiddleware_QueryParam(t *testing.T) {
 }
 
 func TestAuthMiddleware_MissingKey(t *testing.T) {
-	h := authMiddleware("secret")(okHandler)
+	h := authMiddleware(func() string { return "secret" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
@@ -77,13 +77,48 @@ func TestAuthMiddleware_MissingKey(t *testing.T) {
 }
 
 func TestAuthMiddleware_WrongKey(t *testing.T) {
-	h := authMiddleware("correct")(okHandler)
+	h := authMiddleware(func() string { return "correct" })(okHandler)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
 	req.Header.Set("X-API-Key", "wrong")
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusUnauthorized {
 		t.Errorf("wrong key: got %d, want 401", rr.Code)
+	}
+}
+
+// TestAuthMiddleware_DynamicKey verifies that changing the key after middleware
+// construction is reflected on the next request (the fix for the static-capture bug).
+func TestAuthMiddleware_DynamicKey(t *testing.T) {
+	key := ""
+	h := authMiddleware(func() string { return key })(okHandler)
+
+	// Initially no key set → auth disabled, request passes.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("before SetAPIKey: got %d, want 200", rr.Code)
+	}
+
+	// Simulate SetAPIKey being called after route setup.
+	key = "latekey"
+
+	// Now the same handler should require the key.
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
+	rr2 := httptest.NewRecorder()
+	h.ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusUnauthorized {
+		t.Errorf("after SetAPIKey (no creds): got %d, want 401", rr2.Code)
+	}
+
+	// And accept the correct key.
+	req3 := httptest.NewRequest(http.MethodGet, "/api/v1/jobs", nil)
+	req3.Header.Set("X-API-Key", "latekey")
+	rr3 := httptest.NewRecorder()
+	h.ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusOK {
+		t.Errorf("after SetAPIKey (correct key): got %d, want 200", rr3.Code)
 	}
 }
 
