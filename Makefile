@@ -5,7 +5,7 @@ BUILD_DIR  := ./build
 LDFLAGS    := -ldflags="-s -w"
 GOFLAGS    := -trimpath
 
-.PHONY: all build install test lint clean tidy vet
+.PHONY: all build install test test-race cover cover-html bench lint clean tidy vet
 
 all: build
 
@@ -26,6 +26,17 @@ test:
 ## test-race: Run tests with race detector
 test-race:
 	go test ./... -race -count=1
+
+## cover: Run tests and print per-package coverage summary
+cover:
+	go test ./... -coverprofile=coverage.out -covermode=atomic -count=1
+	go tool cover -func=coverage.out
+
+## cover-html: Open interactive HTML coverage report in browser
+cover-html: cover
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report written to coverage.html"
+	@open coverage.html 2>/dev/null || xdg-open coverage.html 2>/dev/null || echo "Open coverage.html manually"
 
 ## bench: Run benchmarks
 bench:
