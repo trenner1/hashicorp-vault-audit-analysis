@@ -64,7 +64,8 @@ linters:
     - unconvert       # remove unnecessary type conversions
 
     # Security
-    - gosec           # common security issues
+    # gosec disabled here — run separately in Security workflow with proper exclusions
+    # - gosec
 
     # Performance
     # prealloc disabled — too noisy for this codebase; explicit pre-alloc
