@@ -366,7 +366,7 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				newEntitiesThisFile++
 
 				// Determine lifecycle
-				lifecycle := "unknown"
+				var lifecycle string
 				if baselineSet != nil && len(baselineSet) > 0 {
 					if _, inBaseline := baselineSet[entityID]; inBaseline {
 						lifecycle = "pre_existing_baseline"

@@ -86,9 +86,9 @@ func RunClientActivity(
 	var entityMapData map[string]EntityMapping
 	if entityMap != nil && *entityMap != "" {
 		fmt.Fprintf(os.Stderr, "Loading entity mappings from: %s\n", *entityMap)
-		data, err := loadEntityMapJSON(*entityMap)
-		if err != nil {
-			return fmt.Errorf("load entity map: %w", err)
+		data, mapErr := loadEntityMapJSON(*entityMap)
+		if mapErr != nil {
+			return fmt.Errorf("load entity map: %w", mapErr)
 		}
 		entityMapData = data
 		fmt.Fprintf(os.Stderr, "Loaded %d entity mappings\n", len(entityMapData))

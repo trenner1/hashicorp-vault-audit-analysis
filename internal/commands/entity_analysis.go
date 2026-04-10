@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
@@ -291,11 +290,6 @@ func loadBaselineEntities(path string) (map[string]baselineEntity, error) {
 		}
 	}
 	return result, nil
-}
-
-// getCurrentWorkingDir returns the current working directory as a file basename helper.
-func getFileBaseName(path string) string {
-	return filepath.Base(path)
 }
 
 // parseTime parses RFC3339 timestamp strings.

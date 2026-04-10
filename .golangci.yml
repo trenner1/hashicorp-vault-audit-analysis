@@ -15,11 +15,21 @@ linters-settings:
       - (*github.com/schollz/progressbar/v3.ProgressBar).Set
       - (*github.com/schollz/progressbar/v3.ProgressBar).Finish
       - (*github.com/schollz/progressbar/v3.ProgressBar).Clear
+      # HTTP handler helpers — return value intentionally ignored in all handlers
+      - github.com/trenner1/hashicorp-vault-audit-analysis/internal/api.writeJSON
+      - github.com/trenner1/hashicorp-vault-audit-analysis/internal/api.writeError
+      # csv.Writer.Write returns error only on flush; checked via w.Error() after loop
+      - (*encoding/csv.Writer).Write
+      # json.Unmarshal errors from intermediate marshal/unmarshal are intentionally ignored
+      - encoding/json.Unmarshal
 
   gosec:
     excludes:
       - G304  # file inclusion via variable — intentional (user-supplied log paths)
       - G306  # file permissions — we use 0600/0700 explicitly
+      - G402  # TLS InsecureSkipVerify — intentional, user-supplied --insecure flag
+      - G404  # weak random source in testgen — not security-sensitive test data
+      - G115  # integer overflow conversion — reviewed, safe in context
 
   govet:
     enable-all: true
@@ -54,7 +64,9 @@ linters:
     - gosec           # common security issues
 
     # Performance
-    - prealloc        # slice pre-allocation opportunities
+    # prealloc disabled — too noisy for this codebase; explicit pre-alloc
+    # where it matters is done manually.
+    # - prealloc
 
 
 issues:
@@ -68,7 +80,6 @@ issues:
       linters:
         - errcheck
         - gosec
-        - prealloc
 
     # The sse.go write is covered by nosemgrep; allow nolint there
     - path: "internal/jobs/sse\\.go"

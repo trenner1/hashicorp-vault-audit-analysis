@@ -87,7 +87,7 @@ func RunEntityTimeline(logFiles []string, entityID string, displayName *string) 
 			s.pathsAccessed[path]++
 
 			// Track by hour of day
-			s.hourOfDayStats[int(ts.Hour())]++
+			s.hourOfDayStats[ts.Hour()]++
 
 			// Track 5-minute windows
 			minute := (ts.Minute() / 5) * 5

@@ -168,9 +168,6 @@ func RunEntityCreation(logFiles []string, entityMap, output *string) error {
 	}
 
 	// Sort by entities created
-	type mountEntry struct {
-		stats *MountStats
-	}
 	var sortedMounts []*MountStats
 	for _, stats := range mountStats {
 		sortedMounts = append(sortedMounts, stats)

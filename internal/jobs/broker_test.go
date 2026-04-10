@@ -87,11 +87,9 @@ func TestBroker_UnsubscribeStopsDelivery(t *testing.T) {
 	// Channel should remain open but receive nothing (only 1 message and no
 	// sender after unsub, so drain with a short timeout).
 	select {
-	case _, open := <-ch:
-		if !open {
-			// If the broker happened to close the channel, that's fine too.
-		}
+	case <-ch:
 		// If something came through before unsub took effect, that's acceptable.
+		// If the broker closed the channel, that's fine too.
 	case <-time.After(50 * time.Millisecond):
 		// Nothing received — expected.
 	}

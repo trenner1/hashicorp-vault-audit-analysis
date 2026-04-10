@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/api"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/jobs"
@@ -100,9 +101,16 @@ func main() {
 		fmt.Println("Max concurrent jobs: unlimited")
 	}
 
-	// Start HTTP server
+	// Start HTTP server with explicit timeouts (gosec G114).
 	addr := ":" + port
-	if err := http.ListenAndServe(addr, server); err != nil { // nosemgrep: go.lang.security.audit.net.use-tls.use-tls
+	httpServer := &http.Server{
+		Addr:         addr,
+		Handler:      server,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 10 * time.Minute, // generous for long-running analysis jobs
+		IdleTimeout:  120 * time.Second,
+	}
+	if err := httpServer.ListenAndServe(); err != nil {
 		fmt.Fprintf(os.Stderr, "Server error: %v\n", err)
 		os.Exit(1)
 	}
