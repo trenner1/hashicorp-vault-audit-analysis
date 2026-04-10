@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
@@ -307,8 +308,7 @@ func RunKVCompare(csv1, csv2 string) error {
 
 			// Get operations_count (column 2)
 			if len(record) > 2 {
-				var ops int
-				fmt.Sscanf(record[2], "%d", &ops)
+				ops, _ := strconv.Atoi(record[2]) // parse error → 0, safe default
 				operations += ops
 			}
 
@@ -462,13 +462,11 @@ func RunKVSummary(csvFile string) error {
 
 	for i := startIdx; i < len(rows); i++ {
 		if uniqueClientsIdx < len(rows[i]) {
-			var n int
-			fmt.Sscanf(rows[i][uniqueClientsIdx], "%d", &n)
+			n, _ := strconv.Atoi(rows[i][uniqueClientsIdx]) // parse error → 0, safe default
 			totalClients += n
 		}
 		if operationsIdx < len(rows[i]) {
-			var n int
-			fmt.Sscanf(rows[i][operationsIdx], "%d", &n)
+			n, _ := strconv.Atoi(rows[i][operationsIdx]) // parse error → 0, safe default
 			totalOperations += n
 		}
 	}
