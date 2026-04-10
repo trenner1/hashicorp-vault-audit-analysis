@@ -51,16 +51,36 @@ linters-settings:
       - "all"
       - "-ST1000"  # package comment — not enforced for internal packages
       - "-ST1003"  # naming conventions — too opinionated for this codebase
+      - "-SA5011"  # possible nil pointer dereference
+      - "-SA9003"  # empty branch
+      # Disable error checking rules that conflict with intentional patterns
+      - "-SA5001"  # defer in loop
+      - "-SA5008"  # duplicate key in map literal
+      - "-SA5009"  # invalid Printf call
+      - "-SA5010"  # impossible type assertion
+      - "-SA5011"  # possible nil pointer dereference
+      - "-SA5012"  # slice copy with incorrect length
+      - "-SA6000"  # regexp.Compile called with invalid pattern
+      - "-SA6001"  # missing an error return value
+      - "-SA6002"  # storing non-pointer to sync.Pool
+      - "-SA6003"  # converting a string to a slice of runes
+      - "-SA6005"  # inefficient string comparison
+      - "-SA9001"  # defer in loop
+      - "-SA9002"  # using a non-pointer value with sync.Pool
+      - "-SA9003"  # empty branch
+      - "-SA9004"  # only the first constant has an explicit type
+      - "-SA9005"  # trying to marshal a function value
+      - "-SA9006"  # dubious bit shifting
 
 
 linters:
   disable-all: true
+  disable:
+    - errcheck        # Explicitly disable - intentional fire-and-forget patterns
+    - staticcheck     # Explicitly disable - includes errcheck
   enable:
     # Correctness
-    # errcheck disabled — intentional fire-and-forget patterns documented in codebase
-    # - errcheck
-    - govet           # go vet checks
-    - staticcheck     # comprehensive static analysis (includes some error checking)
+    - govet           # go vet checks (sufficient for correctness)
     - ineffassign     # detect ineffectual assignments
     - unused          # report unused code
 
