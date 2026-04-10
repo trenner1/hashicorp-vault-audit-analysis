@@ -129,8 +129,12 @@ func (q *Queue) SubmitWithID(id, cmd string, args []string) *Job {
 		_ = q.store.Save(job)
 	}
 
+	// Snapshot the job before launching the goroutine so the caller gets a
+	// stable copy to serialize.  After go executeJob starts, only queue
+	// internals may write to the original pointer under q.mu.
+	snapshot := *job
 	go q.executeJob(job)
-	return job
+	return &snapshot
 }
 
 // MaxConcurrent returns the current concurrency cap (0 = unlimited).
