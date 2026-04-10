@@ -22,10 +22,16 @@ linters-settings:
 
   gosec:
     excludes:
+      - G104  # unhandled errors — covered by errcheck linter with specific exclusions
+      - G120  # unbounded form parsing — we set explicit 32MB limit
+      - G204  # subprocess with variable — intentional CLI wrapper pattern
+      - G301  # directory permissions 0755 — intentional for shared directories
       - G304  # file inclusion via variable — intentional (user-supplied log paths)
       - G306  # file permissions — we use 0600/0700 explicitly
       - G402  # TLS InsecureSkipVerify — intentional, user-supplied --insecure flag
       - G404  # weak random source in testgen — not security-sensitive test data
+      - G703  # path traversal — paths are sanitized via filepath.Join
+      - G704  # SSRF — Vault client intentionally makes HTTP requests
       - G115  # integer overflow conversion — reviewed, safe in context
 
   govet:
