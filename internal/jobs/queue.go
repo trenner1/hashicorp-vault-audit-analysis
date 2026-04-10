@@ -212,16 +212,24 @@ func (q *Queue) Get(id string) (*Job, bool) {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	job, ok := q.jobs[id]
-	return job, ok
+	if !ok {
+		return nil, false
+	}
+	// Return a snapshot so callers can read/serialize without holding the lock.
+	// Output is a slice; append never mutates existing elements, so the header
+	// copy is safe — the snapshot captures the current length/contents.
+	snapshot := *job
+	return &snapshot, true
 }
 
-// List returns all jobs sorted by creation time (newest first).
+// List returns snapshots of all jobs sorted by creation time (newest first).
 func (q *Queue) List() []*Job {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 	out := make([]*Job, 0, len(q.jobs))
 	for _, j := range q.jobs {
-		out = append(out, j)
+		snap := *j // value copy while holding the lock
+		out = append(out, &snap)
 	}
 	return out
 }
