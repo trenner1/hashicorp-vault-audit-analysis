@@ -400,7 +400,7 @@ export function Analysis() {
                 value={extraFlags}
                 onChange={e => setExtraFlags(e.target.value)}
                 placeholder="--top 20 --min-operations 500"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg font-mono text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-200 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
               />
             </div>
 
