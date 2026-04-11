@@ -54,6 +54,16 @@ export function JobOutput({ jobId }: JobOutputProps) {
   const isActive = job?.status === 'running' || job?.status === 'pending'
   const elapsed = useElapsed(isActive, job?.created_at)
 
+  // Clear output when jobId changes (e.g., when rerunning)
+  useEffect(() => {
+    setOutputLines([])
+    seenLines.current.clear()
+    setIsStreaming(false)
+    setSearch('')
+    setMatchIndex(0)
+    setAutoScroll(true)
+  }, [jobId])
+
   useEffect(() => {
     if (!job) return undefined
 
