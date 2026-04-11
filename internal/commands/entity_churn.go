@@ -284,6 +284,8 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 
 		// Check if this is a JSON entity mapping file
 		var fileEntities map[string]*EntityChurnRecord
+		var returningEntitiesSet map[string]bool
+
 		if strings.HasSuffix(strings.ToLower(logFile), ".json") {
 			// Load entity mappings from JSON file
 			fmt.Fprintf(os.Stderr, "Detected JSON entity mapping file, loading directly...\n")
@@ -315,17 +317,22 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				}
 			}
 			fmt.Fprintf(os.Stderr, "Loaded %s entities from JSON file\n", utils.FormatNumber(len(fileEntities)))
+			returningEntitiesSet = make(map[string]bool)
 		} else {
 			// Process as audit log file
 			type churnState struct {
-				entities map[string]*EntityChurnRecord
+				entities          map[string]*EntityChurnRecord
+				returningEntities map[string]bool
 			}
 
 			result, _, err := processor.RunFiles(
 				processor.DefaultConfig(),
 				[]string{logFile},
 				func() churnState {
-					return churnState{entities: make(map[string]*EntityChurnRecord)}
+					return churnState{
+						entities:          make(map[string]*EntityChurnRecord),
+						returningEntities: make(map[string]bool),
+					}
 				},
 				func(entry *audit.AuditEntry, s *churnState) {
 					// Only process login operations
@@ -379,6 +386,11 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 							Lifecycle:       "unknown",
 							ActivityPattern: "unknown",
 						}
+
+						// Check if this entity exists in global entities map (from previous files)
+						if _, existsGlobally := entities[entityID]; existsGlobally {
+							s.returningEntities[entityID] = true
+						}
 					}
 				},
 				func(a, b churnState) churnState {
@@ -392,11 +404,12 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 			}
 
 			fileEntities = result.entities
+			returningEntitiesSet = result.returningEntities
 		}
 
 		// Update global entities and track daily stats
 		newEntitiesThisFile := 0
-		returningEntitiesThisFile := 0
+		returningEntitiesThisFile := len(returningEntitiesSet)
 		loginsThisFile := 0
 
 		for entityID, record := range fileEntities {
@@ -419,7 +432,6 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				if !found {
 					existingRecord.FilesAppeared = append(existingRecord.FilesAppeared, fileName)
 				}
-				returningEntitiesThisFile++
 			} else {
 				// New entity
 				newEntitiesThisFile++
