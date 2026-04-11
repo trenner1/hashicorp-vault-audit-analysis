@@ -279,29 +279,24 @@ func tokenAnalysisCmd() *cobra.Command {
 	var abuseThresholdInt int
 	var abuseThresholdSet bool
 	var filter []string
-	var export string
 	var minOps int
 
 	cmd := &cobra.Command{
 		Use:   "token-analysis [log-files...]",
-		Short: "Unified token operations analysis with abuse detection and CSV export",
+		Short: "Analyze token usage patterns and detect potential abuse",
+		Long:  "Analyze token operations from audit logs. Generates timestamped CSV output with per-accessor token activity details.",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var abPtr *int
 			if abuseThresholdSet {
 				abPtr = &abuseThresholdInt
 			}
-			var exportPtr *string
-			if cmd.Flags().Changed("export") {
-				exportPtr = &export
-			}
-			return commands.RunTokenAnalysis(args, abPtr, filter, exportPtr, minOps)
+			return commands.RunTokenAnalysis(args, abPtr, filter, minOps)
 		},
 	}
-	cmd.Flags().IntVar(&abuseThresholdInt, "abuse-threshold", 0, "Detect token lookup abuse — show entities exceeding this threshold")
+	cmd.Flags().IntVar(&abuseThresholdInt, "abuse-threshold", 0, "Threshold for abuse detection (default: 10000)")
 	cmd.Flags().StringSliceVar(&filter, "filter", nil, "Filter by operation type (comma-separated: lookup, create, renew, revoke, login)")
-	cmd.Flags().StringVar(&export, "export", "", "Export data to CSV file")
-	cmd.Flags().IntVar(&minOps, "min-operations", 10, "Minimum operations to include in export")
+	cmd.Flags().IntVar(&minOps, "min-operations", 100, "Minimum operations to include token (default: 100)")
 	// Track whether abuse-threshold was explicitly set.
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		abuseThresholdSet = cmd.Flags().Changed("abuse-threshold")

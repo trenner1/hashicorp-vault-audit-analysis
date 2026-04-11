@@ -143,11 +143,11 @@ export const COMMAND_METADATA: Record<string, CommandMetadata> = {
     requiresFiles: true,
     requiresVaultAPI: false,
     flags: [
-      { name: '--output', description: 'Output CSV file path', type: 'string' },
       { name: '--min-operations', description: 'Minimum operations to include token', type: 'int', default: '100' },
       { name: '--abuse-threshold', description: 'Threshold for abuse detection', type: 'int', default: '10000' },
+      { name: '--operation-filter', description: 'Filter by operation types (comma-separated)', type: 'string' },
     ],
-    example: 'vault-audit token-analysis --min-operations 50 --output tokens.csv audit.log',
+    example: 'vault-audit token-analysis --min-operations 50 --abuse-threshold 5000 audit.log',
   },
   'path-hotspots': {
     name: 'path-hotspots',

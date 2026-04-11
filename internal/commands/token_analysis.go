@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
+	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/output"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/processor"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/utils"
 )
@@ -136,14 +137,16 @@ func mergeTokenAnalysisState(a, b tokenAnalysisState) tokenAnalysisState {
 	return a
 }
 
-// RunTokenAnalysis processes token operations with optional abuse detection and export.
+// RunTokenAnalysis processes token operations with optional abuse detection and automatic CSV export.
 // Parameters:
 //   - logFiles: slice of audit log file paths
 //   - abuseThreshold: if set, shows entities exceeding this lookup count
 //   - operationFilter: if set, only includes these operation types
-//   - exportPath: if set, exports per-accessor detail to this CSV file
 //   - minOperations: minimum operations to include in export
-func RunTokenAnalysis(logFiles []string, abuseThreshold *int, operationFilter []string, exportPath *string, minOperations int) error {
+func RunTokenAnalysis(logFiles []string, abuseThreshold *int, operationFilter []string, minOperations int) error {
+	// Generate timestamped output filename
+	outputFile := output.GenerateTimestampedFilename("token_analysis", ".csv")
+
 	fmt.Fprintf(os.Stderr, "Token Analysis\n")
 	fmt.Fprintf(os.Stderr, "   Files: %d\n", len(logFiles))
 	if len(operationFilter) > 0 {
@@ -152,9 +155,7 @@ func RunTokenAnalysis(logFiles []string, abuseThreshold *int, operationFilter []
 	if abuseThreshold != nil {
 		fmt.Fprintf(os.Stderr, "   Abuse threshold: %s\n", utils.FormatNumber(*abuseThreshold))
 	}
-	if exportPath != nil {
-		fmt.Fprintf(os.Stderr, "   Export: %s\n", *exportPath)
-	}
+	fmt.Fprintf(os.Stderr, "   Output: %s\n", outputFile)
 	fmt.Fprintln(os.Stderr)
 
 	// Build the filter map for faster lookup
@@ -303,13 +304,22 @@ func RunTokenAnalysis(logFiles []string, abuseThreshold *int, operationFilter []
 		displaySummary(result.tokenOps, stats.TotalLines)
 	}
 
-	// Export if requested
-	if exportPath != nil {
-		if err := exportTokenCSV(result.accessorData, *exportPath, minOperations); err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stderr, "\n Exported data to: %s\n", *exportPath)
+	// Always export to timestamped file
+	if err := exportTokenCSV(result.accessorData, outputFile, minOperations); err != nil {
+		return err
 	}
+
+	// Write metadata file
+	meta := output.FileMetadata{
+		Command:     "token-analysis",
+		Description: fmt.Sprintf("Token operations analysis (%d entities)", len(result.tokenOps)),
+		InputFiles:  logFiles,
+	}
+	if err := output.WriteMetadata(outputFile, meta); err != nil {
+		fmt.Fprintf(os.Stderr, "[WARN] Failed to write metadata: %v\n", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "\n Exported data to: %s\n", outputFile)
 
 	return nil
 }
