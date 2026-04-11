@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { api, Command, Cluster, UploadResult, UploadedFile } from '../api/client'
+import { getCommandMetadata, getSubcommandMetadata } from '../data/commandMetadata'
 
 const COMMANDS_WITH_SUBCOMMANDS: Record<string, string[]> = {
   'kv-analysis': ['analyze', 'compare', 'summary'],
@@ -227,6 +228,62 @@ export function Analysis() {
 
         {/* Form */}
         <div className="col-span-2 space-y-6">
+          {/* Command/Subcommand Info Panel */}
+          {selectedCommand && (() => {
+            const cmdMeta = getCommandMetadata(selectedCommand)
+            const subMeta = selectedSubcommand ? getSubcommandMetadata(selectedCommand, selectedSubcommand) : null
+            const displayMeta = subMeta || cmdMeta
+            
+            if (!displayMeta) return null
+            
+            return (
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg className="h-5 w-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 mb-1">
+                      {subMeta ? `${selectedCommand} ${selectedSubcommand}` : selectedCommand}
+                    </h3>
+                    <p className="text-sm text-indigo-800 dark:text-indigo-300 mb-3">
+                      {displayMeta.description}
+                    </p>
+                    
+                    {displayMeta.flags && displayMeta.flags.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 uppercase tracking-wide">Available Flags:</p>
+                        <div className="space-y-1.5">
+                          {displayMeta.flags.map(flag => (
+                            <div key={flag.name} className="text-xs">
+                              <code className="font-mono text-indigo-700 dark:text-indigo-300 font-semibold">{flag.name}</code>
+                              {flag.required && <span className="ml-1 text-red-600 dark:text-red-400 font-semibold">*</span>}
+                              <span className="text-indigo-600 dark:text-indigo-400 ml-2">{flag.description}</span>
+                              {flag.default && (
+                                <span className="text-indigo-500 dark:text-indigo-500 ml-1">(default: {flag.default})</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {displayMeta.example && (
+                      <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-800">
+                        <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 uppercase tracking-wide mb-1">Example:</p>
+                        <code className="block text-xs font-mono bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-200 p-2 rounded overflow-x-auto">
+                          {displayMeta.example}
+                        </code>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Subcommand selector */}
           {needsSubcommand && (
             <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-4">
