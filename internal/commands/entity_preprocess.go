@@ -6,17 +6,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
+	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/output"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/processor"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/utils"
 )
 
 // RunEntityPreprocess extracts entity mappings from audit logs and exports them.
-func RunEntityPreprocess(logFiles []string, output, format string) error {
+func RunEntityPreprocess(logFiles []string, outputFlag, format string) error {
 	fmt.Fprintln(os.Stderr, "Preprocessing audit logs...")
 	fmt.Fprintln(os.Stderr, "Extracting entity → display_name mappings from login events...")
+
+	// Generate timestamped filename if relative path
+	var outputFile string
+	if filepath.IsAbs(outputFlag) {
+		outputFile = outputFlag
+	} else {
+		base := strings.TrimSuffix(outputFlag, filepath.Ext(outputFlag))
+		ext := filepath.Ext(outputFlag)
+		if ext == "" {
+			ext = ".json" // default extension
+		}
+		outputFile = output.GenerateTimestampedFilename(base, ext)
+	}
 
 	type preprocessState struct {
 		entityMap map[string]EntityMapping
@@ -108,12 +123,17 @@ func RunEntityPreprocess(logFiles []string, output, format string) error {
 
 	fmt.Fprintf(os.Stderr, "\nTotal: Processed %s entities\n\n", utils.FormatNumber(len(entityMap)))
 
+	// Ensure output directory exists
+	if err := output.EnsureOutputDir(outputFile); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
 	// Write output based on format
-	fmt.Fprintf(os.Stderr, "Writing entity mappings to: %s\n", output)
+	fmt.Fprintf(os.Stderr, "Writing entity mappings to: %s\n", outputFile)
 
 	switch strings.ToLower(format) {
 	case "json":
-		file, err := os.Create(output)
+		file, err := os.Create(outputFile)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
@@ -128,7 +148,7 @@ func RunEntityPreprocess(logFiles []string, output, format string) error {
 		fmt.Fprintln(os.Stderr, "JSON entity mapping file created successfully!")
 
 	case "csv":
-		file, err := os.Create(output)
+		file, err := os.Create(outputFile)
 		if err != nil {
 			return fmt.Errorf("failed to create output file: %w", err)
 		}
@@ -169,8 +189,19 @@ func RunEntityPreprocess(logFiles []string, output, format string) error {
 		return fmt.Errorf("invalid format '%s'. Use 'csv' or 'json'", format)
 	}
 
+	// Write metadata file
+	meta := output.FileMetadata{
+		Command:     "entity-analysis",
+		Subcommand:  "preprocess",
+		Description: fmt.Sprintf("Entity mappings extracted from audit logs (%s entities)", utils.FormatNumber(len(entityMap))),
+		InputFiles:  logFiles,
+	}
+	if err := output.WriteMetadata(outputFile, meta); err != nil {
+		fmt.Fprintf(os.Stderr, "[WARN] Failed to write metadata: %v\n", err)
+	}
+
 	fmt.Fprintf(os.Stderr, "Usage with client-activity command:\n")
-	fmt.Fprintf(os.Stderr, "  vault-audit client-activity --start <START> --end <END> --entity-map %s\n", output)
+	fmt.Fprintf(os.Stderr, "  vault-audit client-activity --start <START> --end <END> --entity-map %s\n", outputFile)
 
 	return nil
 }

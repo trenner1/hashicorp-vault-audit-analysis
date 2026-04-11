@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
+	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/output"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/processor"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/utils"
 )
@@ -93,10 +94,20 @@ func loadEntityAliasMapping(aliasExportCSV string) map[string][]string {
 }
 
 // RunKVAnalyze analyzes KV secrets engine usage from audit logs.
-func RunKVAnalyze(logFiles []string, kvPrefix string, output, entityCSV *string) error {
-	outputFile := "kv_usage_by_client.csv"
-	if output != nil && *output != "" {
-		outputFile = *output
+func RunKVAnalyze(logFiles []string, kvPrefix string, outputFlag, entityCSV *string) error {
+	// Generate timestamped filename if no output specified or if it's a relative path
+	var outputFile string
+	if outputFlag != nil && *outputFlag != "" && filepath.IsAbs(*outputFlag) {
+		// User provided absolute path - use as-is
+		outputFile = *outputFlag
+	} else {
+		// Generate timestamped filename
+		base := "kv_analysis"
+		if outputFlag != nil && *outputFlag != "" {
+			// Use provided name as base (without extension)
+			base = strings.TrimSuffix(*outputFlag, filepath.Ext(*outputFlag))
+		}
+		outputFile = output.GenerateTimestampedFilename(base, ".csv")
 	}
 
 	// Initialize state factory
@@ -204,10 +215,8 @@ func RunKVAnalyze(logFiles []string, kvPrefix string, output, entityCSV *string)
 	}
 
 	// Ensure output directory exists
-	if outputFile != "" {
-		if dir := filepath.Dir(outputFile); dir != "." {
-			os.MkdirAll(dir, 0755) //nolint:errcheck
-		}
+	if err := output.EnsureOutputDir(outputFile); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	// Write CSV
@@ -274,6 +283,17 @@ func RunKVAnalyze(logFiles []string, kvPrefix string, output, entityCSV *string)
 			strings.Join(aliasNames, ", "),
 			strings.Join(samplePaths, ", "),
 		}) //nolint:errcheck
+	}
+
+	// Write metadata file
+	meta := output.FileMetadata{
+		Command:     "kv-analysis",
+		Subcommand:  "analyze",
+		Description: fmt.Sprintf("KV secrets usage analysis (%d paths analyzed)", len(result.kvUsage)),
+		InputFiles:  logFiles,
+	}
+	if err := output.WriteMetadata(outputFile, meta); err != nil {
+		fmt.Fprintf(os.Stderr, "[WARN] Failed to write metadata: %v\n", err)
 	}
 
 	fmt.Printf("Done. Output written to: %s\n", outputFile)
