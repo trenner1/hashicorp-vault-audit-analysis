@@ -211,7 +211,7 @@ export function Analysis() {
                 className={`w-full text-left px-4 py-3 transition-colors ${
                   selectedCommand === cmd.name
                     ? 'bg-indigo-600 text-white'
-                    : 'hover:bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100'
+                    : 'hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-800 text-gray-900 dark:text-slate-100'
                 }`}
               >
                 <p className="font-medium text-sm">{cmd.name}</p>

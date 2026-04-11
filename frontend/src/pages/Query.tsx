@@ -109,7 +109,7 @@ export default function Query() {
               <button
                 key={q}
                 onClick={() => setQuestion(q)}
-                className="text-xs bg-gray-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-700 text-gray-600 dark:text-slate-400 px-2 py-1 rounded border border-gray-200 dark:border-slate-700 hover:border-indigo-300 transition-colors"
+                className="text-xs bg-gray-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700/50 hover:text-indigo-700 dark:hover:text-indigo-400 text-gray-600 dark:text-slate-400 px-2 py-1 rounded border border-gray-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 transition-colors"
               >
                 {q}
               </button>
