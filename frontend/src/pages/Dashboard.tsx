@@ -386,7 +386,7 @@ export function Dashboard() {
                 <th className="px-5 py-3">Duration</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
               {recentJobs.map(job => {
                 const start = new Date(job.created_at).getTime()
                 const end = new Date(job.updated_at).getTime()
@@ -402,7 +402,7 @@ export function Dashboard() {
                   <tr
                     key={job.id}
                     onClick={() => navigate(`/jobs/${job.id}`)}
-                    className="hover:bg-gray-50 dark:bg-slate-800 cursor-pointer transition-colors"
+                    className="hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-800 cursor-pointer transition-colors"
                   >
                     <td className="px-5 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{job.command}</td>
                     <td className="px-5 py-3">
@@ -441,7 +441,7 @@ export function Dashboard() {
         </button>
         <button
           onClick={() => navigate('/clusters')}
-          className="px-5 py-2.5 bg-white dark:bg-slate-900 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:bg-slate-800 transition-colors"
+          className="px-5 py-2.5 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-700 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
         >
           Manage Clusters
         </button>
