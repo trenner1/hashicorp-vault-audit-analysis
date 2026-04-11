@@ -426,7 +426,7 @@ export function Jobs() {
           {/* Job output card */}
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 {selectedJob ? (
                   <>
                     <h1 className="text-xl font-bold text-gray-900">
@@ -436,6 +436,43 @@ export function Jobs() {
                       <ArgsDisplay args={selectedJob.args} />
                     )}
                     <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
+                    
+                    {/* CLI Command Display */}
+                    <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                          CLI Command
+                        </span>
+                        <button
+                          onClick={() => {
+                            const cliCommand = `vault-audit ${selectedJob.command}${selectedJob.args && selectedJob.args.length > 0 ? ' ' + selectedJob.args.join(' ') : ''}`
+                            navigator.clipboard.writeText(cliCommand)
+                              .then(() => {
+                                // Show brief success feedback
+                                const btn = document.activeElement as HTMLButtonElement
+                                const originalText = btn.textContent
+                                btn.textContent = '✓ Copied!'
+                                btn.classList.add('text-green-600')
+                                setTimeout(() => {
+                                  btn.textContent = originalText
+                                  btn.classList.remove('text-green-600')
+                                }, 1500)
+                              })
+                              .catch(err => console.error('Failed to copy:', err))
+                          }}
+                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition-colors flex items-center gap-1"
+                        >
+                          <span>📋</span>
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <code className="block text-xs font-mono text-gray-800 break-all">
+                        vault-audit {selectedJob.command}
+                        {selectedJob.args && selectedJob.args.length > 0 && (
+                          <> {selectedJob.args.join(' ')}</>
+                        )}
+                      </code>
+                    </div>
                   </>
                 ) : (
                   <>
