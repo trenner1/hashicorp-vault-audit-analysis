@@ -30,9 +30,35 @@ function isFilePath(arg: string): boolean {
 function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: boolean }) {
   if (!args || args.length === 0) return null
 
-  const chips = args.map((arg, i) => {
+  const chips: JSX.Element[] = []
+  let i = 0
+  
+  while (i < args.length) {
+    const arg = args[i]
+    
+    // Check if this is a flag followed by a file path
+    if ((arg.startsWith('--') || arg.startsWith('-')) && i + 1 < args.length && isFilePath(args[i + 1])) {
+      const flagName = arg
+      const filePath = args[i + 1]
+      chips.push(
+        <span
+          key={i}
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
+        >
+          <span className="text-indigo-700 font-mono">{flagName}</span>
+          <span className="text-gray-400">→</span>
+          <span title={filePath} className="inline-flex items-center gap-0.5 text-gray-700 font-mono">
+            <span className="text-gray-400">📄</span>
+            {basename(filePath)}
+          </span>
+        </span>
+      )
+      i += 2
+      continue
+    }
+    
     if (isFilePath(arg)) {
-      return (
+      chips.push(
         <span
           key={i}
           title={arg}
@@ -42,9 +68,8 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
           {basename(arg)}
         </span>
       )
-    }
-    if (arg.startsWith('--') || arg.startsWith('-')) {
-      return (
+    } else if (arg.startsWith('--') || arg.startsWith('-')) {
+      chips.push(
         <span
           key={i}
           className={`inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
@@ -52,17 +77,19 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
           {arg}
         </span>
       )
+    } else {
+      // Subcommand or positional value
+      chips.push(
+        <span
+          key={i}
+          className={`inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium ${compact ? 'text-xs' : 'text-sm'}`}
+        >
+          {arg}
+        </span>
+      )
     }
-    // Subcommand or positional value
-    return (
-      <span
-        key={i}
-        className={`inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium ${compact ? 'text-xs' : 'text-sm'}`}
-      >
-        {arg}
-      </span>
-    )
-  })
+    i++
+  }
 
   if (compact) {
     // In the table row, only show file chips + a "+N more" if there are many
