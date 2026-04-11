@@ -486,13 +486,20 @@ export function Analysis() {
                                 type="button"
                                 onClick={() => {
                                   if (!alreadyAdded) {
-                                    setUploadedFiles(prev => [...prev, { filename: f.filename, path: f.path, size: f.size }])
+                                    // For summary subcommand, only allow 1 file
+                                    if (selectedCommand === 'kv-analysis' && selectedSubcommand === 'summary') {
+                                      setUploadedFiles([{ filename: f.filename, path: f.path, size: f.size }])
+                                    } else {
+                                      setUploadedFiles(prev => [...prev, { filename: f.filename, path: f.path, size: f.size }])
+                                    }
                                   }
                                 }}
-                                disabled={alreadyAdded}
+                                disabled={alreadyAdded || (selectedCommand === 'kv-analysis' && selectedSubcommand === 'summary' && uploadedFiles.length >= 1)}
                                 className={`ml-4 text-xs px-3 py-1 rounded font-medium shrink-0 transition-colors ${
                                   alreadyAdded
                                     ? 'text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800 cursor-default'
+                                    : (selectedCommand === 'kv-analysis' && selectedSubcommand === 'summary' && uploadedFiles.length >= 1)
+                                    ? 'text-gray-400 bg-gray-50 dark:bg-slate-800 dark:text-slate-600 border border-gray-200 dark:border-slate-700 cursor-not-allowed opacity-50'
                                     : 'text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'
                                 }`}
                               >
@@ -510,20 +517,23 @@ export function Analysis() {
 
               {/* Uploaded file list */}
               {uploadedFiles.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="font-semibold text-green-900 text-sm mb-2">
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <p className="font-semibold text-green-900 dark:text-green-200 text-sm mb-2">
                     {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''} ready
+                    {selectedCommand === 'kv-analysis' && selectedSubcommand === 'summary' && (
+                      <span className="ml-2 text-xs font-normal text-green-700 dark:text-green-400">(max 1 file)</span>
+                    )}
                   </p>
                   <ul className="space-y-1">
                     {uploadedFiles.map((f, i) => (
                       <li key={i} className="flex items-center justify-between text-sm">
-                        <span className="font-mono text-green-800 truncate">
-                          {f.filename} <span className="text-green-600">({(f.size / 1024).toFixed(1)} KB)</span>
+                        <span className="font-mono text-green-800 dark:text-green-200 truncate">
+                          {f.filename} <span className="text-green-600 dark:text-green-400">({(f.size / 1024).toFixed(1)} KB)</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => removeUploadedFile(i)}
-                          className="ml-2 text-green-600 hover:text-red-600 transition-colors flex-shrink-0"
+                          className="ml-2 text-green-600 dark:text-green-400 hover:text-red-600 dark:hover:text-red-400 transition-colors flex-shrink-0"
                           title="Remove"
                         >
                           ✕
