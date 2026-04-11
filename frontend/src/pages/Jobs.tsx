@@ -43,9 +43,9 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
       chips.push(
         <span
           key={i}
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 ${compact ? 'text-xs' : 'text-sm'}`}
         >
-          <span className="text-indigo-700 font-mono">{flagName}</span>
+          <span className="text-indigo-700 dark:text-indigo-300 font-mono">{flagName}</span>
           <span className="text-gray-400 dark:text-slate-500">→</span>
           <span title={filePath} className="inline-flex items-center gap-0.5 text-gray-700 dark:text-slate-300 font-mono">
             <span className="text-gray-400 dark:text-slate-500">📄</span>
@@ -72,7 +72,7 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
       chips.push(
         <span
           key={i}
-          className={`inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-mono border border-indigo-200 dark:border-indigo-700 ${compact ? 'text-xs' : 'text-sm'}`}
         >
           {arg}
         </span>
@@ -82,7 +82,7 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
       chips.push(
         <span
           key={i}
-          className={`inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium ${compact ? 'text-xs' : 'text-sm'}`}
         >
           {arg}
         </span>
@@ -499,7 +499,7 @@ export function Jobs() {
                   <button
                     onClick={() => rerunMutation.mutate(selectedJob)}
                     disabled={rerunMutation.isPending}
-                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-50 transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
                   >
                     ↺ Re-run
                   </button>
@@ -508,7 +508,7 @@ export function Jobs() {
                 {selectedJob?.status === 'done' && (
                   <button
                     onClick={() => downloadOutput(selectedJob)}
-                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:bg-slate-800 transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     ↓ Download
                   </button>
@@ -619,7 +619,7 @@ export function Jobs() {
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => refetch()}
-              className="px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:bg-slate-800 transition-colors"
+              className="px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
               Refresh
             </button>
@@ -701,7 +701,7 @@ export function Jobs() {
                     <tr
                       key={job.id}
                       onClick={() => selectJob(job.id)}
-                      className={`cursor-pointer transition-colors hover:bg-gray-50 dark:bg-slate-800 ${job.id === selectedJobId ? 'bg-indigo-50' : ''}`}
+                      className={`cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-700/50 ${job.id === selectedJobId ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
                     >
                       <td className="px-6 py-4 text-sm font-mono text-gray-500 dark:text-slate-400">{job.id.slice(0, 8)}…</td>
                       <td className="px-6 py-4">
@@ -758,9 +758,9 @@ export function Jobs() {
               </p>
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage(1)} disabled={clampedPage === 1}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
+                  className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={clampedPage === 1}
-                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
+                  className="px-3 py-1 text-sm rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - clampedPage) <= 2)
@@ -774,16 +774,16 @@ export function Jobs() {
                       <span key={`e${idx}`} className="px-2 py-1 text-sm text-gray-400 dark:text-slate-500">…</span>
                     ) : (
                       <button key={item} onClick={() => setPage(item as number)}
-                        className={`px-3 py-1 text-sm rounded border transition-colors ${item === clampedPage ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800'}`}>
+                        className={`px-3 py-1 text-sm rounded border transition-colors ${item === clampedPage ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
                         {item}
                       </button>
                     )
                   )}
 
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages}
-                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
+                  className="px-3 py-1 text-sm rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
                 <button onClick={() => setPage(totalPages)} disabled={clampedPage === totalPages}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+                  className="px-2 py-1 text-sm rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
               </div>
             </div>
           )}
