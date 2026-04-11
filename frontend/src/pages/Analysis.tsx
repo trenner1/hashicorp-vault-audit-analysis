@@ -66,23 +66,38 @@ export function Analysis() {
     return null
   }
 
-  // Sort existing files by audit log date (chronological order)
-  const sortedExistingFiles = [...existingFiles].sort((a, b) => {
-    const dateA = extractDateFromFilename(a.filename)
-    const dateB = extractDateFromFilename(b.filename)
-    
-    // If both have dates, sort chronologically
-    if (dateA && dateB) {
-      return dateA.getTime() - dateB.getTime()
+  // Determine which file types to show based on selected command/subcommand
+  const getAcceptedFileTypes = (): string[] => {
+    // kv-analysis compare needs CSV files
+    if (selectedCommand === 'kv-analysis' && selectedSubcommand === 'compare') {
+      return ['.csv']
     }
-    
-    // Files with dates come before files without dates
-    if (dateA && !dateB) return -1
-    if (!dateA && dateB) return 1
-    
-    // Fall back to alphabetical for files without dates
-    return a.filename.localeCompare(b.filename)
-  })
+    // Default: audit log files
+    return ['.log', '.gz', '.zst', '.json']
+  }
+
+  // Filter and sort existing files
+  const sortedExistingFiles = [...existingFiles]
+    .filter(f => {
+      const acceptedTypes = getAcceptedFileTypes()
+      return acceptedTypes.some(ext => f.filename.toLowerCase().endsWith(ext))
+    })
+    .sort((a, b) => {
+      const dateA = extractDateFromFilename(a.filename)
+      const dateB = extractDateFromFilename(b.filename)
+      
+      // If both have dates, sort chronologically
+      if (dateA && dateB) {
+        return dateA.getTime() - dateB.getTime()
+      }
+      
+      // Files with dates come before files without dates
+      if (dateA && !dateB) return -1
+      if (!dateA && dateB) return 1
+      
+      // Fall back to alphabetical for files without dates
+      return a.filename.localeCompare(b.filename)
+    })
 
   // Pre-load a file passed via navigation state from the Files page.
   useEffect(() => {
