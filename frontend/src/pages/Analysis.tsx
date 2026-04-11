@@ -1,12 +1,113 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { api, Command, Cluster, UploadResult, UploadedFile } from '../api/client'
+import { api, Command, Cluster, UploadResult, UploadedFile, FileMetadata } from '../api/client'
 import { getCommandMetadata, getSubcommandMetadata } from '../data/commandMetadata'
+
+function basename(p: string): string {
+  return p.replace(/.*[\\/]/, '')
+}
 
 const COMMANDS_WITH_SUBCOMMANDS: Record<string, string[]> = {
   'kv-analysis': ['analyze', 'compare', 'summary'],
   'entity-analysis': ['churn', 'creation', 'preprocess', 'gaps', 'timeline'],
+}
+
+// ── Metadata panel for file picker ────────────────────────────────────────────
+
+function FileMetadataPanel({ file }: { file: UploadedFile }) {
+  const [open, setOpen] = useState(false)
+  const { data: metadata, isLoading } = useQuery<FileMetadata | null>({
+    queryKey: ['file-metadata', file.filename],
+    queryFn: () => api.getFileMetadata(file.filename),
+    enabled: open, // Only fetch when panel is opened
+  })
+
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen(v => !v)
+        }}
+        className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-medium"
+      >
+        <span className="text-emerald-400 dark:text-emerald-500">{open ? '▾' : '▸'}</span>
+        <span>📊 Metadata</span>
+      </button>
+
+      {open && (
+        <div className="mt-2 ml-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg space-y-2.5 text-xs">
+          {isLoading ? (
+            <p className="text-emerald-600 dark:text-emerald-400">Loading metadata...</p>
+          ) : !metadata ? (
+            <p className="text-gray-500 dark:text-slate-400">No metadata available</p>
+          ) : (
+            <>
+              {/* Command */}
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0">Command</span>
+                <span className="font-mono text-gray-800 dark:text-slate-200">
+                  {metadata.command}{metadata.subcommand ? ` ${metadata.subcommand}` : ''}
+                </span>
+              </div>
+
+              {/* Description */}
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">Description</span>
+                <span className="text-gray-700 dark:text-slate-300">{metadata.description}</span>
+              </div>
+
+              {/* Created */}
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0">Created</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  {new Date(metadata.created_at).toLocaleString()}
+                </span>
+              </div>
+
+              {/* Input files */}
+              {metadata.input_files && metadata.input_files.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">
+                    Inputs ({metadata.input_files.length})
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    {metadata.input_files.map((f, i) => (
+                      <span
+                        key={i}
+                        title={f}
+                        className="font-mono text-gray-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-800 rounded px-1.5 py-0.5 break-all"
+                      >
+                        {basename(f)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Flags */}
+              {metadata.flags && metadata.flags.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">Flags</span>
+                  <div className="flex flex-wrap gap-1">
+                    {metadata.flags.map((flag, i) => (
+                      <span
+                        key={i}
+                        className="font-mono text-xs bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded"
+                      >
+                        {flag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Commands that require Vault API connectivity rather than log files
@@ -31,6 +132,7 @@ export function Analysis() {
 
   const [selectedClusterId, setSelectedClusterId] = useState<string>('')
   const [showFilePicker, setShowFilePicker] = useState(false)
+  const [expandedMetadata, setExpandedMetadata] = useState<string | null>(null)
 
   const { data: commands = [] } = useQuery<Command[]>({
     queryKey: ['commands'],
@@ -371,31 +473,34 @@ export function Analysis() {
                     {showFilePicker ? '▾' : '▸'} Pick from previously uploaded files ({existingFiles.length})
                   </button>
                   {showFilePicker && (
-                    <div className="mt-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 divide-y divide-gray-50 dark:divide-slate-800 max-h-48 overflow-y-auto shadow-sm">
+                    <div className="mt-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 divide-y divide-gray-50 dark:divide-slate-800 max-h-96 overflow-y-auto shadow-sm">
                       {sortedExistingFiles.map(f => {
                         const alreadyAdded = uploadedFiles.some(u => u.path === f.path)
                         return (
-                          <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-800">
-                            <div className="min-w-0">
-                              <p className="text-sm font-mono text-gray-800 dark:text-slate-200 truncate">{f.filename}</p>
-                              <p className="text-xs text-gray-400 dark:text-slate-500">{(f.size / 1024).toFixed(1)} KB · {new Date(f.created_at).toLocaleDateString()}</p>
+                          <div key={f.filename} className="px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-800">
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-mono text-gray-800 dark:text-slate-200 truncate">{f.filename}</p>
+                                <p className="text-xs text-gray-400 dark:text-slate-500">{(f.size / 1024).toFixed(1)} KB · {new Date(f.created_at).toLocaleDateString()}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!alreadyAdded) {
+                                    setUploadedFiles(prev => [...prev, { filename: f.filename, path: f.path, size: f.size }])
+                                  }
+                                }}
+                                disabled={alreadyAdded}
+                                className={`ml-4 text-xs px-3 py-1 rounded font-medium shrink-0 transition-colors ${
+                                  alreadyAdded
+                                    ? 'text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800 cursor-default'
+                                    : 'text-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'
+                                }`}
+                              >
+                                {alreadyAdded ? '✓ Added' : '+ Add'}
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!alreadyAdded) {
-                                  setUploadedFiles(prev => [...prev, { filename: f.filename, path: f.path, size: f.size }])
-                                }
-                              }}
-                              disabled={alreadyAdded}
-                              className={`ml-4 text-xs px-3 py-1 rounded font-medium shrink-0 transition-colors ${
-                                alreadyAdded
-                                  ? 'text-green-700 bg-green-50 border border-green-200 cursor-default'
-                                  : 'text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100'
-                              }`}
-                            >
-                              {alreadyAdded ? '✓ Added' : '+ Add'}
-                            </button>
+                            <FileMetadataPanel file={f} />
                           </div>
                         )
                       })}
