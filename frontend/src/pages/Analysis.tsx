@@ -169,8 +169,8 @@ export function Analysis() {
 
   // Determine which file types to show based on selected command/subcommand
   const getAcceptedFileTypes = (): string[] => {
-    // kv-analysis compare needs CSV files
-    if (selectedCommand === 'kv-analysis' && selectedSubcommand === 'compare') {
+    // kv-analysis compare and summary need CSV files
+    if (selectedCommand === 'kv-analysis' && (selectedSubcommand === 'compare' || selectedSubcommand === 'summary')) {
       return ['.csv']
     }
     // Default: audit log files
