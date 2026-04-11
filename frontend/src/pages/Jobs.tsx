@@ -628,7 +628,7 @@ export function Jobs() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="border border-gray-300 dark:border-slate-600 rounded px-2 py-1.5 text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             >
               <option value="all">All statuses</option>
               <option value="running">Running</option>
@@ -644,13 +644,13 @@ export function Jobs() {
               placeholder="Filter by command…"
               value={filterCommand}
               onChange={e => setFilterCommand(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
+              className="border border-gray-300 dark:border-slate-600 rounded px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-200 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
             />
 
             {filterStatus !== 'all' || filterCommand ? (
               <button
                 onClick={() => { setFilterStatus('all'); setFilterCommand('') }}
-                className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-300 underline"
+                className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200 underline"
               >
                 Clear filters
               </button>
