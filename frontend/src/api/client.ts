@@ -53,6 +53,15 @@ export interface UploadedFile {
   created_at: string
 }
 
+export interface FileMetadata {
+  command: string
+  subcommand?: string
+  description: string
+  created_at: string
+  input_files?: string[]
+  flags?: string[]
+}
+
 export interface QueryRequest {
   question: string
   files?: string[]
@@ -165,6 +174,18 @@ export const api = {
         throw new Error(err.error || r.statusText)
       }
       return r.json()
+    }),
+
+  getFileMetadata: (filename: string) =>
+    fetch(`${BASE}/api/v1/ingest/files/${encodeURIComponent(filename)}.meta.json`, {
+      headers: authHeaders(),
+    }).then(async r => {
+      if (!r.ok) {
+        if (r.status === 404) return null
+        const err = await r.json().catch(() => ({ error: r.statusText }))
+        throw new Error(err.error || r.statusText)
+      }
+      return r.json() as Promise<FileMetadata>
     }),
 
   cancelJob: (id: string) =>

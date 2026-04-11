@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { api, UploadedFile, Job } from '../api/client'
+import { api, UploadedFile, Job, FileMetadata } from '../api/client'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -129,6 +129,100 @@ function LineagePanel({ file, job }: { file: UploadedFile; job: Job }) {
   )
 }
 
+// ── Metadata panel for artifacts ──────────────────────────────────────────────
+
+function MetadataPanel({ file }: { file: UploadedFile }) {
+  const [open, setOpen] = useState(false)
+  const { data: metadata, isLoading } = useQuery<FileMetadata | null>({
+    queryKey: ['file-metadata', file.filename],
+    queryFn: () => api.getFileMetadata(file.filename),
+    enabled: open, // Only fetch when panel is opened
+  })
+
+  return (
+    <div className="mt-1.5">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-medium"
+      >
+        <span className="text-emerald-400 dark:text-emerald-500">{open ? '▾' : '▸'}</span>
+        <span>📊 Metadata</span>
+      </button>
+
+      {open && (
+        <div className="mt-2 ml-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg space-y-2.5 text-xs">
+          {isLoading ? (
+            <p className="text-emerald-600 dark:text-emerald-400">Loading metadata...</p>
+          ) : !metadata ? (
+            <p className="text-gray-500 dark:text-slate-400">No metadata available</p>
+          ) : (
+            <>
+              {/* Command */}
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0">Command</span>
+                <span className="font-mono text-gray-800 dark:text-slate-200">
+                  {metadata.command}{metadata.subcommand ? ` ${metadata.subcommand}` : ''}
+                </span>
+              </div>
+
+              {/* Description */}
+              <div className="flex items-start gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">Description</span>
+                <span className="text-gray-700 dark:text-slate-300">{metadata.description}</span>
+              </div>
+
+              {/* Created */}
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0">Created</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  {new Date(metadata.created_at).toLocaleString()}
+                </span>
+              </div>
+
+              {/* Input files */}
+              {metadata.input_files && metadata.input_files.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">
+                    Inputs ({metadata.input_files.length})
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    {metadata.input_files.map((f, i) => (
+                      <span
+                        key={i}
+                        title={f}
+                        className="font-mono text-gray-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-800 rounded px-1.5 py-0.5 break-all"
+                      >
+                        {basename(f)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Flags */}
+              {metadata.flags && metadata.flags.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold w-24 shrink-0 pt-0.5">Flags</span>
+                  <div className="flex flex-wrap gap-1">
+                    {metadata.flags.map((flag, i) => (
+                      <span
+                        key={i}
+                        className="font-mono text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded"
+                      >
+                        {flag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── File table row ────────────────────────────────────────────────────────────
 
 function FileRow({
@@ -136,11 +230,13 @@ function FileRow({
   outputJob,
   onDelete,
   deleting,
+  isArtifact,
 }: {
   file: UploadedFile
   outputJob?: Job | null
   onDelete: (f: UploadedFile) => void
   deleting: boolean
+  isArtifact?: boolean
 }) {
   const navigate = useNavigate()
   const icon = file.filename.endsWith('.gz')   ? '🗜️'
@@ -155,7 +251,7 @@ function FileRow({
           <span className="text-2xl leading-none mt-0.5">{icon}</span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-gray-900 dark:text-slate-100 font-mono break-all">{file.filename}</p>
-            {outputJob && <LineagePanel file={file} job={outputJob} />}
+            {isArtifact ? <MetadataPanel file={file} /> : outputJob && <LineagePanel file={file} job={outputJob} />}
           </div>
         </div>
       </td>
@@ -196,6 +292,7 @@ function SectionTable({
   onDelete,
   deletingFile,
   extra,
+  isArtifactSection,
 }: {
   title: string
   icon: string
@@ -205,6 +302,7 @@ function SectionTable({
   onDelete: (f: UploadedFile) => void
   deletingFile: string | null
   extra?: React.ReactNode
+  isArtifactSection?: boolean
 }) {
   if (files.length === 0) return null
   return (
@@ -228,7 +326,7 @@ function SectionTable({
             <th className="px-6 py-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
           {files.map(file => {
             const shortId  = extractJobShortId(file.filename)
             const outputJob = shortId ? jobMap.get(shortId) ?? null : null
@@ -241,6 +339,7 @@ function SectionTable({
                   if (window.confirm(`Delete "${f.filename}"?`)) onDelete(f)
                 }}
                 deleting={deletingFile === file.filename}
+                isArtifact={isArtifactSection}
               />
             )
           })}
@@ -495,6 +594,7 @@ export function Files() {
             jobMap={jobsByShortId}
             onDelete={handleDelete}
             deletingFile={deletingFile}
+            isArtifactSection={false}
             extra={
               <button onClick={() => refetch()} className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
                 Refresh
@@ -511,9 +611,10 @@ export function Files() {
             jobMap={jobsByShortId}
             onDelete={handleDelete}
             deletingFile={deletingFile}
+            isArtifactSection={true}
             extra={
               <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                Generated by analysis commands
+                Click ▸ Metadata to see command details
               </p>
             }
           />
