@@ -80,7 +80,7 @@ linters:
     - staticcheck     # Explicitly disable - includes errcheck
   enable:
     # Correctness
-    - govet           # go vet checks (sufficient for correctness)
+    - govet           # go vet checks
     - ineffassign     # detect ineffectual assignments
     - unused          # report unused code
 
@@ -88,15 +88,6 @@ linters:
     - misspell        # fix spelling in comments and strings
     - whitespace      # unnecessary blank lines
     - unconvert       # remove unnecessary type conversions
-
-    # Security
-    # gosec disabled here — run separately in Security workflow with proper exclusions
-    # - gosec
-
-    # Performance
-    # prealloc disabled — too noisy for this codebase; explicit pre-alloc
-    # where it matters is done manually.
-    # - prealloc
 
 formatters:
   enable:
