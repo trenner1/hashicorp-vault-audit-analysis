@@ -181,7 +181,7 @@ export function Settings() {
             <select
               value={pruneHours}
               onChange={e => setPruneHours(Number(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900"
+              className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-1.5 text-sm text-gray-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800"
             >
               <option value={1}>1 hour</option>
               <option value={6}>6 hours</option>
