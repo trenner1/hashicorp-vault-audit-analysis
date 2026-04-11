@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 
 interface JobOutputProps {
@@ -32,6 +32,7 @@ function useElapsed(active: boolean, startedAt?: string): string {
 }
 
 export function JobOutput({ jobId }: JobOutputProps) {
+  const queryClient = useQueryClient()
   const [outputLines, setOutputLines] = useState<string[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [search, setSearch] = useState('')
@@ -95,6 +96,9 @@ export function JobOutput({ jobId }: JobOutputProps) {
       eventSource.addEventListener('done', () => {
         setIsStreaming(false)
         eventSource.close()
+        // Invalidate queries to immediately show updated job details
+        queryClient.invalidateQueries({ queryKey: ['job', jobId] })
+        queryClient.invalidateQueries({ queryKey: ['jobs'] })
       })
 
       eventSource.onerror = () => {
