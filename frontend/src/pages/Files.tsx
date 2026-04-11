@@ -444,7 +444,7 @@ export function Files() {
 
       {/* Drop zone */}
       <div
-        className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer"
+        className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors cursor-pointer"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={e => e.preventDefault()}
         onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadFile(f) }}
@@ -477,7 +477,7 @@ export function Files() {
           <SectionTable
             title="Analysis Outputs"
             icon="🔗"
-            headerClass="bg-violet-50 text-violet-900"
+            headerClass="bg-violet-50 dark:bg-violet-900/30 text-violet-900 dark:text-violet-200"
             files={outputFiles}
             jobMap={jobsByShortId}
             onDelete={handleDelete}
