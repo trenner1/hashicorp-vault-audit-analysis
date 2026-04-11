@@ -284,7 +284,6 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 
 		// Check if this is a JSON entity mapping file
 		var fileEntities map[string]*EntityChurnRecord
-		var returningEntitiesSet map[string]bool
 
 		if strings.HasSuffix(strings.ToLower(logFile), ".json") {
 			// Load entity mappings from JSON file
@@ -317,12 +316,10 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				}
 			}
 			fmt.Fprintf(os.Stderr, "Loaded %s entities from JSON file\n", utils.FormatNumber(len(fileEntities)))
-			returningEntitiesSet = make(map[string]bool)
 		} else {
 			// Process as audit log file
 			type churnState struct {
-				entities          map[string]*EntityChurnRecord
-				returningEntities map[string]bool
+				entities map[string]*EntityChurnRecord
 			}
 
 			result, _, err := processor.RunFiles(
@@ -330,8 +327,7 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				[]string{logFile},
 				func() churnState {
 					return churnState{
-						entities:          make(map[string]*EntityChurnRecord),
-						returningEntities: make(map[string]bool),
+						entities: make(map[string]*EntityChurnRecord),
 					}
 				},
 				func(entry *audit.AuditEntry, s *churnState) {
@@ -386,11 +382,6 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 							Lifecycle:       "unknown",
 							ActivityPattern: "unknown",
 						}
-
-						// Check if this entity exists in global entities map (from previous files)
-						if _, existsGlobally := entities[entityID]; existsGlobally {
-							s.returningEntities[entityID] = true
-						}
 					}
 				},
 				func(a, b churnState) churnState {
@@ -404,19 +395,19 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 			}
 
 			fileEntities = result.entities
-			returningEntitiesSet = result.returningEntities
 		}
 
 		// Update global entities and track daily stats
 		newEntitiesThisFile := 0
-		returningEntitiesThisFile := len(returningEntitiesSet)
+		returningEntitiesThisFile := 0
 		loginsThisFile := 0
 
 		for entityID, record := range fileEntities {
 			loginsThisFile += record.TotalLogins
 
 			if existingRecord, ok := entities[entityID]; ok {
-				// Returning entity
+				// Returning entity - exists in global map from previous files
+				returningEntitiesThisFile++
 				existingRecord.TotalLogins += record.TotalLogins
 				existingRecord.LastSeenFile = fileName
 				existingRecord.LastSeenTime = record.LastSeenTime
