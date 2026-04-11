@@ -282,78 +282,116 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 		fileName := filepath.Base(logFile)
 		fmt.Fprintf(os.Stderr, "\nProcessing Day %s (%d/%d)...\n", fileName, fileIdx+1, len(logFiles))
 
-		type churnState struct {
-			entities map[string]*EntityChurnRecord
-		}
+		// Check if this is a JSON entity mapping file
+		var fileEntities map[string]*EntityChurnRecord
+		if strings.HasSuffix(strings.ToLower(logFile), ".json") {
+			// Load entity mappings from JSON file
+			fmt.Fprintf(os.Stderr, "Detected JSON entity mapping file, loading directly...\n")
+			mappings, err := loadEntityMappingsFromFile(logFile)
+			if err != nil {
+				return fmt.Errorf("failed to load entity mappings from %s: %w", logFile, err)
+			}
 
-		result, _, err := processor.RunFiles(
-			processor.DefaultConfig(),
-			[]string{logFile},
-			func() churnState {
-				return churnState{entities: make(map[string]*EntityChurnRecord)}
-			},
-			func(entry *audit.AuditEntry, s *churnState) {
-				// Only process login operations
-				if !entry.PathStartsWith("auth/") || !strings.HasSuffix(entry.Path(), "/login") {
-					return
+			// Convert EntityMapping to EntityChurnRecord
+			fileEntities = make(map[string]*EntityChurnRecord)
+			for entityID, mapping := range mappings {
+				firstSeen := parseTime(mapping.FirstSeen)
+				lastSeen := parseTime(mapping.LastSeen)
+
+				fileEntities[entityID] = &EntityChurnRecord{
+					EntityID:        entityID,
+					DisplayName:     mapping.DisplayName,
+					MountPath:       mapping.MountPath,
+					MountType:       "", // Not available in entity mappings
+					TokenType:       "", // Not available in entity mappings
+					FirstSeenFile:   fileName,
+					FirstSeenTime:   firstSeen,
+					LastSeenFile:    fileName,
+					LastSeenTime:    lastSeen,
+					FilesAppeared:   []string{fileName},
+					TotalLogins:     mapping.LoginCount,
+					Lifecycle:       "unknown",
+					ActivityPattern: "unknown",
 				}
+			}
+			fmt.Fprintf(os.Stderr, "Loaded %s entities from JSON file\n", utils.FormatNumber(len(fileEntities)))
+		} else {
+			// Process as audit log file
+			type churnState struct {
+				entities map[string]*EntityChurnRecord
+			}
 
-				if entry.Auth == nil || entry.Auth.EntityID == nil {
-					return
-				}
-
-				entityID := *entry.Auth.EntityID
-
-				displayName := entityID
-				if entry.Auth.DisplayName != nil {
-					displayName = *entry.Auth.DisplayName
-				}
-
-				mountPath := entry.Path()
-				mountType := entry.MountType()
-				if mountType == "" {
-					mountType = "unknown"
-				}
-
-				tokenType := ""
-				if entry.Auth.TokenType != nil {
-					tokenType = *entry.Auth.TokenType
-				}
-
-				firstSeenTime := parseTime(entry.Time)
-
-				// Check if entity already seen in this file
-				if existing, ok := s.entities[entityID]; ok {
-					// Increment login count and update last seen
-					existing.TotalLogins++
-					existing.LastSeenTime = firstSeenTime
-				} else {
-					// First time seeing this entity in this file
-					s.entities[entityID] = &EntityChurnRecord{
-						EntityID:        entityID,
-						DisplayName:     displayName,
-						MountPath:       mountPath,
-						MountType:       mountType,
-						TokenType:       tokenType,
-						FirstSeenFile:   fileName,
-						FirstSeenTime:   firstSeenTime,
-						LastSeenFile:    fileName,
-						LastSeenTime:    firstSeenTime,
-						FilesAppeared:   []string{fileName},
-						TotalLogins:     1,
-						Lifecycle:       "unknown",
-						ActivityPattern: "unknown",
+			result, _, err := processor.RunFiles(
+				processor.DefaultConfig(),
+				[]string{logFile},
+				func() churnState {
+					return churnState{entities: make(map[string]*EntityChurnRecord)}
+				},
+				func(entry *audit.AuditEntry, s *churnState) {
+					// Only process login operations
+					if !entry.PathStartsWith("auth/") || !strings.HasSuffix(entry.Path(), "/login") {
+						return
 					}
-				}
-			},
-			func(a, b churnState) churnState {
-				// Merge state - not used in single-file processing
-				return a
-			},
-		)
 
-		if err != nil {
-			return err
+					if entry.Auth == nil || entry.Auth.EntityID == nil {
+						return
+					}
+
+					entityID := *entry.Auth.EntityID
+
+					displayName := entityID
+					if entry.Auth.DisplayName != nil {
+						displayName = *entry.Auth.DisplayName
+					}
+
+					mountPath := entry.Path()
+					mountType := entry.MountType()
+					if mountType == "" {
+						mountType = "unknown"
+					}
+
+					tokenType := ""
+					if entry.Auth.TokenType != nil {
+						tokenType = *entry.Auth.TokenType
+					}
+
+					firstSeenTime := parseTime(entry.Time)
+
+					// Check if entity already seen in this file
+					if existing, ok := s.entities[entityID]; ok {
+						// Increment login count and update last seen
+						existing.TotalLogins++
+						existing.LastSeenTime = firstSeenTime
+					} else {
+						// First time seeing this entity in this file
+						s.entities[entityID] = &EntityChurnRecord{
+							EntityID:        entityID,
+							DisplayName:     displayName,
+							MountPath:       mountPath,
+							MountType:       mountType,
+							TokenType:       tokenType,
+							FirstSeenFile:   fileName,
+							FirstSeenTime:   firstSeenTime,
+							LastSeenFile:    fileName,
+							LastSeenTime:    firstSeenTime,
+							FilesAppeared:   []string{fileName},
+							TotalLogins:     1,
+							Lifecycle:       "unknown",
+							ActivityPattern: "unknown",
+						}
+					}
+				},
+				func(a, b churnState) churnState {
+					// Merge state - not used in single-file processing
+					return a
+				},
+			)
+
+			if err != nil {
+				return err
+			}
+
+			fileEntities = result.entities
 		}
 
 		// Update global entities and track daily stats
@@ -361,7 +399,7 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 		returningEntitiesThisFile := 0
 		loginsThisFile := 0
 
-		for entityID, record := range result.entities {
+		for entityID, record := range fileEntities {
 			loginsThisFile += record.TotalLogins
 
 			if existingRecord, ok := entities[entityID]; ok {
