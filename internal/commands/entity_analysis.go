@@ -25,13 +25,25 @@ type EntityMapping struct {
 
 // buildEntityMap extracts entity mappings from audit log files.
 func buildEntityMap(logFiles []string) (map[string]EntityMapping, error) {
+	// Filter out empty file paths
+	var validFiles []string
+	for _, f := range logFiles {
+		if f != "" {
+			validFiles = append(validFiles, f)
+		}
+	}
+
+	if len(validFiles) == 0 {
+		return nil, fmt.Errorf("no valid log files provided")
+	}
+
 	type state struct {
 		entityMap map[string]EntityMapping
 	}
 
 	result, _, err := processor.RunFiles(
 		processor.DefaultConfig(),
-		logFiles,
+		validFiles,
 		func() state {
 			return state{entityMap: make(map[string]EntityMapping)}
 		},

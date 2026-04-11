@@ -217,6 +217,19 @@ func extractDayIndex(filename string) int {
 
 // RunEntityChurn performs entity churn analysis.
 func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *string) error {
+	// Filter out empty file paths
+	var validFiles []string
+	for _, f := range logFiles {
+		if f != "" {
+			validFiles = append(validFiles, f)
+		}
+	}
+	logFiles = validFiles
+
+	if len(logFiles) == 0 {
+		return fmt.Errorf("no valid log files provided")
+	}
+
 	fmt.Printf("\n=== Multi-Day Entity Churn Analysis ===\n\n")
 	fmt.Printf("Analyzing %d log files:\n", len(logFiles))
 	for i, file := range logFiles {
