@@ -180,6 +180,10 @@ export function Analysis() {
   // Filter and sort existing files
   const sortedExistingFiles = [...existingFiles]
     .filter(f => {
+      // Exclude .meta.json files
+      if (f.filename.endsWith('.meta.json')) {
+        return false
+      }
       const acceptedTypes = getAcceptedFileTypes()
       return acceptedTypes.some(ext => f.filename.toLowerCase().endsWith(ext))
     })
