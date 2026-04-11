@@ -191,10 +191,10 @@ export function Analysis() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Analysis</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Analysis</h1>
+        <p className="text-gray-600 dark:text-slate-400 mt-2">
           {preloadFile
-            ? <>Using <span className="font-mono text-gray-800">{preloadFile.filename}</span> · select a command and run</>
+            ? <>Using <span className="font-mono text-gray-800 dark:text-slate-200">{preloadFile.filename}</span> · select a command and run</>
             : 'Select a command, upload log files, then run'}
         </p>
       </div>
@@ -202,8 +202,8 @@ export function Analysis() {
       <div className="grid grid-cols-3 gap-6">
         {/* Command list */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900">Commands</h2>
-          <div className="bg-white rounded-lg shadow divide-y divide-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Commands</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow divide-y divide-gray-100">
             {(commands.length > 0 ? commands : Object.keys(COMMANDS_WITH_SUBCOMMANDS).map(k => ({ name: k, description: '' }))).map((cmd: Command) => (
               <button
                 key={cmd.name}
@@ -211,12 +211,12 @@ export function Analysis() {
                 className={`w-full text-left px-4 py-3 transition-colors ${
                   selectedCommand === cmd.name
                     ? 'bg-indigo-600 text-white'
-                    : 'hover:bg-gray-50 text-gray-900'
+                    : 'hover:bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100'
                 }`}
               >
                 <p className="font-medium text-sm">{cmd.name}</p>
                 {cmd.description && (
-                  <p className={`text-xs mt-0.5 ${selectedCommand === cmd.name ? 'text-indigo-200' : 'text-gray-500'}`}>
+                  <p className={`text-xs mt-0.5 ${selectedCommand === cmd.name ? 'text-indigo-200' : 'text-gray-500 dark:text-slate-400'}`}>
                     {cmd.description}
                   </p>
                 )}
@@ -229,8 +229,8 @@ export function Analysis() {
         <div className="col-span-2 space-y-6">
           {/* Subcommand selector */}
           {needsSubcommand && (
-            <div className="bg-white rounded-lg shadow p-4">
-              <label className="block text-sm font-medium text-gray-900 mb-3">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-4">
+              <label className="block text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">
                 Subcommand <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-2">
@@ -242,7 +242,7 @@ export function Analysis() {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                       selectedSubcommand === sub
                         ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-slate-800 text-gray-700 hover:bg-gray-200 dark:bg-slate-700'
                     }`}
                   >
                     {sub}
@@ -263,14 +263,14 @@ export function Analysis() {
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                   dragActive
                     ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-300 bg-white hover:border-gray-400'
+                    : 'border-gray-300 bg-white dark:bg-slate-900 hover:border-gray-400'
                 }`}
               >
-                <svg className="mx-auto h-10 w-10 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="mx-auto h-10 w-10 text-gray-400 dark:text-slate-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-gray-700 font-medium">Drop audit log files here</p>
-                <p className="text-sm text-gray-500 mt-1">Supports .json, .log, .gz, .zst</p>
+                <p className="text-gray-700 dark:text-slate-300 font-medium">Drop audit log files here</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Supports .json, .log, .gz, .zst</p>
                 <label className="mt-4 inline-block cursor-pointer">
                   <span className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
                     Browse files
@@ -299,14 +299,14 @@ export function Analysis() {
                     {showFilePicker ? '▾' : '▸'} Pick from previously uploaded files ({existingFiles.length})
                   </button>
                   {showFilePicker && (
-                    <div className="mt-2 border border-gray-200 rounded-lg bg-white divide-y divide-gray-50 max-h-48 overflow-y-auto shadow-sm">
+                    <div className="mt-2 border border-gray-200 rounded-lg bg-white dark:bg-slate-900 divide-y divide-gray-50 max-h-48 overflow-y-auto shadow-sm">
                       {sortedExistingFiles.map(f => {
                         const alreadyAdded = uploadedFiles.some(u => u.path === f.path)
                         return (
-                          <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+                          <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:bg-slate-800">
                             <div className="min-w-0">
-                              <p className="text-sm font-mono text-gray-800 truncate">{f.filename}</p>
-                              <p className="text-xs text-gray-400">{(f.size / 1024).toFixed(1)} KB · {new Date(f.created_at).toLocaleDateString()}</p>
+                              <p className="text-sm font-mono text-gray-800 dark:text-slate-200 truncate">{f.filename}</p>
+                              <p className="text-xs text-gray-400 dark:text-slate-500">{(f.size / 1024).toFixed(1)} KB · {new Date(f.created_at).toLocaleDateString()}</p>
                             </div>
                             <button
                               type="button"
@@ -370,7 +370,7 @@ export function Analysis() {
                   <select
                     value={selectedClusterId}
                     onChange={e => setSelectedClusterId(e.target.value)}
-                    className="border border-amber-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 w-full"
+                    className="border border-amber-300 rounded px-2 py-1.5 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-400 w-full"
                   >
                     <option value="">— select a cluster or enter flags manually —</option>
                     {clusters.map((c: Cluster) => (
@@ -390,17 +390,17 @@ export function Analysis() {
           )}
 
           {/* Submit form */}
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-lg shadow p-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Additional flags <span className="text-gray-400 font-normal">(optional)</span>
+              <label className="block text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">
+                Additional flags <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
                 value={extraFlags}
                 onChange={e => setExtraFlags(e.target.value)}
                 placeholder="--top 20 --min-operations 500"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg font-mono text-sm focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
               />
             </div>
 

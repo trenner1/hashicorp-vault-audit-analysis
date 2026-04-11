@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
@@ -15,6 +15,20 @@ const navItems = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const location = useLocation()
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  })
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }, [isDark])
 
   const { data: sysInfo } = useQuery({
     queryKey: ['system'],
@@ -26,11 +40,11 @@ export function Layout({ children }: { children: ReactNode }) {
   })
 
   return (
-    <div className="flex h-screen bg-white">
-      <nav className="w-64 bg-gray-900 text-white flex flex-col border-r border-gray-700">
-        <div className="p-6 border-b border-gray-700">
-          <h1 className="text-xl font-bold text-indigo-400">Vault Audit</h1>
-          <p className="text-xs text-gray-400 mt-1">Analysis Platform</p>
+    <div className="flex h-screen bg-white dark:bg-slate-900">
+      <nav className="w-64 bg-gray-900 dark:bg-slate-950 text-white flex flex-col border-r border-gray-700 dark:border-slate-800">
+        <div className="p-6 border-b border-gray-700 dark:border-slate-800">
+          <h1 className="text-xl font-bold text-indigo-400 dark:text-indigo-300">Vault Audit</h1>
+          <p className="text-xs text-gray-400 dark:text-slate-400 mt-1">Analysis Platform</p>
         </div>
 
         <ul className="flex-1 py-4">
@@ -43,10 +57,10 @@ export function Layout({ children }: { children: ReactNode }) {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`px-4 py-3 flex items-center gap-3 hover:bg-gray-800 transition-colors ${
+                  className={`px-4 py-3 flex items-center gap-3 hover:bg-gray-800 dark:hover:bg-slate-800 transition-colors ${
                     isActive
-                      ? 'bg-indigo-600 text-white border-l-4 border-indigo-400'
-                      : 'text-gray-300'
+                      ? 'bg-indigo-600 dark:bg-indigo-700 text-white border-l-4 border-indigo-400 dark:border-indigo-300'
+                      : 'text-gray-300 dark:text-slate-300'
                   }`}
                 >
                   <span className="text-xl">{item.icon}</span>
@@ -57,19 +71,28 @@ export function Layout({ children }: { children: ReactNode }) {
           })}
         </ul>
 
-        <div className="px-4 py-4 border-t border-gray-700 text-xs text-gray-500 space-y-0.5">
-          <p>v{sysInfo?.version ?? '—'}</p>
-          {sysInfo && (
-            <p className="text-gray-600">
-              {sysInfo.jobs.running > 0
-                ? `${sysInfo.jobs.running} job${sysInfo.jobs.running !== 1 ? 's' : ''} running`
-                : 'No active jobs'}
-            </p>
-          )}
+        <div className="px-4 py-4 border-t border-gray-700 dark:border-slate-800 space-y-2">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="w-full px-3 py-2 text-sm bg-gray-800 dark:bg-slate-800 hover:bg-gray-700 dark:hover:bg-slate-700 rounded transition-colors flex items-center justify-center gap-2"
+          >
+            <span>{isDark ? '☀️' : '🌙'}</span>
+            <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+          <div className="text-xs text-gray-500 dark:text-slate-500 space-y-0.5">
+            <p>v{sysInfo?.version ?? '—'}</p>
+            {sysInfo && (
+              <p className="text-gray-600 dark:text-slate-600">
+                {sysInfo.jobs.running > 0
+                  ? `${sysInfo.jobs.running} job${sysInfo.jobs.running !== 1 ? 's' : ''} running`
+                  : 'No active jobs'}
+              </p>
+            )}
+          </div>
         </div>
       </nav>
 
-      <main className="flex-1 overflow-auto bg-gray-50">
+      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-800">
         <div className="p-8">{children}</div>
       </main>
     </div>

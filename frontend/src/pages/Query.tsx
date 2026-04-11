@@ -81,16 +81,16 @@ export default function Query() {
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Ask a Question</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Ask a Question</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
           Describe what you want to know in plain English. Claude will choose
           the right vault-audit command and run it automatically.
         </p>
       </div>
 
       {/* Question input */}
-      <div className="bg-white shadow rounded-lg p-6 space-y-4">
-        <label className="block text-sm font-medium text-gray-700">
+      <div className="bg-white dark:bg-slate-900 shadow rounded-lg p-6 space-y-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
           Your question
         </label>
         <textarea
@@ -98,18 +98,18 @@ export default function Query() {
           value={question}
           onChange={e => setQuestion(e.target.value)}
           placeholder="e.g. Which paths are accessed most often, and are there any signs of token abuse?"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
         />
 
         {/* Example questions */}
         <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">Examples</p>
+          <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-2">Examples</p>
           <div className="flex flex-wrap gap-2">
             {EXAMPLE_QUESTIONS.map(q => (
               <button
                 key={q}
                 onClick={() => setQuestion(q)}
-                className="text-xs bg-gray-100 hover:bg-indigo-50 hover:text-indigo-700 text-gray-600 px-2 py-1 rounded border border-gray-200 hover:border-indigo-300 transition-colors"
+                className="text-xs bg-gray-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-700 text-gray-600 dark:text-slate-400 px-2 py-1 rounded border border-gray-200 dark:border-slate-700 hover:border-indigo-300 transition-colors"
               >
                 {q}
               </button>
@@ -120,15 +120,15 @@ export default function Query() {
 
       {/* Cluster selector */}
       {clusters.length > 0 && (
-        <div className="bg-white shadow rounded-lg p-6 space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+        <div className="bg-white dark:bg-slate-900 shadow rounded-lg p-6 space-y-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
             Target cluster{' '}
-            <span className="font-normal text-gray-400">(optional — for live-cluster questions)</span>
+            <span className="font-normal text-gray-400 dark:text-slate-500">(optional — for live-cluster questions)</span>
           </label>
           <select
             value={selectedClusterId}
             onChange={e => setSelectedClusterId(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900"
           >
             <option value="">— none (log-file analysis only) —</option>
             {clusters.map((c: Cluster) => (
@@ -144,14 +144,14 @@ export default function Query() {
       )}
 
       {/* Log file upload */}
-      <div className="bg-white shadow rounded-lg p-6 space-y-4">
+      <div className="bg-white dark:bg-slate-900 shadow rounded-lg p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
             Log files{' '}
-            <span className="font-normal text-gray-400">(optional for live-cluster questions)</span>
+            <span className="font-normal text-gray-400 dark:text-slate-500">(optional for live-cluster questions)</span>
           </label>
           {uploadedFiles.length > 0 && (
-            <span className="text-xs text-gray-400">{uploadedFiles.length} file(s)</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">{uploadedFiles.length} file(s)</span>
           )}
         </div>
 
@@ -164,7 +164,7 @@ export default function Query() {
           className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
             dragOver
               ? 'border-indigo-400 bg-indigo-50'
-              : 'border-gray-300 hover:border-indigo-300 hover:bg-gray-50'
+              : 'border-gray-300 hover:border-indigo-300 hover:bg-gray-50 dark:bg-slate-800'
           }`}
         >
           <input
@@ -183,10 +183,10 @@ export default function Query() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Drop Vault audit log files here, or <span className="text-indigo-600 font-medium">click to browse</span>
               </p>
-              <p className="text-xs text-gray-400 mt-1">.log · .json · .jsonl · .txt</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">.log · .json · .jsonl · .txt</p>
             </>
           )}
         </div>
@@ -195,13 +195,13 @@ export default function Query() {
         {uploadedFiles.length > 0 && (
           <ul className="space-y-2">
             {uploadedFiles.map(f => (
-              <li key={f.path} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-sm">
-                <span className="font-medium text-gray-700 truncate">{f.filename}</span>
+              <li key={f.path} className="flex items-center justify-between bg-gray-50 dark:bg-slate-800 rounded px-3 py-2 text-sm">
+                <span className="font-medium text-gray-700 dark:text-slate-300 truncate">{f.filename}</span>
                 <div className="flex items-center gap-3 ml-3 shrink-0">
-                  <span className="text-gray-400 text-xs">{(f.size / 1024).toFixed(1)} KB</span>
+                  <span className="text-gray-400 dark:text-slate-500 text-xs">{(f.size / 1024).toFixed(1)} KB</span>
                   <button
                     onClick={e => { e.stopPropagation(); removeFile(f.path) }}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
+                    className="text-gray-400 dark:text-slate-500 hover:text-red-500 transition-colors"
                     title="Remove"
                   >
                     ✕

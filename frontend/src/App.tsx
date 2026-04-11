@@ -20,7 +20,7 @@ export default function App() {
         <Route path="/jobs/:id" element={<Jobs />} />
         <Route path="/clusters" element={<Clusters />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<div className="text-gray-600">Page not found</div>} />
+        <Route path="*" element={<div className="text-gray-600 dark:text-slate-400">Page not found</div>} />
       </Routes>
     </Layout>
   )

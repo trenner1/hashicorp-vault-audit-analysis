@@ -83,7 +83,7 @@ function LineagePanel({ file, job }: { file: UploadedFile; job: Job }) {
           {/* Command */}
           <div className="flex items-center gap-2">
             <span className="text-violet-500 font-semibold w-20 shrink-0">Command</span>
-            <span className="font-mono text-gray-800">
+            <span className="font-mono text-gray-800 dark:text-slate-200">
               {[job.command, ...(job.args ?? []).filter(a => !isFilePath(a) && !a.startsWith('--') && !a.startsWith('-'))].join(' ')}
             </span>
           </div>
@@ -99,7 +99,7 @@ function LineagePanel({ file, job }: { file: UploadedFile; job: Job }) {
                   <span
                     key={i}
                     title={f}
-                    className="font-mono text-gray-800 bg-white border border-violet-100 rounded px-1.5 py-0.5 break-all"
+                    className="font-mono text-gray-800 bg-white dark:bg-slate-900 border border-violet-100 rounded px-1.5 py-0.5 break-all"
                   >
                     {basename(f)}
                   </span>
@@ -114,7 +114,7 @@ function LineagePanel({ file, job }: { file: UploadedFile; job: Job }) {
             <span className={`px-1.5 py-0.5 rounded font-semibold ${
               job.status === 'done'  ? 'bg-green-100 text-green-700' :
               job.status === 'error' ? 'bg-red-100 text-red-700'   :
-              'bg-gray-100 text-gray-600'
+              'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400'
             }`}>
               {job.status}
             </span>
@@ -149,20 +149,20 @@ function FileRow({
              : '📃'
 
   return (
-    <tr className="hover:bg-gray-50 transition-colors align-top">
+    <tr className="hover:bg-gray-50 dark:bg-slate-800 transition-colors align-top">
       <td className="px-6 py-4">
         <div className="flex items-start gap-3">
           <span className="text-2xl leading-none mt-0.5">{icon}</span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900 font-mono break-all">{file.filename}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-slate-100 font-mono break-all">{file.filename}</p>
             {outputJob && <LineagePanel file={file} job={outputJob} />}
           </div>
         </div>
       </td>
-      <td className="px-6 py-4 text-sm text-gray-600 font-mono whitespace-nowrap">
+      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400 font-mono whitespace-nowrap">
         {formatBytes(file.size)}
       </td>
-      <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+      <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400 whitespace-nowrap">
         {new Date(file.created_at).toLocaleString()}
       </td>
       <td className="px-6 py-4 text-right">
@@ -176,7 +176,7 @@ function FileRow({
           <button
             onClick={() => onDelete(file)}
             disabled={deleting}
-            className="text-xs text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors"
+            className="text-xs text-gray-400 dark:text-slate-500 hover:text-red-500 disabled:opacity-40 transition-colors"
             title="Delete file"
           >
             {deleting ? '…' : '🗑'}
@@ -208,20 +208,20 @@ function SectionTable({
 }) {
   if (files.length === 0) return null
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-100 ${headerClass}`}>
+    <div className="bg-white dark:bg-slate-900 rounded-lg shadow overflow-hidden">
+      <div className={`flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-700 ${headerClass}`}>
         <div className="flex items-center gap-2">
           <span>{icon}</span>
           <h2 className="text-sm font-semibold">{title}</h2>
-          <span className="text-xs bg-white/60 px-2 py-0.5 rounded-full text-current opacity-70">
+          <span className="text-xs bg-white dark:bg-slate-900/60 px-2 py-0.5 rounded-full text-current opacity-70">
             {files.length} file{files.length !== 1 ? 's' : ''}
           </span>
         </div>
         {extra}
       </div>
       <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-100">
-          <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+        <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700">
+          <tr className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
             <th className="px-6 py-3">Filename</th>
             <th className="px-6 py-3">Size</th>
             <th className="px-6 py-3">Date</th>
@@ -397,8 +397,8 @@ export function Files() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Files</h1>
-          <p className="text-gray-500 mt-1 text-sm">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Files</h1>
+          <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm">
             {files.length > 0
               ? `${files.length} file${files.length !== 1 ? 's' : ''} · ${formatBytes(totalSize)} total`
               : 'Upload log files to get started'}
@@ -444,20 +444,20 @@ export function Files() {
 
       {/* Drop zone */}
       <div
-        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer"
+        className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer"
         onClick={() => fileInputRef.current?.click()}
         onDragOver={e => e.preventDefault()}
         onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadFile(f) }}
       >
         <div className="text-4xl mb-3">📁</div>
-        <p className="text-sm font-medium text-gray-700">Drop a log file here, or click to browse</p>
-        <p className="text-xs text-gray-400 mt-1">Any format accepted · no size limit</p>
+        <p className="text-sm font-medium text-gray-700 dark:text-slate-300">Drop a log file here, or click to browse</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Any format accepted · no size limit</p>
         {uploading && (
           <div className="mt-4 w-full max-w-xs mx-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mb-1">
               <span>Uploading…</span><span>{uploadProgress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
               <div className="bg-indigo-500 h-2 rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
             </div>
           </div>
@@ -466,10 +466,10 @@ export function Files() {
 
       {/* File lists */}
       {isLoading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-400 text-sm animate-pulse">Loading…</div>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-8 text-center text-gray-400 dark:text-slate-500 text-sm animate-pulse">Loading…</div>
       ) : files.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-10 text-center">
-          <p className="text-gray-400 text-sm">No files yet. Upload a Vault audit log above to get started.</p>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-10 text-center">
+          <p className="text-gray-400 dark:text-slate-500 text-sm">No files yet. Upload a Vault audit log above to get started.</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -493,7 +493,7 @@ export function Files() {
           <SectionTable
             title="Uploaded Log Files"
             icon="📋"
-            headerClass="text-gray-700"
+            headerClass="text-gray-700 dark:text-slate-300"
             files={logFiles}
             jobMap={jobsByShortId}
             onDelete={handleDelete}

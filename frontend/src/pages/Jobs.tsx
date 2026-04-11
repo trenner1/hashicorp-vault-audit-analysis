@@ -46,9 +46,9 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
           className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200 ${compact ? 'text-xs' : 'text-sm'}`}
         >
           <span className="text-indigo-700 font-mono">{flagName}</span>
-          <span className="text-gray-400">→</span>
-          <span title={filePath} className="inline-flex items-center gap-0.5 text-gray-700 font-mono">
-            <span className="text-gray-400">📄</span>
+          <span className="text-gray-400 dark:text-slate-500">→</span>
+          <span title={filePath} className="inline-flex items-center gap-0.5 text-gray-700 dark:text-slate-300 font-mono">
+            <span className="text-gray-400 dark:text-slate-500">📄</span>
             {basename(filePath)}
           </span>
         </span>
@@ -62,9 +62,9 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
         <span
           key={i}
           title={arg}
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-mono border border-gray-200 ${compact ? 'text-xs' : 'text-sm'}`}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 font-mono border border-gray-200 dark:border-slate-700 ${compact ? 'text-xs' : 'text-sm'}`}
         >
-          <span className="text-gray-400">📄</span>
+          <span className="text-gray-400 dark:text-slate-500">📄</span>
           {basename(arg)}
         </span>
       )
@@ -101,17 +101,17 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
           <span
             key={i}
             title={arg}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded bg-gray-100 text-gray-600 font-mono text-xs border border-gray-200"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 font-mono text-xs border border-gray-200 dark:border-slate-700"
           >
-            <span className="text-gray-400 text-xs">📄</span>
+            <span className="text-gray-400 dark:text-slate-500 text-xs">📄</span>
             {basename(arg)}
           </span>
         ))}
         {fileChips.length > 3 && (
-          <span className="text-xs text-gray-400">+{fileChips.length - 3} more files</span>
+          <span className="text-xs text-gray-400 dark:text-slate-500">+{fileChips.length - 3} more files</span>
         )}
         {otherCount > 0 && fileChips.length > 0 && (
-          <span className="text-xs text-gray-400">{otherCount} flag{otherCount !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-gray-400 dark:text-slate-500">{otherCount} flag{otherCount !== 1 ? 's' : ''}</span>
         )}
         {fileChips.length === 0 && chips.slice(0, 4)}
       </div>
@@ -326,12 +326,12 @@ export function Jobs() {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'pending':   return 'bg-gray-100 text-gray-700'
+      case 'pending':   return 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300'
       case 'running':   return 'bg-blue-100 text-blue-800'
       case 'done':      return 'bg-green-100 text-green-800'
       case 'error':     return 'bg-red-100 text-red-800'
       case 'cancelled': return 'bg-yellow-100 text-yellow-800'
-      default:          return 'bg-gray-100 text-gray-700'
+      default:          return 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300'
     }
   }
 
@@ -424,23 +424,23 @@ export function Jobs() {
           ) : null}
 
           {/* Job output card */}
-          <div className="bg-white rounded-lg shadow p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="min-w-0 flex-1">
                 {selectedJob ? (
                   <>
-                    <h1 className="text-xl font-bold text-gray-900">
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                       {selectedJob.command}
                     </h1>
                     {selectedJob.args && selectedJob.args.length > 0 && (
                       <ArgsDisplay args={selectedJob.args} />
                     )}
-                    <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
+                    <p className="text-xs font-mono text-gray-400 dark:text-slate-500 mt-1">{selectedJobId}</p>
                     
                     {/* CLI Command Display */}
-                    <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="mt-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                        <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 uppercase tracking-wide">
                           CLI Command
                         </span>
                         <button
@@ -460,13 +460,13 @@ export function Jobs() {
                               })
                               .catch(err => console.error('Failed to copy:', err))
                           }}
-                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition-colors flex items-center gap-1"
+                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 bg-white dark:bg-slate-900 hover:bg-gray-100 dark:bg-slate-800 transition-colors flex items-center gap-1"
                         >
                           <span>📋</span>
                           <span>Copy</span>
                         </button>
                       </div>
-                      <code className="block text-xs font-mono text-gray-800 break-all">
+                      <code className="block text-xs font-mono text-gray-800 dark:text-slate-200 break-all">
                         vault-audit {selectedJob.command}
                         {selectedJob.args && selectedJob.args.length > 0 && (
                           <> {selectedJob.args.join(' ')}</>
@@ -476,9 +476,9 @@ export function Jobs() {
                   </>
                 ) : (
                   <>
-                    <h1 className="text-xl font-bold text-gray-900">Job</h1>
-                    <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
-                    <p className="text-sm text-gray-500 mt-1">Loading job details...</p>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Job</h1>
+                    <p className="text-xs font-mono text-gray-400 dark:text-slate-500 mt-1">{selectedJobId}</p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Loading job details...</p>
                   </>
                 )}
               </div>
@@ -499,7 +499,7 @@ export function Jobs() {
                   <button
                     onClick={() => rerunMutation.mutate(selectedJob)}
                     disabled={rerunMutation.isPending}
-                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-50 transition-colors"
                   >
                     ↺ Re-run
                   </button>
@@ -508,7 +508,7 @@ export function Jobs() {
                 {selectedJob?.status === 'done' && (
                   <button
                     onClick={() => downloadOutput(selectedJob)}
-                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-700 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:bg-slate-800 transition-colors"
                   >
                     ↓ Download
                   </button>
@@ -532,7 +532,7 @@ export function Jobs() {
                       }
                     }}
                     disabled={deleteMutation.isPending}
-                    className="text-xs px-3 py-1 rounded border border-red-200 text-red-600 bg-white hover:bg-red-50 disabled:opacity-50 transition-colors"
+                    className="text-xs px-3 py-1 rounded border border-red-200 text-red-600 bg-white dark:bg-slate-900 hover:bg-red-50 disabled:opacity-50 transition-colors"
                   >
                     🗑 Delete
                   </button>
@@ -556,7 +556,7 @@ export function Jobs() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {artifacts.map(name => (
-                    <div key={name} className="flex items-center gap-1 bg-white border border-emerald-200 rounded-lg px-3 py-2 shadow-sm">
+                    <div key={name} className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-emerald-200 rounded-lg px-3 py-2 shadow-sm">
                       <span className="text-emerald-600 text-sm font-mono font-medium">{name}</span>
                       <div className="flex gap-1 ml-2">
                         <button
@@ -588,7 +588,7 @@ export function Jobs() {
 
           <button
             onClick={() => setListExpanded(v => !v)}
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+            className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-300 flex items-center gap-1"
           >
             {listExpanded ? '▾' : '▸'} {jobs.length} job{jobs.length !== 1 ? 's' : ''} in history
             {activeCount > 0 && (
@@ -604,8 +604,8 @@ export function Jobs() {
           {!selectedJobId && (
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Jobs</h1>
-                <p className="text-gray-600 mt-1">History of all analysis runs</p>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Jobs</h1>
+                <p className="text-gray-600 dark:text-slate-400 mt-1">History of all analysis runs</p>
               </div>
               {activeCount > 0 && (
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
@@ -619,7 +619,7 @@ export function Jobs() {
           <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => refetch()}
-              className="px-3 py-1.5 text-sm bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm bg-white dark:bg-slate-900 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:bg-slate-800 transition-colors"
             >
               Refresh
             </button>
@@ -628,7 +628,7 @@ export function Jobs() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="border border-gray-300 rounded px-2 py-1.5 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             >
               <option value="all">All statuses</option>
               <option value="running">Running</option>
@@ -644,32 +644,32 @@ export function Jobs() {
               placeholder="Filter by command…"
               value={filterCommand}
               onChange={e => setFilterCommand(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
+              className="border border-gray-300 rounded px-3 py-1.5 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"
             />
 
             {filterStatus !== 'all' || filterCommand ? (
               <button
                 onClick={() => { setFilterStatus('all'); setFilterCommand('') }}
-                className="text-xs text-gray-500 hover:text-gray-700 underline"
+                className="text-xs text-gray-500 hover:text-gray-700 dark:text-slate-300 underline"
               >
                 Clear filters
               </button>
             ) : null}
 
-            <span className="text-sm text-gray-400 ml-auto">
+            <span className="text-sm text-gray-400 dark:text-slate-500 ml-auto">
               {filteredJobs.length !== sortedJobs.length
                 ? `${filteredJobs.length} of ${sortedJobs.length} jobs`
                 : `${sortedJobs.length} job${sortedJobs.length !== 1 ? 's' : ''}`}
             </span>
 
             {/* Page size */}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
               <label htmlFor="page-size">Show</label>
               <select
                 id="page-size"
                 value={pageSize}
                 onChange={e => setPageSize(Number(e.target.value))}
-                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="border border-gray-300 rounded px-2 py-1 text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               >
                 {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -677,23 +677,23 @@ export function Jobs() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow overflow-hidden">
             {isLoading ? (
-              <div className="p-6 text-center text-gray-500">Loading…</div>
+              <div className="p-6 text-center text-gray-500 dark:text-slate-400">Loading…</div>
             ) : filteredJobs.length === 0 ? (
-              <div className="p-6 text-center text-gray-500">
+              <div className="p-6 text-center text-gray-500 dark:text-slate-400">
                 {sortedJobs.length === 0 ? 'No jobs yet' : 'No jobs match the current filters'}
               </div>
             ) : (
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Command</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Duration</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700"></th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300">Command</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300">Duration</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300">Created</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-slate-300"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -701,11 +701,11 @@ export function Jobs() {
                     <tr
                       key={job.id}
                       onClick={() => selectJob(job.id)}
-                      className={`cursor-pointer transition-colors hover:bg-gray-50 ${job.id === selectedJobId ? 'bg-indigo-50' : ''}`}
+                      className={`cursor-pointer transition-colors hover:bg-gray-50 dark:bg-slate-800 ${job.id === selectedJobId ? 'bg-indigo-50' : ''}`}
                     >
-                      <td className="px-6 py-4 text-sm font-mono text-gray-500">{job.id.slice(0, 8)}…</td>
+                      <td className="px-6 py-4 text-sm font-mono text-gray-500 dark:text-slate-400">{job.id.slice(0, 8)}…</td>
                       <td className="px-6 py-4">
-                        <p className="text-sm text-gray-900 font-medium">{job.command}</p>
+                        <p className="text-sm text-gray-900 dark:text-slate-100 font-medium">{job.command}</p>
                         {job.args?.length > 0 && (
                           <ArgsDisplay args={job.args} compact />
                         )}
@@ -715,7 +715,7 @@ export function Jobs() {
                           {job.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-xs font-mono text-gray-500 whitespace-nowrap">
+                      <td className="px-6 py-4 text-xs font-mono text-gray-500 dark:text-slate-400 whitespace-nowrap">
                         {(() => {
                           const ms = new Date(job.updated_at).getTime() - new Date(job.created_at).getTime()
                           if (job.status === 'pending') return '—'
@@ -724,7 +724,7 @@ export function Jobs() {
                           return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`
                         })()}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{new Date(job.created_at).toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">{new Date(job.created_at).toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm text-right">
                         <div className="flex items-center justify-end gap-3">
                           <span className="text-indigo-600 font-medium">View →</span>
@@ -735,7 +735,7 @@ export function Jobs() {
                                 deleteMutation.mutate(job.id)
                               }}
                               disabled={deleteMutation.isPending && deleteMutation.variables === job.id}
-                              className="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                              className="text-gray-400 dark:text-slate-500 hover:text-red-500 transition-colors disabled:opacity-40"
                               title="Delete job"
                             >
                               🗑
@@ -753,14 +753,14 @@ export function Jobs() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Showing {(clampedPage - 1) * pageSize + 1}–{Math.min(clampedPage * pageSize, filteredJobs.length)} of {filteredJobs.length}
               </p>
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage(1)} disabled={clampedPage === 1}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
+                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={clampedPage === 1}
-                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
+                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">← Prev</button>
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - clampedPage) <= 2)
@@ -771,19 +771,19 @@ export function Jobs() {
                   }, [])
                   .map((item, idx) =>
                     item === '…' ? (
-                      <span key={`e${idx}`} className="px-2 py-1 text-sm text-gray-400">…</span>
+                      <span key={`e${idx}`} className="px-2 py-1 text-sm text-gray-400 dark:text-slate-500">…</span>
                     ) : (
                       <button key={item} onClick={() => setPage(item as number)}
-                        className={`px-3 py-1 text-sm rounded border transition-colors ${item === clampedPage ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}`}>
+                        className={`px-3 py-1 text-sm rounded border transition-colors ${item === clampedPage ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800'}`}>
                         {item}
                       </button>
                     )
                   )}
 
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={clampedPage === totalPages}
-                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
+                  className="px-3 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">Next →</button>
                 <button onClick={() => setPage(totalPages)} disabled={clampedPage === totalPages}
-                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+                  className="px-2 py-1 text-sm rounded border border-gray-300 bg-white dark:bg-slate-900 text-gray-700 hover:bg-gray-50 dark:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
               </div>
             </div>
           )}

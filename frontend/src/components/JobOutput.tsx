@@ -145,16 +145,16 @@ export function JobOutput({ jobId }: JobOutputProps) {
   }, [clampedMatch, search, filteredLines.length])
 
   if (isLoading) {
-    return <div className="text-gray-500 text-sm">Loading job output…</div>
+    return <div className="text-gray-500 dark:text-slate-400 text-sm">Loading job output…</div>
   }
 
   const statusColor = {
-    pending:   'bg-gray-100 text-gray-800',
+    pending:   'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200',
     running:   'bg-blue-100 text-blue-800',
     done:      'bg-green-100 text-green-800',
     error:     'bg-red-100 text-red-800',
     cancelled: 'bg-yellow-100 text-yellow-800',
-  }[job?.status ?? 'pending'] ?? 'bg-gray-100 text-gray-800'
+  }[job?.status ?? 'pending'] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-200'
 
   const terminalHeight = expanded ? 'max-h-[80vh]' : 'max-h-96'
 
@@ -169,7 +169,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
     return (
       <>
         {line.slice(0, idx)}
-        <mark className={`rounded px-0.5 ${isActive ? 'bg-yellow-300 text-gray-900' : 'bg-yellow-600/40 text-yellow-100'}`}>
+        <mark className={`rounded px-0.5 ${isActive ? 'bg-yellow-300 text-gray-900 dark:text-slate-100' : 'bg-yellow-600/40 text-yellow-100'}`}>
           {line.slice(idx, idx + search.length)}
         </mark>
         {line.slice(idx + search.length)}
@@ -186,7 +186,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-4">
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">Status</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-0.5">Status</p>
             <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${statusColor}`}>
               {job?.status ?? 'Unknown'}
               {isStreaming && (
@@ -196,19 +196,19 @@ export function JobOutput({ jobId }: JobOutputProps) {
           </div>
           {elapsed && (
             <div>
-              <p className="text-xs text-gray-500 mb-0.5">Elapsed</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-0.5">Elapsed</p>
               <p className="font-mono text-sm text-blue-700 tabular-nums">{elapsed}</p>
             </div>
           )}
           {job?.exit_code !== undefined && job.exit_code !== 0 && (
             <div>
-              <p className="text-xs text-gray-500 mb-0.5">Exit code</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-0.5">Exit code</p>
               <p className="font-mono font-bold text-red-600">{job.exit_code}</p>
             </div>
           )}
           <div>
-            <p className="text-xs text-gray-500 mb-0.5">Lines</p>
-            <p className="font-mono text-sm text-gray-700">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-0.5">Lines</p>
+            <p className="font-mono text-sm text-gray-700 dark:text-slate-300">
               {search.trim()
                 ? `${filteredLines.length} / ${outputLines.length}`
                 : outputLines.length}
@@ -227,7 +227,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
       <div className="bg-gray-800 rounded-t-lg px-3 py-2 flex items-center gap-2">
         {/* Search input */}
         <div className="flex-1 flex items-center gap-2 bg-gray-700 rounded px-2 py-1">
-          <svg className="h-3.5 w-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-3.5 w-3.5 text-gray-400 dark:text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
           <input
@@ -247,12 +247,12 @@ export function JobOutput({ jobId }: JobOutputProps) {
             className="flex-1 bg-transparent text-xs text-gray-200 placeholder-gray-500 outline-none font-mono"
           />
           {search && (
-            <span className="text-xs text-gray-400 shrink-0 tabular-nums">
+            <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0 tabular-nums">
               {filteredLines.length > 0 ? `${clampedMatch + 1}/${filteredLines.length}` : '0'}
             </span>
           )}
           {search && (
-            <button onClick={() => setSearch('')} className="text-gray-500 hover:text-gray-300 text-xs shrink-0">✕</button>
+            <button onClick={() => setSearch('')} className="text-gray-500 dark:text-slate-400 hover:text-gray-300 text-xs shrink-0">✕</button>
           )}
         </div>
 
@@ -261,12 +261,12 @@ export function JobOutput({ jobId }: JobOutputProps) {
           <div className="flex gap-1">
             <button
               onClick={() => setMatchIndex(i => (i - 1 + filteredLines.length) % filteredLines.length)}
-              className="text-xs text-gray-400 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors"
+              className="text-xs text-gray-400 dark:text-slate-500 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors"
               title="Previous match"
             >↑</button>
             <button
               onClick={() => setMatchIndex(i => (i + 1) % filteredLines.length)}
-              className="text-xs text-gray-400 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors"
+              className="text-xs text-gray-400 dark:text-slate-500 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors"
               title="Next match"
             >↓</button>
           </div>
@@ -275,7 +275,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
         {/* Expand toggle */}
         <button
           onClick={() => setExpanded(v => !v)}
-          className="text-xs text-gray-400 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors shrink-0"
+          className="text-xs text-gray-400 dark:text-slate-500 hover:text-white px-1.5 py-1 rounded hover:bg-gray-700 transition-colors shrink-0"
           title={expanded ? 'Collapse' : 'Expand'}
         >
           {expanded ? '⊡' : '⊞'}
@@ -283,14 +283,14 @@ export function JobOutput({ jobId }: JobOutputProps) {
       </div>
 
       {/* Output */}
-      <div className="border border-gray-300 rounded-b-lg border-t-0 bg-gray-900">
+      <div className="border border-gray-300 dark:border-slate-600 rounded-b-lg border-t-0 bg-gray-900">
         <pre
           ref={preRef}
           onScroll={handleScroll}
           className={`p-4 text-sm text-green-400 font-mono overflow-auto ${terminalHeight} whitespace-pre-wrap break-words leading-relaxed`}
         >
           {waitingForOutput ? (
-            <span className="text-gray-500 flex items-center gap-2">
+            <span className="text-gray-500 dark:text-slate-400 flex items-center gap-2">
               <span className="inline-flex gap-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -300,7 +300,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
               {elapsed && <span className="text-blue-400 ml-1">({elapsed})</span>}
             </span>
           ) : displayLines.length === 0 ? (
-            <span className="text-gray-600">
+            <span className="text-gray-600 dark:text-slate-400">
               {search.trim() ? 'No matching lines' : 'No output yet…'}
             </span>
           ) : (
@@ -313,7 +313,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
         </pre>
         {/* Footer: streaming status + line count */}
         <div className="flex items-center justify-between px-3 py-1.5 bg-gray-800 rounded-b-lg border-t border-gray-700">
-          <span className="text-xs text-gray-500 font-mono">
+          <span className="text-xs text-gray-500 dark:text-slate-400 font-mono">
             {outputLines.length} line{outputLines.length !== 1 ? 's' : ''}
             {search.trim() && ` · ${filteredLines.length} match${filteredLines.length !== 1 ? 'es' : ''}`}
           </span>
@@ -329,7 +329,7 @@ export function JobOutput({ jobId }: JobOutputProps) {
                 setAutoScroll(true)
                 if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight
               }}
-              className="text-xs text-gray-400 hover:text-white underline"
+              className="text-xs text-gray-400 dark:text-slate-500 hover:text-white underline"
             >
               ↓ scroll to bottom
             </button>

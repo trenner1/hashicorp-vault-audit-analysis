@@ -15,9 +15,9 @@ function StatusDot({ ok }: { ok: boolean }) {
 
 function InfoRow({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-500 w-44 shrink-0">{label}</span>
-      <span className={`text-sm text-gray-900 text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
+    <div className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-slate-700 last:border-0">
+      <span className="text-sm text-gray-500 dark:text-slate-400 w-44 shrink-0">{label}</span>
+      <span className={`text-sm text-gray-900 dark:text-slate-100 text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }
@@ -61,14 +61,14 @@ export function Settings() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1 text-sm">System status, configuration, and maintenance</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Settings</h1>
+        <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm">System status, configuration, and maintenance</p>
       </div>
 
       {/* ── Server Status ─────────────────────────────────────── */}
-      <section className="bg-white rounded-lg shadow divide-y divide-gray-100">
+      <section className="bg-white dark:bg-slate-900 rounded-lg shadow divide-y divide-gray-100">
         <div className="px-6 py-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Server Status</h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Server Status</h2>
           <button
             onClick={() => refetch()}
             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
@@ -79,7 +79,7 @@ export function Settings() {
 
         <div className="px-6 py-4">
           {isLoading && (
-            <p className="text-sm text-gray-400 animate-pulse">Loading system info…</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500 animate-pulse">Loading system info…</p>
           )}
           {isError && (
             <p className="text-sm text-red-600">Could not reach server — is the API running?</p>
@@ -138,9 +138,9 @@ export function Settings() {
 
       {/* ── Job Statistics ────────────────────────────────────── */}
       {info && (
-        <section className="bg-white rounded-lg shadow divide-y divide-gray-100">
+        <section className="bg-white dark:bg-slate-900 rounded-lg shadow divide-y divide-gray-100">
           <div className="px-6 py-4">
-            <h2 className="text-base font-semibold text-gray-900">Job Statistics</h2>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Job Statistics</h2>
           </div>
           <div className="px-6 py-4">
             <div className="grid grid-cols-5 gap-3">
@@ -150,7 +150,7 @@ export function Settings() {
                   { key: 'pending', label: 'Pending', color: 'text-yellow-700 bg-yellow-50' },
                   { key: 'done', label: 'Done', color: 'text-green-700 bg-green-50' },
                   { key: 'error', label: 'Error', color: 'text-red-700 bg-red-50' },
-                  { key: 'cancelled', label: 'Cancelled', color: 'text-gray-600 bg-gray-100' },
+                  { key: 'cancelled', label: 'Cancelled', color: 'text-gray-600 bg-gray-100 dark:bg-slate-800' },
                 ] as const
               ).map(({ key, label, color }) => (
                 <div key={key} className={`rounded-lg p-3 text-center ${color}`}>
@@ -159,29 +159,29 @@ export function Settings() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-3 text-right">{totalJobs} total jobs in memory</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-3 text-right">{totalJobs} total jobs in memory</p>
           </div>
         </section>
       )}
 
       {/* ── Job Retention ─────────────────────────────────────── */}
-      <section className="bg-white rounded-lg shadow divide-y divide-gray-100">
+      <section className="bg-white dark:bg-slate-900 rounded-lg shadow divide-y divide-gray-100">
         <div className="px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Job Retention</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Job Retention</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
             Remove completed, errored, and cancelled jobs to free up memory and disk space.
             Running and pending jobs are never deleted.
           </p>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700 shrink-0">
+            <label className="text-sm font-medium text-gray-700 dark:text-slate-300 shrink-0">
               Delete jobs older than
             </label>
             <select
               value={pruneHours}
               onChange={e => setPruneHours(Number(e.target.value))}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-900"
             >
               <option value={1}>1 hour</option>
               <option value={6}>6 hours</option>
@@ -212,15 +212,15 @@ export function Settings() {
       </section>
 
       {/* ── Environment Variables Reference ───────────────────── */}
-      <section className="bg-white rounded-lg shadow divide-y divide-gray-100">
+      <section className="bg-white dark:bg-slate-900 rounded-lg shadow divide-y divide-gray-100">
         <div className="px-6 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Environment Variables</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Server-side variables (set in docker-compose.yml or shell)</p>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100">Environment Variables</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Server-side variables (set in docker-compose.yml or shell)</p>
         </div>
         <div className="px-6 py-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
+              <tr className="text-left text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">
                 <th className="pb-2 pr-4">Variable</th>
                 <th className="pb-2 pr-4">Default</th>
                 <th className="pb-2">Description</th>
@@ -239,15 +239,15 @@ export function Settings() {
               ].map(row => (
                 <tr key={row.name}>
                   <td className="py-2 pr-4 font-mono text-indigo-700 whitespace-nowrap">{row.name}</td>
-                  <td className="py-2 pr-4 font-mono text-gray-500 whitespace-nowrap">{row.def}</td>
-                  <td className="py-2 text-gray-600">{row.desc}</td>
+                  <td className="py-2 pr-4 font-mono text-gray-500 dark:text-slate-400 whitespace-nowrap">{row.def}</td>
+                  <td className="py-2 text-gray-600 dark:text-slate-400">{row.desc}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="px-6 py-4 bg-gray-50 rounded-b-lg">
-          <p className="text-xs font-medium text-gray-500 mb-1">Frontend (Vite build-time)</p>
+        <div className="px-6 py-4 bg-gray-50 dark:bg-slate-800 rounded-b-lg">
+          <p className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Frontend (Vite build-time)</p>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-gray-100">
               {[
@@ -256,8 +256,8 @@ export function Settings() {
               ].map(row => (
                 <tr key={row.name}>
                   <td className="py-2 pr-4 font-mono text-indigo-700 whitespace-nowrap">{row.name}</td>
-                  <td className="py-2 pr-4 font-mono text-gray-500 whitespace-nowrap">{row.def}</td>
-                  <td className="py-2 text-gray-600">{row.desc}</td>
+                  <td className="py-2 pr-4 font-mono text-gray-500 dark:text-slate-400 whitespace-nowrap">{row.def}</td>
+                  <td className="py-2 text-gray-600 dark:text-slate-400">{row.desc}</td>
                 </tr>
               ))}
             </tbody>

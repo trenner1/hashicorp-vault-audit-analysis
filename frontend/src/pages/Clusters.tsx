@@ -37,7 +37,7 @@ function ClusterForm({
     >
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
             Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -45,23 +45,23 @@ function ClusterForm({
             value={data.name}
             onChange={set('name')}
             placeholder="Production"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             required
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Namespace</label>
+          <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Namespace</label>
           <input
             type="text"
             value={data.namespace}
             onChange={set('namespace')}
             placeholder="admin"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
         </div>
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
           Vault Address <span className="text-red-500">*</span>
         </label>
         <input
@@ -69,13 +69,13 @@ function ClusterForm({
           value={data.vault_addr}
           onChange={set('vault_addr')}
           placeholder="https://vault.example.com:8200"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           required
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
-          Vault Token <span className="text-gray-400 font-normal">(optional — stored server-side, never echoed)</span>
+        <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
+          Vault Token <span className="text-gray-400 dark:text-slate-500 font-normal">(optional — stored server-side, never echoed)</span>
         </label>
         <input
           type="password"
@@ -83,10 +83,10 @@ function ClusterForm({
           onChange={set('token')}
           placeholder="hvs.••••••••"
           autoComplete="off"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         />
-        <p className="text-xs text-gray-400 mt-1">
-          Leave blank when editing to keep the existing token. The token is passed as <code className="bg-gray-100 px-1 rounded">--token</code> to API commands.
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+          Leave blank when editing to keep the existing token. The token is passed as <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">--token</code> to API commands.
         </p>
       </div>
 
@@ -107,7 +107,7 @@ function ClusterForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 bg-white dark:bg-slate-900 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 dark:bg-slate-800 transition-colors"
         >
           Cancel
         </button>
@@ -148,8 +148,8 @@ export function Clusters() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clusters</h1>
-          <p className="text-gray-500 mt-1 text-sm">Vault cluster connections for API-based commands</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Clusters</h1>
+          <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm">Vault cluster connections for API-based commands</p>
         </div>
         {!showCreate && (
           <button
@@ -163,8 +163,8 @@ export function Clusters() {
 
       {/* Create form */}
       {showCreate && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">New Cluster</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-lg shadow p-6">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-slate-100 mb-4">New Cluster</h2>
           <ClusterForm
             initial={EMPTY_FORM}
             onSubmit={data => createMutation.mutate(data)}
@@ -179,20 +179,20 @@ export function Clusters() {
       )}
 
       {/* Cluster list */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Loading…</div>
+          <div className="p-8 text-center text-gray-400 dark:text-slate-500 text-sm">Loading…</div>
         ) : clusters.length === 0 ? (
           <div className="p-10 text-center">
-            <p className="text-gray-400 text-sm">No clusters configured yet.</p>
-            <p className="text-gray-400 text-xs mt-1">
+            <p className="text-gray-400 dark:text-slate-500 text-sm">No clusters configured yet.</p>
+            <p className="text-gray-400 dark:text-slate-500 text-xs mt-1">
               Add a cluster to enable API-based commands like client-activity and entity-list.
             </p>
           </div>
         ) : (
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700">
+              <tr className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                 <th className="px-6 py-3">Name</th>
                 <th className="px-6 py-3">Vault Address</th>
                 <th className="px-6 py-3">Namespace</th>
@@ -206,10 +206,10 @@ export function Clusters() {
                 (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
               ).map(cluster => (
                 <React.Fragment key={cluster.id}>
-                  <tr className={`hover:bg-gray-50 transition-colors ${editingId === cluster.id ? 'bg-indigo-50' : ''}`}>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{cluster.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 font-mono">{cluster.vault_addr}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">{cluster.namespace || '—'}</td>
+                  <tr className={`hover:bg-gray-50 dark:bg-slate-800 transition-colors ${editingId === cluster.id ? 'bg-indigo-50' : ''}`}>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-slate-100">{cluster.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400 font-mono">{cluster.vault_addr}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">{cluster.namespace || '—'}</td>
                     <td className="px-6 py-4">
                       {cluster.token_set ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
@@ -217,10 +217,10 @@ export function Clusters() {
                           set
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">—</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
+                    <td className="px-6 py-4 text-sm text-gray-400 dark:text-slate-500">
                       {new Date(cluster.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">

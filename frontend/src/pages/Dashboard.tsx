@@ -96,10 +96,10 @@ function StatCard({
   accent?: string
 }) {
   return (
-    <div className={`bg-white rounded-xl shadow-sm border-l-4 p-5 ${accent ?? 'border-indigo-500'}`}>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border-l-4 p-5 ${accent ?? 'border-indigo-500'}`}>
+      <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
+      <p className="text-3xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
+      {sub && <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{sub}</p>}
     </div>
   )
 }
@@ -112,8 +112,8 @@ function ChartTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
-      {label && <p className="font-semibold text-gray-700 mb-1">{label}</p>}
+    <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3 text-sm">
+      {label && <p className="font-semibold text-gray-700 dark:text-slate-300 mb-1">{label}</p>}
       {payload.map(p => (
         <p key={p.name} style={{ color: p.color }}>
           {p.name}: <span className="font-bold">{p.value}</span>
@@ -173,12 +173,12 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Vault Audit Analysis Platform</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Dashboard</h1>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Vault Audit Analysis Platform</p>
         </div>
         <div className="flex items-center gap-4">
           {sysInfo && (
-            <span className="text-xs text-gray-400 font-mono">
+            <span className="text-xs text-gray-400 dark:text-slate-500 font-mono">
               v{sysInfo.version} · up {formatUptime(sysInfo.uptime_seconds)}
             </span>
           )}
@@ -212,10 +212,10 @@ export function Dashboard() {
       {/* Charts row */}
       <div className="grid grid-cols-3 gap-6">
         {/* Activity timeline — takes 2/3 */}
-        <div className="col-span-2 bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Job Activity — Last 24 Hours</h2>
+        <div className="col-span-2 bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-4">Job Activity — Last 24 Hours</h2>
           {isLoading ? (
-            <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Loading…</div>
+            <div className="h-48 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">Loading…</div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={timeline} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -280,10 +280,10 @@ export function Dashboard() {
         </div>
 
         {/* Status distribution — 1/3 */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Status Distribution</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-4">Status Distribution</h2>
           {statusData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No jobs yet</div>
+            <div className="h-48 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">No jobs yet</div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
@@ -312,9 +312,9 @@ export function Dashboard() {
                         className="h-2 w-2 rounded-full"
                         style={{ background: STATUS_COLORS[d.name] ?? '#94a3b8' }}
                       />
-                      <span className="capitalize text-gray-600">{d.name}</span>
+                      <span className="capitalize text-gray-600 dark:text-slate-400">{d.name}</span>
                     </div>
-                    <span className="font-semibold text-gray-800">{d.value}</span>
+                    <span className="font-semibold text-gray-800 dark:text-slate-200">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -325,8 +325,8 @@ export function Dashboard() {
 
       {/* Command breakdown */}
       {commandData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Jobs by Command</h2>
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-4">Jobs by Command</h2>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={commandData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -354,9 +354,9 @@ export function Dashboard() {
       )}
 
       {/* Recent jobs */}
-      <div className="bg-white rounded-xl shadow-sm">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700">Recent Jobs</h2>
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">Recent Jobs</h2>
           <button
             onClick={() => navigate('/jobs')}
             className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
@@ -365,10 +365,10 @@ export function Dashboard() {
           </button>
         </div>
         {isLoading ? (
-          <div className="p-6 text-center text-gray-400 text-sm">Loading…</div>
+          <div className="p-6 text-center text-gray-400 dark:text-slate-500 text-sm">Loading…</div>
         ) : recentJobs.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-400 text-sm">No jobs yet.</p>
+            <p className="text-gray-400 dark:text-slate-500 text-sm">No jobs yet.</p>
             <button
               onClick={() => navigate('/analysis')}
               className="mt-3 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors font-medium"
@@ -379,7 +379,7 @@ export function Dashboard() {
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
+              <tr className="text-left text-xs font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wide">
                 <th className="px-5 py-3">Command</th>
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3">Started</th>
@@ -402,9 +402,9 @@ export function Dashboard() {
                   <tr
                     key={job.id}
                     onClick={() => navigate(`/jobs/${job.id}`)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="hover:bg-gray-50 dark:bg-slate-800 cursor-pointer transition-colors"
                   >
-                    <td className="px-5 py-3 text-sm font-medium text-gray-900">{job.command}</td>
+                    <td className="px-5 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{job.command}</td>
                     <td className="px-5 py-3">
                       <span
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -419,10 +419,10 @@ export function Dashboard() {
                         {job.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-sm text-gray-500">
+                    <td className="px-5 py-3 text-sm text-gray-500 dark:text-slate-400">
                       {new Date(job.created_at).toLocaleTimeString()}
                     </td>
-                    <td className="px-5 py-3 text-sm font-mono text-gray-500">{dur}</td>
+                    <td className="px-5 py-3 text-sm font-mono text-gray-500 dark:text-slate-400">{dur}</td>
                   </tr>
                 )
               })}
@@ -441,7 +441,7 @@ export function Dashboard() {
         </button>
         <button
           onClick={() => navigate('/clusters')}
-          className="px-5 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+          className="px-5 py-2.5 bg-white dark:bg-slate-900 text-gray-700 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-50 dark:bg-slate-800 transition-colors"
         >
           Manage Clusters
         </button>
