@@ -406,99 +406,6 @@ func processOneFile[T any](
 	return stats, nil
 }
 
-// processOneFileParallel is like processOneFile but updates a shared atomic counter
-// and uses a mutex-protected progress bar.
-func processOneFileParallel[T any](
-	path string,
-	process func(*audit.AuditEntry, *T),
-	state *T,
-	pbMu *sync.Mutex,
-	pb *progressbar.ProgressBar,
-	processed *atomic.Int64,
-	lastReported *atomic.Int64,
-	cfg Config,
-) (Stats, error) {
-	rc, err := reader.OpenFile(path)
-	if err != nil {
-		return Stats{}, fmt.Errorf("open %s: %w", path, err)
-	}
-	defer rc.Close()
-
-	var stats Stats
-	br := bufio.NewReaderSize(rc, 64*1024)
-
-	// For plain progress in parallel mode, use aggregate reporting with higher frequency
-	plainFreq := cfg.PlainProgressFreq
-	if plainFreq <= 0 {
-		plainFreq = 100_000
-	}
-	// In parallel mode, increase frequency to reduce output spam
-	plainFreq = plainFreq * 5 // 500,000 instead of 100,000
-
-	for {
-		raw, readErr := br.ReadString('\n')
-		line := strings.TrimRight(raw, "\r\n")
-
-		if line != "" {
-			stats.TotalLines++
-
-			if cfg.PlainProgress {
-				// Update global counter
-				n := processed.Add(1)
-				// Only report aggregate progress at intervals
-				if n%int64(plainFreq) == 0 {
-					last := lastReported.Load()
-					// Use CAS to ensure only one goroutine reports at this milestone
-					if lastReported.CompareAndSwap(last, n) {
-						fmt.Fprintf(os.Stderr, "[progress] %s total entries processed across all files...\n",
-							formatNum(int(n)))
-					}
-				}
-			} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
-				n := processed.Add(int64(cfg.ProgressFrequency))
-				pbMu.Lock()
-				pb.Set(int(n)) //nolint:errcheck
-				pbMu.Unlock()
-			}
-
-			var entry audit.AuditEntry
-			if jerr := json.Unmarshal([]byte(line), &entry); jerr != nil {
-				stats.SkippedLines++
-				if cfg.StrictParsing {
-					return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, jerr)
-				}
-			} else {
-				stats.ParsedEntries++
-				process(&entry, state)
-			}
-		}
-
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return stats, fmt.Errorf("read %s: %w", path, readErr)
-		}
-	}
-
-	// Final update for remaining lines
-	if cfg.PlainProgress {
-		// Just add remaining lines to counter, don't print
-		processed.Add(int64(stats.TotalLines % plainFreq))
-	} else {
-		rem := stats.TotalLines % cfg.ProgressFrequency
-		if rem > 0 {
-			n := processed.Add(int64(rem))
-			pbMu.Lock()
-			pb.Set(int(n)) //nolint:errcheck
-			pbMu.Unlock()
-		}
-	}
-
-	stats.FilesProcessed = 1
-	return stats, nil
-}
-
 // processOneFileWithBar processes a file with an mpb progress bar (TTY mode)
 func processOneFileWithBar[T any](
 	path string,
@@ -644,23 +551,6 @@ func countLines(path string) (int, error) {
 		}
 	}
 	return n, nil
-}
-
-func parallelCount(files []string) int {
-	type result struct{ n int }
-	ch := make(chan result, len(files))
-	for _, f := range files {
-		f := f
-		go func() {
-			n, _ := countLines(f)
-			ch <- result{n}
-		}()
-	}
-	total := 0
-	for range files {
-		total += (<-ch).n
-	}
-	return total
 }
 
 // ---------- Progress bar ----------
