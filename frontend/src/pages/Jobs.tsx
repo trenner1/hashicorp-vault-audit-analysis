@@ -135,7 +135,7 @@ function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: bool
  *   Any line ending with a known extension after ": "
  */
 function detectArtifacts(output: string[]): string[] {
-  const pattern = /(?:written to|writing.*to|output written to|done\.\s*output written to)\s*:\s*(\S+\.(json|csv|txt))/i
+  const pattern = /(?:written to|writing.*to|output written to|done\.\s*output written to|exported data to)\s*:\s*(\S+\.(json|csv|txt))/i
   const seen = new Set<string>()
   for (const line of output) {
     const m = line.match(pattern)
@@ -217,6 +217,17 @@ export function Jobs() {
   const [filterCommand, setFilterCommand] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  // Sync selectedJobId with URL params when navigating
+  useEffect(() => {
+    const newId = params.id ?? null
+    if (newId !== selectedJobId) {
+      setSelectedJobId(newId)
+      setListExpanded(!newId)
+      setSummary(null)
+      setSummaryJobId(null)
+    }
+  }, [params.id])
 
   const selectJob = (id: string | null) => {
     setSelectedJobId(id)
