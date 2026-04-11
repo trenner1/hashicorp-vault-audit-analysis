@@ -299,11 +299,11 @@ export function Analysis() {
                     {showFilePicker ? '▾' : '▸'} Pick from previously uploaded files ({existingFiles.length})
                   </button>
                   {showFilePicker && (
-                    <div className="mt-2 border border-gray-200 rounded-lg bg-white dark:bg-slate-900 divide-y divide-gray-50 max-h-48 overflow-y-auto shadow-sm">
+                    <div className="mt-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 divide-y divide-gray-50 dark:divide-slate-800 max-h-48 overflow-y-auto shadow-sm">
                       {sortedExistingFiles.map(f => {
                         const alreadyAdded = uploadedFiles.some(u => u.path === f.path)
                         return (
-                          <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:bg-slate-800">
+                          <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 dark:bg-slate-800">
                             <div className="min-w-0">
                               <p className="text-sm font-mono text-gray-800 dark:text-slate-200 truncate">{f.filename}</p>
                               <p className="text-xs text-gray-400 dark:text-slate-500">{(f.size / 1024).toFixed(1)} KB · {new Date(f.created_at).toLocaleDateString()}</p>
