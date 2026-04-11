@@ -333,22 +333,24 @@ export function Files() {
     }
   }
 
-  // Extract date from filename (e.g., "vault_audit.2025-10-08.log.gz" or "20260408172919_vault_audit.2025-10-08.log.gz")
+  // Extract date from filename - prioritize audit log date over upload timestamp
+  // Examples:
+  //   "vault_audit.2025-10-08.log.gz" → 2025-10-08
+  //   "20260408172919_vault_audit.2025-10-08.log.gz" → 2025-10-08 (not 20260408)
   function extractDateFromFilename(filename: string): Date | null {
-    // Try ISO date format: YYYY-MM-DD
+    // Look for ISO date format: YYYY-MM-DD (with hyphens)
+    // This is typically the audit log date, not the upload timestamp
     const isoMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/)
     if (isoMatch) {
       const [, year, month, day] = isoMatch
       return new Date(`${year}-${month}-${day}`)
     }
     
-    // Try compact format: YYYYMMDD (at start of filename)
-    const compactMatch = filename.match(/^(\d{8})/)
-    if (compactMatch) {
-      const dateStr = compactMatch[1]
-      const year = dateStr.slice(0, 4)
-      const month = dateStr.slice(4, 6)
-      const day = dateStr.slice(6, 8)
+    // If no ISO date, try compact format YYYYMMDD but only if it looks like a log date
+    // (appears after "audit" or "vault" in the filename, not at the very start)
+    const logDateMatch = filename.match(/(?:audit|vault)[._](\d{4})(\d{2})(\d{2})/)
+    if (logDateMatch) {
+      const [, year, month, day] = logDateMatch
       return new Date(`${year}-${month}-${day}`)
     }
     
