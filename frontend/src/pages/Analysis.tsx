@@ -46,6 +46,43 @@ export function Analysis() {
     queryFn: api.listFiles,
   })
 
+  // Extract date from filename - prioritize audit log date over upload timestamp
+  function extractDateFromFilename(filename: string): Date | null {
+    // Look for ISO date format: YYYY-MM-DD (with hyphens)
+    const isoMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/)
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch
+      return new Date(`${year}-${month}-${day}`)
+    }
+    
+    // If no ISO date, try compact format YYYYMMDD after "audit" or "vault"
+    const logDateMatch = filename.match(/(?:audit|vault)[._](\d{4})(\d{2})(\d{2})/)
+    if (logDateMatch) {
+      const [, year, month, day] = logDateMatch
+      return new Date(`${year}-${month}-${day}`)
+    }
+    
+    return null
+  }
+
+  // Sort existing files by audit log date (chronological order)
+  const sortedExistingFiles = [...existingFiles].sort((a, b) => {
+    const dateA = extractDateFromFilename(a.filename)
+    const dateB = extractDateFromFilename(b.filename)
+    
+    // If both have dates, sort chronologically
+    if (dateA && dateB) {
+      return dateA.getTime() - dateB.getTime()
+    }
+    
+    // Files with dates come before files without dates
+    if (dateA && !dateB) return -1
+    if (!dateA && dateB) return 1
+    
+    // Fall back to alphabetical for files without dates
+    return a.filename.localeCompare(b.filename)
+  })
+
   // Pre-load a file passed via navigation state from the Files page.
   useEffect(() => {
     if (preloadFile) {
@@ -263,7 +300,7 @@ export function Analysis() {
                   </button>
                   {showFilePicker && (
                     <div className="mt-2 border border-gray-200 rounded-lg bg-white divide-y divide-gray-50 max-h-48 overflow-y-auto shadow-sm">
-                      {existingFiles.map(f => {
+                      {sortedExistingFiles.map(f => {
                         const alreadyAdded = uploadedFiles.some(u => u.path === f.path)
                         return (
                           <div key={f.filename} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
