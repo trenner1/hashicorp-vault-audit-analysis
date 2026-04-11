@@ -132,7 +132,6 @@ export function Analysis() {
 
   const [selectedClusterId, setSelectedClusterId] = useState<string>('')
   const [showFilePicker, setShowFilePicker] = useState(false)
-  const [expandedMetadata, setExpandedMetadata] = useState<string | null>(null)
 
   const { data: commands = [] } = useQuery<Command[]>({
     queryKey: ['commands'],
