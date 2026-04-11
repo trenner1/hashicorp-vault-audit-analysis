@@ -427,13 +427,23 @@ export function Jobs() {
           <div className="bg-white rounded-lg shadow p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div className="min-w-0">
-                <h1 className="text-xl font-bold text-gray-900">
-                  {selectedJob?.command ?? 'Job'}
-                </h1>
-                {selectedJob?.args?.length ? (
-                  <ArgsDisplay args={selectedJob.args} />
-                ) : null}
-                <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
+                {selectedJob ? (
+                  <>
+                    <h1 className="text-xl font-bold text-gray-900">
+                      {selectedJob.command}
+                    </h1>
+                    {selectedJob.args && selectedJob.args.length > 0 && (
+                      <ArgsDisplay args={selectedJob.args} />
+                    )}
+                    <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-xl font-bold text-gray-900">Job</h1>
+                    <p className="text-xs font-mono text-gray-400 mt-1">{selectedJobId}</p>
+                    <p className="text-sm text-gray-500 mt-1">Loading job details...</p>
+                  </>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap shrink-0">
