@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { api, Job } from '../api/client'
 import {
   AreaChart,
@@ -126,6 +127,21 @@ function ChartTooltip({ active, payload, label }: {
 // ── Main component ────────────────────────────────────────────────
 export function Dashboard() {
   const navigate = useNavigate()
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    // Check if dark mode is active
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'))
+    }
+    checkDarkMode()
+    
+    // Watch for dark mode changes
+    const observer = new MutationObserver(checkDarkMode)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    
+    return () => observer.disconnect()
+  }, [])
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -229,7 +245,7 @@ export function Dashboard() {
                     <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#f1f5f9'} />
                 <XAxis
                   dataKey="hour"
                   tick={{ fontSize: 11, fill: '#94a3b8' }}
@@ -329,7 +345,7 @@ export function Dashboard() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-4">Jobs by Command</h2>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={commandData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#334155' : '#f1f5f9'} vertical={false} />
               <XAxis
                 dataKey="command"
                 tick={{ fontSize: 11, fill: '#94a3b8' }}
