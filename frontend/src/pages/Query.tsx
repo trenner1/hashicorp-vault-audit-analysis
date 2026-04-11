@@ -98,7 +98,7 @@ export default function Query() {
           value={question}
           onChange={e => setQuestion(e.target.value)}
           placeholder="e.g. Which paths are accessed most often, and are there any signs of token abuse?"
-          className="w-full border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="w-full border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-200 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
         />
 
         {/* Example questions */}
@@ -163,8 +163,8 @@ export default function Query() {
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
             dragOver
-              ? 'border-indigo-400 bg-indigo-50'
-              : 'border-gray-300 hover:border-indigo-300 hover:bg-gray-50 dark:bg-slate-800'
+              ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+              : 'border-gray-300 dark:border-slate-600 hover:border-indigo-300 hover:bg-gray-50 dark:hover:bg-indigo-900/10 dark:bg-slate-800'
           }`}
         >
           <input
