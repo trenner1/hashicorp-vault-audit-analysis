@@ -333,7 +333,30 @@ export function Files() {
     }
   }
 
+  // Extract date from filename (e.g., "vault_audit.2025-10-08.log.gz" or "20260408172919_vault_audit.2025-10-08.log.gz")
+  function extractDateFromFilename(filename: string): Date | null {
+    // Try ISO date format: YYYY-MM-DD
+    const isoMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/)
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch
+      return new Date(`${year}-${month}-${day}`)
+    }
+    
+    // Try compact format: YYYYMMDD (at start of filename)
+    const compactMatch = filename.match(/^(\d{8})/)
+    if (compactMatch) {
+      const dateStr = compactMatch[1]
+      const year = dateStr.slice(0, 4)
+      const month = dateStr.slice(4, 6)
+      const day = dateStr.slice(6, 8)
+      return new Date(`${year}-${month}-${day}`)
+    }
+    
+    return null
+  }
+
   // Split into log files vs analysis outputs (files whose name encodes a job ID)
+  // Sort log files by date in filename (chronological order for entity churn analysis)
   const { logFiles, outputFiles } = useMemo(() => {
     const logFiles:    UploadedFile[] = []
     const outputFiles: UploadedFile[] = []
@@ -341,6 +364,25 @@ export function Files() {
       const sid = extractJobShortId(f.filename)
       sid && jobsByShortId.has(sid) ? outputFiles.push(f) : logFiles.push(f)
     }
+    
+    // Sort log files by date in filename (oldest first)
+    logFiles.sort((a, b) => {
+      const dateA = extractDateFromFilename(a.filename)
+      const dateB = extractDateFromFilename(b.filename)
+      
+      // If both have dates, sort chronologically
+      if (dateA && dateB) {
+        return dateA.getTime() - dateB.getTime()
+      }
+      
+      // Files with dates come before files without dates
+      if (dateA && !dateB) return -1
+      if (!dateA && dateB) return 1
+      
+      // Fall back to alphabetical for files without dates
+      return a.filename.localeCompare(b.filename)
+    })
+    
     return { logFiles, outputFiles }
   }, [files, jobsByShortId])
 
