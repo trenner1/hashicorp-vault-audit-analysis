@@ -42,6 +42,7 @@ func (s *Server) setupRoutes() {
 		// Ingest
 		r.Post("/ingest/upload", s.handleUpload)
 		r.Get("/ingest/files", s.handleListFiles)
+		r.Get("/ingest/files/{filename}", s.handleGetFile)
 		r.Delete("/ingest/files/{filename}", s.handleDeleteFile)
 
 		// Agentic query

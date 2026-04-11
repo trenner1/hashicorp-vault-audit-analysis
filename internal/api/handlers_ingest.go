@@ -138,3 +138,41 @@ func (s *Server) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted", "filename": filename})
 }
+
+// handleGetFile serves a single file from the upload directory.
+// GET /api/v1/ingest/files/{filename}
+func (s *Server) handleGetFile(w http.ResponseWriter, r *http.Request) {
+	filename := chi.URLParam(r, "filename")
+	// Reject any path traversal attempt.
+	if filepath.Base(filename) != filename || filename == "." || filename == ".." {
+		writeError(w, http.StatusBadRequest, "invalid filename")
+		return
+	}
+
+	path := filepath.Join(s.uploadDir, filename)
+
+	// Check if file exists
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "file not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "failed to stat file")
+		return
+	}
+
+	// Don't serve directories
+	if info.IsDir() {
+		writeError(w, http.StatusBadRequest, "cannot serve directory")
+		return
+	}
+
+	// Set appropriate content type for JSON files
+	if filepath.Ext(filename) == ".json" {
+		w.Header().Set("Content-Type", "application/json")
+	}
+
+	// Serve the file
+	http.ServeFile(w, r, path)
+}
