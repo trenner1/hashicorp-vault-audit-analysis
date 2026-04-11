@@ -33,6 +33,8 @@ import (
 	"github.com/schollz/progressbar/v3"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/audit"
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/reader"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 // Mode controls parallel vs sequential processing selection.
@@ -202,23 +204,94 @@ func runParallel[T any](
 	zero := newState()
 	fmt.Fprintf(os.Stderr, "Processing %d files in parallel...\n", len(files))
 
-	var pb *progressbar.ProgressBar
-	var pbMu sync.Mutex
-	var processed atomic.Int64
-
-	if cfg.PlainProgress {
-		pb = newSilentBar()
-	} else {
-		// Pre-scan total line count for accurate TTY progress bar.
-		fmt.Fprintln(os.Stderr, "Scanning files to determine total work...")
-		total := parallelCount(files)
-		fmt.Fprintf(os.Stderr, "Total lines to process: %s\n", formatNum(total))
-		pb = newBar(total, cfg.ProgressLabel)
-	}
-
 	results := make([]fileResult[T], len(files))
 
-	// Limit concurrency to number of CPUs.
+	if cfg.PlainProgress {
+		// Non-TTY mode: use aggregate progress reporting
+		return runParallelPlain(cfg, files, newState, process, merge)
+	}
+
+	// TTY mode: use multi-progress bars
+	// Pre-scan to get file sizes for accurate progress bars
+	fmt.Fprintln(os.Stderr, "Scanning files to determine sizes...")
+	fileSizes := make([]int, len(files))
+	for i, path := range files {
+		n, _ := countLines(path)
+		fileSizes[i] = n
+	}
+
+	// Create multi-progress container
+	p := mpb.New(mpb.WithWidth(60), mpb.WithOutput(os.Stderr))
+
+	// Limit concurrency to number of CPUs
+	sem := make(chan struct{}, runtime.NumCPU())
+	var wg sync.WaitGroup
+
+	for i, path := range files {
+		i, path := i, path
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			// Create a progress bar for this file
+			bar := p.AddBar(int64(fileSizes[i]),
+				mpb.PrependDecorators(
+					decor.Name(fmt.Sprintf("[%d/%d] ", i+1, len(files)), decor.WC{W: 8}),
+					decor.Name(baseName(path), decor.WCSyncSpaceR),
+				),
+				mpb.AppendDecorators(
+					decor.CountersNoUnit("%d / %d", decor.WCSyncWidth),
+					decor.Percentage(decor.WC{W: 5}),
+				),
+			)
+
+			state := newState()
+			stats, err := processOneFileWithBar(path, process, &state, bar, cfg)
+
+			results[i] = fileResult[T]{state: state, stats: stats, err: err}
+		}()
+	}
+	wg.Wait()
+	p.Wait()
+
+	// Check errors and aggregate
+	combined := newState()
+	var totalStats Stats
+	for _, r := range results {
+		if r.err != nil {
+			return zero, Stats{}, r.err
+		}
+		combined = merge(combined, r.state)
+		totalStats.Merge(r.stats)
+	}
+
+	return combined, totalStats, nil
+}
+
+// runParallelPlain handles parallel processing in non-TTY mode with aggregate progress
+func runParallelPlain[T any](
+	cfg Config,
+	files []string,
+	newState func() T,
+	process func(*audit.AuditEntry, *T),
+	merge func(T, T) T,
+) (T, Stats, error) {
+	zero := newState()
+	results := make([]fileResult[T], len(files))
+
+	var processed atomic.Int64
+	var lastReported atomic.Int64
+
+	plainFreq := cfg.PlainProgressFreq
+	if plainFreq <= 0 {
+		plainFreq = 100_000
+	}
+	// In parallel mode, increase frequency to reduce output spam
+	plainFreq = plainFreq * 5 // 500,000 instead of 100,000
+
+	// Limit concurrency to number of CPUs
 	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
 
@@ -231,29 +304,19 @@ func runParallel[T any](
 			defer func() { <-sem }()
 
 			state := newState()
-			stats, err := processOneFileParallel(path, process, &state, &pbMu, pb, &processed, cfg)
+			stats, err := processOneFilePlain(path, process, &state, &processed, &lastReported, plainFreq, cfg)
 
 			if cfg.ShowFileCompletion {
-				msg := fmt.Sprintf("[%d/%d] ✓ Completed: %s (%s lines)",
+				fmt.Fprintf(os.Stderr, "[%d/%d] ✓ Completed: %s (%s lines)\n",
 					i+1, len(files), baseName(path), formatNum(stats.TotalLines))
-				pbMu.Lock()
-				if !cfg.PlainProgress {
-					pb.Clear() //nolint:errcheck
-				}
-				fmt.Fprintln(os.Stderr, msg)
-				pbMu.Unlock()
 			}
 
 			results[i] = fileResult[T]{state: state, stats: stats, err: err}
 		}()
 	}
 	wg.Wait()
-	if !cfg.PlainProgress {
-		pb.Finish() //nolint:errcheck
-		fmt.Fprintln(os.Stderr)
-	}
 
-	// Check errors and aggregate.
+	// Check errors and aggregate
 	combined := newState()
 	var totalStats Stats
 	for _, r := range results {
@@ -352,6 +415,7 @@ func processOneFileParallel[T any](
 	pbMu *sync.Mutex,
 	pb *progressbar.ProgressBar,
 	processed *atomic.Int64,
+	lastReported *atomic.Int64,
 	cfg Config,
 ) (Stats, error) {
 	rc, err := reader.OpenFile(path)
@@ -363,10 +427,13 @@ func processOneFileParallel[T any](
 	var stats Stats
 	br := bufio.NewReaderSize(rc, 64*1024)
 
+	// For plain progress in parallel mode, use aggregate reporting with higher frequency
 	plainFreq := cfg.PlainProgressFreq
 	if plainFreq <= 0 {
 		plainFreq = 100_000
 	}
+	// In parallel mode, increase frequency to reduce output spam
+	plainFreq = plainFreq * 5 // 500,000 instead of 100,000
 
 	for {
 		raw, readErr := br.ReadString('\n')
@@ -376,9 +443,16 @@ func processOneFileParallel[T any](
 			stats.TotalLines++
 
 			if cfg.PlainProgress {
-				if stats.TotalLines%plainFreq == 0 {
-					fmt.Fprintf(os.Stderr, "[progress] %s entries processed (%s)...\n",
-						formatNum(stats.TotalLines), baseName(path))
+				// Update global counter
+				n := processed.Add(1)
+				// Only report aggregate progress at intervals
+				if n%int64(plainFreq) == 0 {
+					last := lastReported.Load()
+					// Use CAS to ensure only one goroutine reports at this milestone
+					if lastReported.CompareAndSwap(last, n) {
+						fmt.Fprintf(os.Stderr, "[progress] %s total entries processed across all files...\n",
+							formatNum(int(n)))
+					}
 				}
 			} else if stats.TotalLines%cfg.ProgressFrequency == 0 {
 				n := processed.Add(int64(cfg.ProgressFrequency))
@@ -407,13 +481,136 @@ func processOneFileParallel[T any](
 		}
 	}
 
-	if !cfg.PlainProgress {
+	// Final update for remaining lines
+	if cfg.PlainProgress {
+		// Just add remaining lines to counter, don't print
+		processed.Add(int64(stats.TotalLines % plainFreq))
+	} else {
 		rem := stats.TotalLines % cfg.ProgressFrequency
 		if rem > 0 {
 			n := processed.Add(int64(rem))
 			pbMu.Lock()
 			pb.Set(int(n)) //nolint:errcheck
 			pbMu.Unlock()
+		}
+	}
+
+	stats.FilesProcessed = 1
+	return stats, nil
+}
+
+// processOneFileWithBar processes a file with an mpb progress bar (TTY mode)
+func processOneFileWithBar[T any](
+	path string,
+	process func(*audit.AuditEntry, *T),
+	state *T,
+	bar *mpb.Bar,
+	cfg Config,
+) (Stats, error) {
+	rc, err := reader.OpenFile(path)
+	if err != nil {
+		return Stats{}, fmt.Errorf("open %s: %w", path, err)
+	}
+	defer rc.Close()
+
+	var stats Stats
+	br := bufio.NewReaderSize(rc, 64*1024)
+
+	for {
+		raw, readErr := br.ReadString('\n')
+		line := strings.TrimRight(raw, "\r\n")
+
+		if line != "" {
+			stats.TotalLines++
+
+			// Update progress bar every N lines
+			if stats.TotalLines%cfg.ProgressFrequency == 0 {
+				bar.SetCurrent(int64(stats.TotalLines))
+			}
+
+			var entry audit.AuditEntry
+			if jerr := json.Unmarshal([]byte(line), &entry); jerr != nil {
+				stats.SkippedLines++
+				if cfg.StrictParsing {
+					return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, jerr)
+				}
+			} else {
+				stats.ParsedEntries++
+				process(&entry, state)
+			}
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return stats, fmt.Errorf("read %s: %w", path, readErr)
+		}
+	}
+
+	// Final update
+	bar.SetCurrent(int64(stats.TotalLines))
+	bar.SetTotal(int64(stats.TotalLines), true) // Mark as complete
+
+	stats.FilesProcessed = 1
+	return stats, nil
+}
+
+// processOneFilePlain processes a file with aggregate progress reporting (non-TTY mode)
+func processOneFilePlain[T any](
+	path string,
+	process func(*audit.AuditEntry, *T),
+	state *T,
+	processed *atomic.Int64,
+	lastReported *atomic.Int64,
+	plainFreq int,
+	cfg Config,
+) (Stats, error) {
+	rc, err := reader.OpenFile(path)
+	if err != nil {
+		return Stats{}, fmt.Errorf("open %s: %w", path, err)
+	}
+	defer rc.Close()
+
+	var stats Stats
+	br := bufio.NewReaderSize(rc, 64*1024)
+
+	for {
+		raw, readErr := br.ReadString('\n')
+		line := strings.TrimRight(raw, "\r\n")
+
+		if line != "" {
+			stats.TotalLines++
+
+			// Update global counter
+			n := processed.Add(1)
+			// Only report aggregate progress at intervals
+			if n%int64(plainFreq) == 0 {
+				last := lastReported.Load()
+				// Use CAS to ensure only one goroutine reports at this milestone
+				if lastReported.CompareAndSwap(last, n) {
+					fmt.Fprintf(os.Stderr, "[progress] %s total entries processed across all files...\n",
+						formatNum(int(n)))
+				}
+			}
+
+			var entry audit.AuditEntry
+			if jerr := json.Unmarshal([]byte(line), &entry); jerr != nil {
+				stats.SkippedLines++
+				if cfg.StrictParsing {
+					return stats, fmt.Errorf("parse line %d in %s: %w", stats.TotalLines, path, jerr)
+				}
+			} else {
+				stats.ParsedEntries++
+				process(&entry, state)
+			}
+		}
+
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return stats, fmt.Errorf("read %s: %w", path, readErr)
 		}
 	}
 

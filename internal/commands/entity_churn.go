@@ -322,20 +322,28 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 
 				firstSeenTime := parseTime(entry.Time)
 
-				s.entities[entityID] = &EntityChurnRecord{
-					EntityID:        entityID,
-					DisplayName:     displayName,
-					MountPath:       mountPath,
-					MountType:       mountType,
-					TokenType:       tokenType,
-					FirstSeenFile:   fileName,
-					FirstSeenTime:   firstSeenTime,
-					LastSeenFile:    fileName,
-					LastSeenTime:    firstSeenTime,
-					FilesAppeared:   []string{fileName},
-					TotalLogins:     1,
-					Lifecycle:       "unknown",
-					ActivityPattern: "unknown",
+				// Check if entity already seen in this file
+				if existing, ok := s.entities[entityID]; ok {
+					// Increment login count and update last seen
+					existing.TotalLogins++
+					existing.LastSeenTime = firstSeenTime
+				} else {
+					// First time seeing this entity in this file
+					s.entities[entityID] = &EntityChurnRecord{
+						EntityID:        entityID,
+						DisplayName:     displayName,
+						MountPath:       mountPath,
+						MountType:       mountType,
+						TokenType:       tokenType,
+						FirstSeenFile:   fileName,
+						FirstSeenTime:   firstSeenTime,
+						LastSeenFile:    fileName,
+						LastSeenTime:    firstSeenTime,
+						FilesAppeared:   []string{fileName},
+						TotalLogins:     1,
+						Lifecycle:       "unknown",
+						ActivityPattern: "unknown",
+					}
 				}
 			},
 			func(a, b churnState) churnState {
