@@ -149,7 +149,7 @@ function FileRow({
              : '📃'
 
   return (
-    <tr className="hover:bg-gray-50 dark:bg-slate-800 transition-colors align-top">
+    <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors align-top">
       <td className="px-6 py-4">
         <div className="flex items-start gap-3">
           <span className="text-2xl leading-none mt-0.5">{icon}</span>
