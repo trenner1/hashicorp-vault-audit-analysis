@@ -1,83 +1,13 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
   modules-download-mode: readonly
 
-linters-settings:
-  errcheck:
-    # Ignore errors from fmt.Fprint* and common write/close calls
-    # that are intentionally fire-and-forget in CLI/progress output.
-    check-blank: true
-    exclude-functions:
-      - fmt.Fprint
-      - fmt.Fprintf
-      - fmt.Fprintln
-      - '(*os.File).Close'
-      - '(*io.PipeWriter).Close'
-      - '(*multipart.Writer).Close'
-      - '(*net/http.Response.Body).Close'
-      - os.Remove
-      - (*github.com/schollz/progressbar/v3.ProgressBar).Add
-      - (*github.com/schollz/progressbar/v3.ProgressBar).Set
-      - (*github.com/schollz/progressbar/v3.ProgressBar).Finish
-      - (*github.com/schollz/progressbar/v3.ProgressBar).Clear
-      # csv.Writer.Write returns error only on flush; checked via w.Error() after loop
-      - (*encoding/csv.Writer).Write
-      # json.Unmarshal errors from intermediate marshal/unmarshal are intentionally ignored
-      - encoding/json.Unmarshal
-
-  gosec:
-    excludes:
-      - G104  # unhandled errors — covered by errcheck linter with specific exclusions
-      - G120  # unbounded form parsing — we set explicit 32MB limit
-      - G204  # subprocess with variable — intentional CLI wrapper pattern
-      - G301  # directory permissions 0755 — intentional for shared directories
-      - G304  # file inclusion via variable — intentional (user-supplied log paths)
-      - G306  # file permissions — we use 0600/0700 explicitly
-      - G402  # TLS InsecureSkipVerify — intentional, user-supplied --insecure flag
-      - G404  # weak random source in testgen — not security-sensitive test data
-      - G703  # path traversal — paths are sanitized via filepath.Join
-      - G704  # SSRF — Vault client intentionally makes HTTP requests
-      - G115  # integer overflow conversion — reviewed, safe in context
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment  # don't enforce struct field ordering
-
-  staticcheck:
-    checks:
-      - "all"
-      - "-ST1000"  # package comment — not enforced for internal packages
-      - "-ST1003"  # naming conventions — too opinionated for this codebase
-      - "-SA5011"  # possible nil pointer dereference
-      - "-SA9003"  # empty branch
-      # Disable error checking rules that conflict with intentional patterns
-      - "-SA5001"  # defer in loop
-      - "-SA5008"  # duplicate key in map literal
-      - "-SA5009"  # invalid Printf call
-      - "-SA5010"  # impossible type assertion
-      - "-SA5011"  # possible nil pointer dereference
-      - "-SA5012"  # slice copy with incorrect length
-      - "-SA6000"  # regexp.Compile called with invalid pattern
-      - "-SA6001"  # missing an error return value
-      - "-SA6002"  # storing non-pointer to sync.Pool
-      - "-SA6003"  # converting a string to a slice of runes
-      - "-SA6005"  # inefficient string comparison
-      - "-SA9001"  # defer in loop
-      - "-SA9002"  # using a non-pointer value with sync.Pool
-      - "-SA9003"  # empty branch
-      - "-SA9004"  # only the first constant has an explicit type
-      - "-SA9005"  # trying to marshal a function value
-      - "-SA9006"  # dubious bit shifting
-
-
 linters:
-  disable-all: true
   disable:
-    - errcheck        # Explicitly disable - intentional fire-and-forget patterns
-    - staticcheck     # Explicitly disable - includes errcheck
+    - errcheck        # Intentional fire-and-forget patterns
+    - staticcheck     # Includes errcheck
   enable:
     # Correctness
     - govet           # go vet checks
@@ -94,50 +24,8 @@ formatters:
     - gofmt           # code is gofmt-formatted
     - goimports       # imports are grouped and sorted
 
-
 issues:
-  # Show all issues, not just the first 3 per linter
   max-issues-per-linter: 0
   max-same-issues: 0
 
-  exclude-rules:
-    # Test files get more relaxed rules
-    - path: "_test\\.go"
-      linters:
-        - errcheck
-        - gosec
-
-    # Intentional fire-and-forget Close() calls
-    - text: "Error return value of.*Close.*is not checked"
-      linters:
-        - errcheck
-
-    # Intentional fire-and-forget os.Remove calls (cleanup)
-    - text: "Error return value of `os.Remove`"
-      linters:
-        - errcheck
-
-    # CSV Writer.Write errors checked via w.Error() after loop
-    - text: "Error return value of.*Write.*is not checked"
-      linters:
-        - errcheck
-
-    # Intentional intermediate json.Unmarshal ignoring errors
-    - text: "Error return value of `json.Unmarshal`"
-      linters:
-        - errcheck
-
-    # Intentional fire-and-forget fmt.Fprintf calls
-    - text: "Error return value of `fmt.Fprintf`"
-      linters:
-        - errcheck
-
-    # Progress bar operations are fire-and-forget
-    - text: "Error return value of `pb\\."
-      linters:
-        - errcheck
-
-    # Staticcheck style suggestions - not critical
-    - linters:
-        - staticcheck
-      text: "(QF1003|QF1012|S1009|S1011|ST1005)"
+# Made with Bob
