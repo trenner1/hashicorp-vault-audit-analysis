@@ -263,16 +263,26 @@ function FileRow({
       </td>
       <td className="px-6 py-4 text-right">
         <div className="flex items-center justify-end gap-3">
+          {isArtifact && (
+            <a
+              href={`/api/v1/ingest/files/${encodeURIComponent(file.filename)}`}
+              download={file.filename}
+              className="text-xs px-3 py-1 rounded border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-medium transition-colors whitespace-nowrap"
+              title="Download file"
+            >
+              ⬇ Download
+            </a>
+          )}
           <button
             onClick={() => navigate('/analysis', { state: { preloadFile: file } })}
-            className="text-xs px-3 py-1 rounded border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-medium transition-colors whitespace-nowrap"
+            className="text-xs px-3 py-1 rounded border border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-medium transition-colors whitespace-nowrap"
           >
             Use in Analysis
           </button>
           <button
             onClick={() => onDelete(file)}
             disabled={deleting}
-            className="text-xs text-gray-400 dark:text-slate-500 hover:text-red-500 disabled:opacity-40 transition-colors"
+            className="text-xs text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-40 transition-colors"
             title="Delete file"
           >
             {deleting ? '…' : '🗑'}
