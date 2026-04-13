@@ -31,7 +31,7 @@ func toView(c *Cluster) clusterView {
 	}
 }
 
-// injectClusterArgs appends --vault-addr, --token, and --namespace to args
+// injectClusterArgs appends --vault-addr, --vault-token, and --vault-namespace to args
 // if they are not already present and the cluster has the respective values set.
 func injectClusterArgs(args []string, c *Cluster) []string {
 	has := func(flag string) bool {
@@ -45,11 +45,11 @@ func injectClusterArgs(args []string, c *Cluster) []string {
 	if c.VaultAddr != "" && !has("--vault-addr") {
 		args = append(args, "--vault-addr", c.VaultAddr)
 	}
-	if c.Token != "" && !has("--token") {
-		args = append(args, "--token", c.Token)
+	if c.Token != "" && !has("--vault-token") {
+		args = append(args, "--vault-token", c.Token)
 	}
-	if c.Namespace != "" && !has("--namespace") {
-		args = append(args, "--namespace", c.Namespace)
+	if c.Namespace != "" && !has("--vault-namespace") {
+		args = append(args, "--vault-namespace", c.Namespace)
 	}
 	return args
 }
