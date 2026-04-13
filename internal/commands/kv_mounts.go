@@ -443,9 +443,9 @@ func RunKVMounts(vaultAddr, vaultToken, vaultNamespace *string, insecure bool, o
 			version = fmt.Sprintf("%.0f", v)
 		}
 
-		// Traverse paths if depth > 0
+		// Traverse paths if depth != 0 (0 = mounts only, -1 = unlimited, >0 = specific depth)
 		var children []pathEntry
-		if maxDepth > 0 {
+		if maxDepth != 0 {
 			if version == "2" {
 				var err error
 				children, err = listKVV2Paths(client, path, 1, maxDepth)
