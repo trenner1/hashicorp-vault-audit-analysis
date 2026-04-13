@@ -477,11 +477,8 @@ export function Jobs() {
                           <span>Copy</span>
                         </button>
                       </div>
-                      <code className="block text-xs font-mono text-gray-800 dark:text-slate-200 break-all">
-                        vault-audit {selectedJob.command}
-                        {selectedJob.args && selectedJob.args.length > 0 && (
-                          <> {selectedJob.args.join(' ')}</>
-                        )}
+                      <code className="block text-xs font-mono text-gray-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                        {`vault-audit ${selectedJob.command}${selectedJob.args && selectedJob.args.length > 0 ? ' ' + selectedJob.args.join(' ') : ''}`}
                       </code>
                     </div>
                   </>
