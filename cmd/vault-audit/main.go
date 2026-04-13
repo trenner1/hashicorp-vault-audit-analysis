@@ -517,7 +517,7 @@ func kvMountsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&ins, "insecure", false, "Skip TLS certificate verification")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path")
 	cmd.Flags().StringVar(&format, "format", "stdout", "Output format: csv, json, or stdout")
-	cmd.Flags().IntVarP(&depth, "depth", "d", -1, "Max depth to traverse within KV mounts (-1 = unlimited, 0 = mounts only)")
+	cmd.Flags().IntVarP(&depth, "depth", "d", 0, "Max depth to traverse within KV mounts (0 = unlimited, 1 = mounts only, 2+ = specific depth)")
 	return cmd
 }
 

@@ -74,7 +74,8 @@ func listKVV2Paths(client *vault.Client, mountPath string, currentDepth, maxDept
 
 // listKVV2PathsWithVisited recursively lists paths with cycle detection.
 func listKVV2PathsWithVisited(client *vault.Client, mountPath string, currentDepth, maxDepth int, visited map[string]bool) ([]pathEntry, error) {
-	if currentDepth > maxDepth {
+	// maxDepth: 0 = unlimited, 1 = mount only (stop here), 2+ = specific depth
+	if maxDepth > 0 && currentDepth > maxDepth {
 		return []pathEntry{}, nil
 	}
 
@@ -121,7 +122,8 @@ func listKVV2PathsWithVisited(client *vault.Client, mountPath string, currentDep
 		}
 
 		var children []pathEntry
-		if isFolder && currentDepth < maxDepth {
+		// Recurse into folders if: unlimited (maxDepth=0) OR within depth limit
+		if isFolder && (maxDepth == 0 || currentDepth < maxDepth) {
 			relPath := strings.TrimRight(keyStr, "/")
 			fullPath := fmt.Sprintf("%s/%s", mountTrimmed, relPath)
 
@@ -151,7 +153,8 @@ func listKVV2PathsWithVisited(client *vault.Client, mountPath string, currentDep
 
 // listKVV2SubpathWithVisited lists paths within a KV v2 subpath (folder).
 func listKVV2SubpathWithVisited(client *vault.Client, mountPath, relPath string, currentDepth, maxDepth int, visited map[string]bool) ([]pathEntry, error) {
-	if currentDepth > maxDepth {
+	// maxDepth: 0 = unlimited, 1 = mount only (stop here), 2+ = specific depth
+	if maxDepth > 0 && currentDepth > maxDepth {
 		return []pathEntry{}, nil
 	}
 
@@ -198,7 +201,8 @@ func listKVV2SubpathWithVisited(client *vault.Client, mountPath, relPath string,
 		}
 
 		var children []pathEntry
-		if isFolder && currentDepth < maxDepth {
+		// Recurse into folders if: unlimited (maxDepth=0) OR within depth limit
+		if isFolder && (maxDepth == 0 || currentDepth < maxDepth) {
 			newRelPath := fmt.Sprintf("%s/%s", relPath, strings.TrimRight(keyStr, "/"))
 			fullPath := fmt.Sprintf("%s/%s", mountTrimmed, newRelPath)
 
@@ -234,7 +238,8 @@ func listKVV1Paths(client *vault.Client, mountPath, subpath string, currentDepth
 
 // listKVV1PathsWithVisited recursively lists KV v1 paths with cycle detection.
 func listKVV1PathsWithVisited(client *vault.Client, mountPath, subpath string, currentDepth, maxDepth int, visited map[string]bool) ([]pathEntry, error) {
-	if currentDepth > maxDepth {
+	// maxDepth: 0 = unlimited, 1 = mount only (stop here), 2+ = specific depth
+	if maxDepth > 0 && currentDepth > maxDepth {
 		return []pathEntry{}, nil
 	}
 
@@ -278,7 +283,8 @@ func listKVV1PathsWithVisited(client *vault.Client, mountPath, subpath string, c
 		}
 
 		var children []pathEntry
-		if isFolder && currentDepth < maxDepth {
+		// Recurse into folders if: unlimited (maxDepth=0) OR within depth limit
+		if isFolder && (maxDepth == 0 || currentDepth < maxDepth) {
 			var newSubpath string
 			if subpath == "" {
 				newSubpath = strings.TrimRight(keyStr, "/")
@@ -443,9 +449,9 @@ func RunKVMounts(vaultAddr, vaultToken, vaultNamespace *string, insecure bool, o
 			version = fmt.Sprintf("%.0f", v)
 		}
 
-		// Traverse paths if depth != 0 (0 = mounts only, -1 = unlimited, >0 = specific depth)
+		// Traverse paths if depth != 1 (0 = unlimited, 1 = mounts only, 2+ = specific depth)
 		var children []pathEntry
-		if maxDepth != 0 {
+		if maxDepth != 1 {
 			if version == "2" {
 				var err error
 				children, err = listKVV2Paths(client, path, 1, maxDepth)
