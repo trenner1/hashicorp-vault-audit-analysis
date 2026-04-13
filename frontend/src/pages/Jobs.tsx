@@ -455,12 +455,15 @@ export function Jobs() {
                           CLI Command
                         </span>
                         <button
-                          onClick={() => {
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
                             const cliCommand = `vault-audit ${selectedJob.command}${selectedJob.args && selectedJob.args.length > 0 ? ' ' + selectedJob.args.join(' ') : ''}`
                             navigator.clipboard.writeText(cliCommand)
                               .then(() => {
                                 // Show brief success feedback
-                                const btn = document.activeElement as HTMLButtonElement
+                                const btn = e.currentTarget
                                 const originalText = btn.textContent
                                 btn.textContent = '✓ Copied!'
                                 btn.classList.add('text-green-600')
@@ -471,7 +474,7 @@ export function Jobs() {
                               })
                               .catch(err => console.error('Failed to copy:', err))
                           }}
-                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 bg-white dark:bg-slate-900 hover:bg-gray-100 dark:bg-slate-800 transition-colors flex items-center gap-1"
+                          className="text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 bg-white dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1"
                         >
                           <span>📋</span>
                           <span>Copy</span>

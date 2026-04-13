@@ -466,9 +466,10 @@ func RunKVSummary(csvFile string) error {
 	var uniqueClientsIdx, operationsIdx int
 	if len(rows) > 0 {
 		for i, col := range rows[0] {
-			if col == "unique_clients" {
+			switch col {
+			case "unique_clients":
 				uniqueClientsIdx = i
-			} else if col == "operations_count" {
+			case "operations_count":
 				operationsIdx = i
 			}
 		}

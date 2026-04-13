@@ -521,7 +521,7 @@ func kvMountsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&ns, "vault-namespace", "", "Vault namespace (default: $VAULT_NAMESPACE)")
 	cmd.Flags().BoolVar(&ins, "insecure", false, "Skip TLS certificate verification")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path")
-	cmd.Flags().StringVar(&format, "format", "csv", "Output format: csv, json, or stdout")
+	cmd.Flags().StringVar(&format, "format", "stdout", "Output format: csv, json, or stdout")
 	cmd.Flags().IntVarP(&depth, "depth", "d", 0, "Max depth to traverse within KV mounts (default: unlimited; 0 = mounts only)")
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		depthSet = cmd.Flags().Changed("depth")
@@ -563,7 +563,7 @@ func authMountsCmd() *cobra.Command {
 	cmd.Flags().StringVar(&ns, "vault-namespace", "", "Vault namespace (default: $VAULT_NAMESPACE)")
 	cmd.Flags().BoolVar(&ins, "insecure", false, "Skip TLS certificate verification")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path")
-	cmd.Flags().StringVar(&format, "format", "csv", "Output format: csv, json, or stdout")
+	cmd.Flags().StringVar(&format, "format", "stdout", "Output format: csv, json, or stdout")
 	cmd.Flags().IntVar(&depth, "depth", 0, "Max depth to traverse within auth mounts (0 = mounts only, 1 = include roles/users)")
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		depthSet = cmd.Flags().Changed("depth")
