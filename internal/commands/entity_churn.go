@@ -94,10 +94,11 @@ func (e *EphemeralPatternAnalyzer) analyzeEntity(entity *EntityChurnRecord) (boo
 	reasons := make([]string, 0)
 
 	// Strong indicators (high confidence)
-	if daysActive == 1 {
+	switch daysActive {
+	case 1:
 		confidence += 0.5
 		reasons = append(reasons, fmt.Sprintf("Appeared only 1 day (%s)", entity.FirstSeenFile))
-	} else if daysActive == 2 {
+	case 2:
 		confidence += 0.3
 		reasons = append(reasons, fmt.Sprintf("Appeared only 2 days: %s, %s",
 			entity.FilesAppeared[0], entity.FilesAppeared[len(entity.FilesAppeared)-1]))
@@ -429,7 +430,7 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 
 				// Determine lifecycle
 				var lifecycle string
-				if baselineSet != nil && len(baselineSet) > 0 {
+				if len(baselineSet) > 0 {
 					if _, inBaseline := baselineSet[entityID]; inBaseline {
 						lifecycle = "pre_existing_baseline"
 					} else {
@@ -446,7 +447,7 @@ func RunEntityChurn(logFiles []string, entityMap, baseline, output, format *stri
 				record.Lifecycle = lifecycle
 
 				// Get baseline metadata
-				if baselineSet != nil && len(baselineSet) > 0 {
+				if len(baselineSet) > 0 {
 					if baselineEntity, ok := baselineSet[entityID]; ok {
 						name := baselineEntity.getName()
 						if name != "" {
