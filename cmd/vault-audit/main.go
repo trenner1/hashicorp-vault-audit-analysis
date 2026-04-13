@@ -73,6 +73,7 @@ func systemOverviewCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&top, "top", 30, "Number of top operations to show")
 	cmd.Flags().IntVar(&minOps, "min-operations", 1000, "Minimum operations to report")
+	cmd.Flags().IntVar(&minOps, "min-ops", 1000, "Shorthand for --min-operations")
 	cmd.Flags().StringVar(&nsFilter, "namespace-filter", "", "Filter by namespace ID (e.g. \"root\")")
 	cmd.Flags().BoolVar(&sequential, "sequential", false, "Process files sequentially instead of in parallel (for debugging)")
 	return cmd
