@@ -491,7 +491,6 @@ func entityListCmd() *cobra.Command {
 func kvMountsCmd() *cobra.Command {
 	var format, output string
 	var depth int
-	var depthSet bool
 	addr := ""
 	token := ""
 	ns := ""
@@ -501,10 +500,6 @@ func kvMountsCmd() *cobra.Command {
 		Use:   "kv-mounts",
 		Short: "List KV secret mounts (queries Vault API)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			maxDepth := -1 // unlimited
-			if depthSet {
-				maxDepth = depth
-			}
 			return commands.RunKVMounts(
 				optionalStr(cmd, "vault-addr", &addr),
 				optionalStr(cmd, "vault-token", &token),
@@ -512,7 +507,7 @@ func kvMountsCmd() *cobra.Command {
 				ins,
 				optionalStr(cmd, "output", &output),
 				format,
-				maxDepth,
+				depth,
 			)
 		},
 	}
@@ -522,11 +517,7 @@ func kvMountsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&ins, "insecure", false, "Skip TLS certificate verification")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path")
 	cmd.Flags().StringVar(&format, "format", "stdout", "Output format: csv, json, or stdout")
-	cmd.Flags().IntVarP(&depth, "depth", "d", 0, "Max depth to traverse within KV mounts (default: unlimited; 0 = mounts only)")
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
-		depthSet = cmd.Flags().Changed("depth")
-		return nil
-	}
+	cmd.Flags().IntVarP(&depth, "depth", "d", -1, "Max depth to traverse within KV mounts (-1 = unlimited, 0 = mounts only)")
 	return cmd
 }
 
