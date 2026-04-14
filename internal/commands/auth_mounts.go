@@ -11,10 +11,16 @@ import (
 	"github.com/trenner1/hashicorp-vault-audit-analysis/internal/vault"
 )
 
-// RoleEntry represents a role/user within an auth mount.
+// RoleEntry represents a role/user within an auth mount with metadata.
 type RoleEntry struct {
-	Name     string      `json:"name"`
-	Children []RoleEntry `json:"children,omitempty"`
+	Name                 string                 `json:"name"`
+	Policies             []string               `json:"policies,omitempty"`
+	TokenTTL             string                 `json:"token_ttl,omitempty"`
+	TokenMaxTTL          string                 `json:"token_max_ttl,omitempty"`
+	BoundServiceAccounts []string               `json:"bound_service_accounts,omitempty"`
+	BoundNamespaces      []string               `json:"bound_namespaces,omitempty"`
+	Metadata             map[string]interface{} `json:"metadata,omitempty"`
+	Children             []RoleEntry            `json:"children,omitempty"`
 }
 
 // AuthMountOutput represents a single auth mount with its configuration.
@@ -208,6 +214,23 @@ func RunAuthMounts(
 						prefix = "└──"
 					}
 					fmt.Printf("    %s %s\n", prefix, role.Name)
+
+					// Display role metadata if available
+					if len(role.Policies) > 0 {
+						fmt.Printf("        Policies: %s\n", strings.Join(role.Policies, ", "))
+					}
+					if role.TokenTTL != "" {
+						fmt.Printf("        Token TTL: %s\n", role.TokenTTL)
+					}
+					if role.TokenMaxTTL != "" {
+						fmt.Printf("        Token Max TTL: %s\n", role.TokenMaxTTL)
+					}
+					if len(role.BoundServiceAccounts) > 0 {
+						fmt.Printf("        Bound Service Accounts: %s\n", strings.Join(role.BoundServiceAccounts, ", "))
+					}
+					if len(role.BoundNamespaces) > 0 {
+						fmt.Printf("        Bound Namespaces: %s\n", strings.Join(role.BoundNamespaces, ", "))
+					}
 				}
 			}
 			fmt.Println()
@@ -281,7 +304,7 @@ func enumerateAuthConfigs(
 	}
 }
 
-// listK8sRoles lists roles for kubernetes auth mount.
+// listK8sRoles lists roles for kubernetes auth mount with metadata.
 func listK8sRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 	listPath := fmt.Sprintf("/v1/auth/%s/role", strings.TrimRight(mountPath, "/"))
 
@@ -297,7 +320,10 @@ func listK8sRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 				if keys, ok := keysRaw.([]interface{}); ok {
 					for _, k := range keys {
 						if name, ok := k.(string); ok {
-							roles = append(roles, RoleEntry{Name: name})
+							role := RoleEntry{Name: name}
+							// Fetch role metadata
+							fetchK8sRoleMetadata(client, mountPath, name, &role)
+							roles = append(roles, role)
 						}
 					}
 				}
@@ -307,7 +333,71 @@ func listK8sRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 	return roles, nil
 }
 
-// listApproleRoles lists roles for approle auth mount.
+// fetchK8sRoleMetadata fetches detailed metadata for a kubernetes role.
+func fetchK8sRoleMetadata(client *vault.Client, mountPath, roleName string, role *RoleEntry) {
+	rolePath := fmt.Sprintf("/v1/auth/%s/role/%s", strings.TrimRight(mountPath, "/"), roleName)
+
+	var roleResp map[string]interface{}
+	if err := client.Get(rolePath, &roleResp); err != nil {
+		return
+	}
+
+	if dataRaw, ok := roleResp["data"]; ok {
+		if data, ok := dataRaw.(map[string]interface{}); ok {
+			// Extract policies
+			if policiesRaw, ok := data["policies"]; ok {
+				if policies, ok := policiesRaw.([]interface{}); ok {
+					for _, p := range policies {
+						if policy, ok := p.(string); ok {
+							role.Policies = append(role.Policies, policy)
+						}
+					}
+				}
+			}
+
+			// Extract token TTLs
+			if ttl, ok := data["token_ttl"].(float64); ok {
+				role.TokenTTL = fmt.Sprintf("%ds", int64(ttl))
+			}
+			if maxTTL, ok := data["token_max_ttl"].(float64); ok {
+				role.TokenMaxTTL = fmt.Sprintf("%ds", int64(maxTTL))
+			}
+
+			// Extract bound service accounts
+			if saRaw, ok := data["bound_service_account_names"]; ok {
+				if sa, ok := saRaw.([]interface{}); ok {
+					for _, s := range sa {
+						if account, ok := s.(string); ok {
+							role.BoundServiceAccounts = append(role.BoundServiceAccounts, account)
+						}
+					}
+				}
+			}
+
+			// Extract bound namespaces
+			if nsRaw, ok := data["bound_service_account_namespaces"]; ok {
+				if ns, ok := nsRaw.([]interface{}); ok {
+					for _, n := range ns {
+						if namespace, ok := n.(string); ok {
+							role.BoundNamespaces = append(role.BoundNamespaces, namespace)
+						}
+					}
+				}
+			}
+
+			// Store remaining metadata
+			role.Metadata = make(map[string]interface{})
+			for key, value := range data {
+				if key != "policies" && key != "token_ttl" && key != "token_max_ttl" &&
+					key != "bound_service_account_names" && key != "bound_service_account_namespaces" {
+					role.Metadata[key] = value
+				}
+			}
+		}
+	}
+}
+
+// listApproleRoles lists roles for approle auth mount with metadata.
 func listApproleRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 	listPath := fmt.Sprintf("/v1/auth/%s/role", strings.TrimRight(mountPath, "/"))
 
@@ -323,7 +413,10 @@ func listApproleRoles(client *vault.Client, mountPath string) ([]RoleEntry, erro
 				if keys, ok := keysRaw.([]interface{}); ok {
 					for _, k := range keys {
 						if name, ok := k.(string); ok {
-							roles = append(roles, RoleEntry{Name: name})
+							role := RoleEntry{Name: name}
+							// Fetch role metadata
+							fetchApproleMetadata(client, mountPath, name, &role)
+							roles = append(roles, role)
 						}
 					}
 				}
@@ -333,7 +426,48 @@ func listApproleRoles(client *vault.Client, mountPath string) ([]RoleEntry, erro
 	return roles, nil
 }
 
-// listUserpassUsers lists users for userpass auth mount.
+// fetchApproleMetadata fetches detailed metadata for an approle role.
+func fetchApproleMetadata(client *vault.Client, mountPath, roleName string, role *RoleEntry) {
+	rolePath := fmt.Sprintf("/v1/auth/%s/role/%s", strings.TrimRight(mountPath, "/"), roleName)
+
+	var roleResp map[string]interface{}
+	if err := client.Get(rolePath, &roleResp); err != nil {
+		return
+	}
+
+	if dataRaw, ok := roleResp["data"]; ok {
+		if data, ok := dataRaw.(map[string]interface{}); ok {
+			// Extract policies
+			if policiesRaw, ok := data["policies"]; ok {
+				if policies, ok := policiesRaw.([]interface{}); ok {
+					for _, p := range policies {
+						if policy, ok := p.(string); ok {
+							role.Policies = append(role.Policies, policy)
+						}
+					}
+				}
+			}
+
+			// Extract token TTLs
+			if ttl, ok := data["token_ttl"].(float64); ok {
+				role.TokenTTL = fmt.Sprintf("%ds", int64(ttl))
+			}
+			if maxTTL, ok := data["token_max_ttl"].(float64); ok {
+				role.TokenMaxTTL = fmt.Sprintf("%ds", int64(maxTTL))
+			}
+
+			// Store remaining metadata
+			role.Metadata = make(map[string]interface{})
+			for key, value := range data {
+				if key != "policies" && key != "token_ttl" && key != "token_max_ttl" {
+					role.Metadata[key] = value
+				}
+			}
+		}
+	}
+}
+
+// listUserpassUsers lists users for userpass auth mount with metadata.
 func listUserpassUsers(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 	listPath := fmt.Sprintf("/v1/auth/%s/users", strings.TrimRight(mountPath, "/"))
 
@@ -349,7 +483,10 @@ func listUserpassUsers(client *vault.Client, mountPath string) ([]RoleEntry, err
 				if keys, ok := keysRaw.([]interface{}); ok {
 					for _, k := range keys {
 						if name, ok := k.(string); ok {
-							users = append(users, RoleEntry{Name: name})
+							user := RoleEntry{Name: name}
+							// Fetch user metadata
+							fetchUserpassMetadata(client, mountPath, name, &user)
+							users = append(users, user)
 						}
 					}
 				}
@@ -359,7 +496,48 @@ func listUserpassUsers(client *vault.Client, mountPath string) ([]RoleEntry, err
 	return users, nil
 }
 
-// listJWTRoles lists roles for JWT/OIDC auth mount.
+// fetchUserpassMetadata fetches detailed metadata for a userpass user.
+func fetchUserpassMetadata(client *vault.Client, mountPath, username string, user *RoleEntry) {
+	userPath := fmt.Sprintf("/v1/auth/%s/users/%s", strings.TrimRight(mountPath, "/"), username)
+
+	var userResp map[string]interface{}
+	if err := client.Get(userPath, &userResp); err != nil {
+		return
+	}
+
+	if dataRaw, ok := userResp["data"]; ok {
+		if data, ok := dataRaw.(map[string]interface{}); ok {
+			// Extract policies
+			if policiesRaw, ok := data["policies"]; ok {
+				if policies, ok := policiesRaw.([]interface{}); ok {
+					for _, p := range policies {
+						if policy, ok := p.(string); ok {
+							user.Policies = append(user.Policies, policy)
+						}
+					}
+				}
+			}
+
+			// Extract token TTLs
+			if ttl, ok := data["token_ttl"].(float64); ok {
+				user.TokenTTL = fmt.Sprintf("%ds", int64(ttl))
+			}
+			if maxTTL, ok := data["token_max_ttl"].(float64); ok {
+				user.TokenMaxTTL = fmt.Sprintf("%ds", int64(maxTTL))
+			}
+
+			// Store remaining metadata
+			user.Metadata = make(map[string]interface{})
+			for key, value := range data {
+				if key != "policies" && key != "token_ttl" && key != "token_max_ttl" && key != "password" {
+					user.Metadata[key] = value
+				}
+			}
+		}
+	}
+}
+
+// listJWTRoles lists roles for JWT/OIDC auth mount with metadata.
 func listJWTRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 	listPath := fmt.Sprintf("/v1/auth/%s/role", strings.TrimRight(mountPath, "/"))
 
@@ -375,7 +553,10 @@ func listJWTRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 				if keys, ok := keysRaw.([]interface{}); ok {
 					for _, k := range keys {
 						if name, ok := k.(string); ok {
-							roles = append(roles, RoleEntry{Name: name})
+							role := RoleEntry{Name: name}
+							// Fetch role metadata
+							fetchJWTRoleMetadata(client, mountPath, name, &role)
+							roles = append(roles, role)
 						}
 					}
 				}
@@ -383,6 +564,47 @@ func listJWTRoles(client *vault.Client, mountPath string) ([]RoleEntry, error) {
 		}
 	}
 	return roles, nil
+}
+
+// fetchJWTRoleMetadata fetches detailed metadata for a JWT/OIDC role.
+func fetchJWTRoleMetadata(client *vault.Client, mountPath, roleName string, role *RoleEntry) {
+	rolePath := fmt.Sprintf("/v1/auth/%s/role/%s", strings.TrimRight(mountPath, "/"), roleName)
+
+	var roleResp map[string]interface{}
+	if err := client.Get(rolePath, &roleResp); err != nil {
+		return
+	}
+
+	if dataRaw, ok := roleResp["data"]; ok {
+		if data, ok := dataRaw.(map[string]interface{}); ok {
+			// Extract policies
+			if policiesRaw, ok := data["policies"]; ok {
+				if policies, ok := policiesRaw.([]interface{}); ok {
+					for _, p := range policies {
+						if policy, ok := p.(string); ok {
+							role.Policies = append(role.Policies, policy)
+						}
+					}
+				}
+			}
+
+			// Extract token TTLs
+			if ttl, ok := data["token_ttl"].(float64); ok {
+				role.TokenTTL = fmt.Sprintf("%ds", int64(ttl))
+			}
+			if maxTTL, ok := data["token_max_ttl"].(float64); ok {
+				role.TokenMaxTTL = fmt.Sprintf("%ds", int64(maxTTL))
+			}
+
+			// Store remaining metadata
+			role.Metadata = make(map[string]interface{})
+			for key, value := range data {
+				if key != "policies" && key != "token_ttl" && key != "token_max_ttl" {
+					role.Metadata[key] = value
+				}
+			}
+		}
+	}
 }
 
 // listLDAPConfig lists users and groups for LDAP auth mount.
