@@ -1,308 +1,271 @@
-# Vault Audit Tools
+# Vault Audit Analysis Tools
 
 [![CI](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/ci.yml)
 [![Security](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml/badge.svg)](https://github.com/trenner1/hashicorp-vault-audit-analysis/actions/workflows/security.yml)
 [![codecov](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis/graph/badge.svg?token=QYMT1SKDQ6)](https://codecov.io/github/trenner1/hashicorp-vault-audit-analysis)
-[![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://trenner1.github.io/hashicorp-vault-audit-analysis/latest/vault_audit_tools/index.html)
-[Browse versions](https://trenner1.github.io/hashicorp-vault-audit-analysis/versions.html)
 
-High-performance command-line tools for analyzing HashiCorp Vault audit logs, written in Rust.
-
-## Why Use This Tool?
-
-**For Security & Compliance Teams:**
-- **Audit & Compliance**: Generate comprehensive reports for SOC 2, ISO 27001, and internal security audits
-- **Anomaly Detection**: Identify unusual access patterns, token abuse, and potential security threats
-- **Access Reviews**: Track which teams and services are accessing which secrets over time
-- **Incident Investigation**: Quickly analyze who accessed what during a security incident window
-
-**For Platform & Infrastructure Teams:**
-- **Cost Optimization**: Identify unused secrets, authentication methods, and mount points to reduce Vault overhead
-- **Capacity Planning**: Understand usage patterns and peak access times for infrastructure scaling decisions
-- **Migration Planning**: Analyze current usage to inform secret consolidation and Vault restructuring projects
-- **Performance Troubleshooting**: Identify high-traffic paths and authentication bottlenecks
-
-**For DevOps & Engineering Teams:**
-- **Secret Usage Analytics**: Understand which applications and services depend on which secrets
-- **Lifecycle Management**: Track when secrets were created, last accessed, and identify stale credentials
-- **Team Activity Visibility**: Monitor team access patterns and identify potential misconfigurations
-- **Automated Reporting**: Integrate into CI/CD pipelines for continuous security monitoring
-
-**Business Value:**
-- Reduce security risk by identifying and removing unused access patterns
-- Lower operational costs through data-driven secret management decisions
-- Meet compliance requirements with detailed audit trail analysis
-- Accelerate incident response from hours to minutes with targeted log analysis
+Comprehensive tools for analyzing HashiCorp Vault audit logs with both CLI and web UI interfaces.
 
 ## Features
 
-- **Fast**: 3x faster than equivalent implementations (~17s vs 60s for 4M line logs)
-- **Parallel Processing**: Automatically processes multiple files concurrently using all available CPU cores
-- **Memory Efficient**: 10x less memory usage through streaming parser
-- **Compressed File Support**: Direct analysis of `.gz` and `.zst` files without manual decompression
+### Dual Interface
+- **CLI Tool** (`vault-audit`): Fast command-line analysis for automation and scripting
+- **Web UI** (`vault-audit-server`): Interactive dashboard for visual analysis and exploration
+- **Unified Architecture**: Both interfaces share the same analysis engine
+
+### Analysis Capabilities
+- **System Overview**: High-level metrics across all operations, entities, and auth methods
+- **Entity Analysis**: Track entity lifecycle, creation patterns, churn, and activity gaps
+- **Token Analysis**: Monitor token operations, detect abuse patterns, export detailed metrics
+- **KV Secrets**: Analyze secret usage patterns, compare time periods, generate summaries
+- **Authentication**: Analyze Kubernetes/OpenShift auth patterns, Airflow polling behavior
+- **Path Analysis**: Identify hotspots and optimization opportunities
+- **Vault API Integration**: Query live Vault clusters for entity lists, client activity, mount enumeration
+
+### Performance
+- **Parallel Processing**: Automatically uses all CPU cores for multi-file analysis
+- **Streaming Parser**: Memory-efficient processing of large audit logs
+- **Compressed File Support**: Direct analysis of `.gz` and `.zst` files
 - **Multi-File Support**: Analyze weeks/months of logs without manual concatenation
-- **Comprehensive**: 16 specialized analysis commands for different use cases
-- **Production Ready**: Tested on 100GB+ multi-day production audit logs
-- **Shell Completion**: Tab completion support for bash, zsh, fish, powershell, and elvish
 
-## Installation
+### Web UI Features
+- **Interactive Dashboard**: Real-time job execution with progress tracking
+- **File Management**: Upload audit logs, browse analysis artifacts with metadata
+- **Cluster Management**: Connect to live Vault clusters for API-based analysis
+- **Dark Mode**: Full dark mode support with accessible contrast
+- **Job History**: Track all analysis jobs with detailed output and CLI command display
 
-### From Source
+## Quick Start
 
-```bash
-cd vault-audit-tools
-cargo install --path .
-```
-
-This installs the `vault-audit` binary to `~/.cargo/bin/`.
-
-### Pre-built Binaries
-
-Download from the [Releases](https://github.com/trenner1/hashicorp-vault-audit-analysis/releases) page.
-
-### Shell Completion
-
-After installation, enable tab completion for your shell:
-
-#### Linux/macOS
+### Using Docker Compose (Recommended)
 
 ```bash
-# Bash (Linux) - single command
-sudo mkdir -p /usr/local/etc/bash_completion.d && \
-vault-audit generate-completion bash | sudo tee /usr/local/etc/bash_completion.d/vault-audit > /dev/null && \
-echo "Completion installed. Restart your shell or run: source /usr/local/etc/bash_completion.d/vault-audit"
+# Clone the repository
+git clone https://github.com/trenner1/hashicorp-vault-audit-analysis.git
+cd hashicorp-vault-audit-analysis
 
-# Bash (macOS with Homebrew) - single command
-mkdir -p $(brew --prefix)/etc/bash_completion.d && \
-vault-audit generate-completion bash > $(brew --prefix)/etc/bash_completion.d/vault-audit && \
-echo "Completion installed. Restart your shell or run: source $(brew --prefix)/etc/bash_completion.d/vault-audit"
+# Start the services
+docker-compose up -d
 
-# Zsh - single command
-mkdir -p ~/.zsh/completions && \
-vault-audit generate-completion zsh > ~/.zsh/completions/_vault-audit && \
-grep -q 'fpath=(~/.zsh/completions $fpath)' ~/.zshrc || echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc && \
-grep -q 'autoload -Uz compinit && compinit' ~/.zshrc || echo 'autoload -Uz compinit && compinit' >> ~/.zshrc && \
-echo "Completion installed. Restart your shell or run: source ~/.zshrc"
-
-# Fish - single command
-mkdir -p ~/.config/fish/completions && \
-vault-audit generate-completion fish > ~/.config/fish/completions/vault-audit.fish && \
-echo "Completion installed. Restart your shell."
-
-# PowerShell (Windows/Cross-platform) - single command
-$profileDir = Split-Path $PROFILE; New-Item -ItemType Directory -Force -Path $profileDir | Out-Null; vault-audit generate-completion powershell | Out-File -Append -FilePath $PROFILE -Encoding utf8; Write-Host "Completion installed. Restart PowerShell or run: . `$PROFILE"
-
-# Elvish - single command
-mkdir -p ~/.config/elvish/lib && \
-vault-audit generate-completion elvish > ~/.config/elvish/lib/vault-audit.elv && \
-grep -q 'use vault-audit' ~/.config/elvish/rc.elv || echo 'use vault-audit' >> ~/.config/elvish/rc.elv && \
-echo "Completion installed. Restart your shell."
+# Access the web UI
+open http://localhost:3000
 ```
 
-#### Windows (Git Bash)
+The web UI will be available at `http://localhost:3000` with the API server at `http://localhost:8080`.
 
-Git Bash users need special handling since `~` doesn't expand in output redirection:
+### Building from Source
+
+#### Prerequisites
+- Go 1.23 or later
+- Node.js 18+ and npm (for frontend)
+- Make
+
+#### Build CLI Tool
 
 ```bash
-# Single command installation for Git Bash
-mkdir -p "$HOME/.bash_completions" && \
-vault-audit generate-completion bash > "$HOME/.bash_completions/vault-audit" && \
-grep -q 'source "$HOME/.bash_completions/vault-audit"' ~/.bashrc || echo 'source "$HOME/.bash_completions/vault-audit"' >> ~/.bashrc && \
-echo "Completion installed. Restart Git Bash or run: source ~/.bashrc"
+make build
+# Binary will be at ./build/vault-audit
 ```
 
-**Troubleshooting**:
-- Use `$HOME` variable instead of `~` for paths in Git Bash
-- If completions don't work immediately, open a new terminal window
-- Verify the completion file exists: `ls -la "$HOME/.bash_completions/vault-audit"`
-- Check your shell rc file sources it: `grep vault-audit ~/.bashrc`
+#### Build API Server
 
-## Commands
+```bash
+make server
+# Binary will be at ./server
+```
 
-### System Analysis
+#### Build Frontend
 
-- **`system-overview`** - High-level overview of all operations, entities, and auth methods (parallel processing)
-- **`entity-gaps`** - Identify operations without entity IDs (no-entity operations) (parallel processing)
-- **`path-hotspots`** - Find most accessed paths with optimization recommendations (parallel processing)
+```bash
+cd frontend
+npm install
+npm run build
+# Production build will be in frontend/dist/
+```
 
-### Authentication Analysis
+## CLI Usage
 
-- **`k8s-auth`** - Analyze Kubernetes/OpenShift authentication patterns and entity churn (parallel processing)
-- **`token-analysis`** - Unified token operations analysis with abuse detection and CSV export (parallel processing)
-  - Track token lifecycle operations (create, renew, revoke, lookup)
-  - Detect excessive token lookup patterns
-  - Export per-accessor detail to CSV
+### Basic Commands
 
-### Entity Analysis
+```bash
+# System overview
+vault-audit system-overview audit.log
 
-- **`entity-analysis`** - Unified entity lifecycle analysis (recommended)
-  - `churn` - Multi-day entity lifecycle tracking with ephemeral detection
-  - `creation` - Entity creation patterns by authentication path
-  - `preprocess` - Extract entity mappings (auto-generated by default)
-  - `gaps` - Detect activity gaps
-  - `timeline` - Individual entity operation timeline
-  - **Key improvement**: Auto-preprocessing eliminates multi-step workflows!
+# Entity analysis
+vault-audit entity-analysis churn day1.log day2.log day3.log
+vault-audit entity-analysis creation audit.log
+vault-audit entity-analysis timeline --entity-id <UUID> audit.log
 
-### Vault API Integration
+# Token analysis
+vault-audit token-analysis audit.log
+vault-audit token-analysis audit.log --export tokens.csv
 
-- **`client-activity`** - Query Vault for client activity metrics by mount
-- **`entity-list`** - Export complete entity list from Vault (for baseline analysis)
+# KV secrets analysis
+vault-audit kv-analysis analyze audit.log --output kv_usage.csv
+vault-audit kv-analysis compare old.csv new.csv
+vault-audit kv-analysis summary usage.csv
 
-### Mount Enumeration
+# Path hotspots
+vault-audit path-hotspots audit.log
 
-- **`kv-mounts`** - Enumerate KV secret mounts with optional depth-based tree traversal
-  - Automatically discovers all KV v1 and v2 mounts
-  - Recursively lists secrets and folders within each mount
-  - Supports unlimited depth (default) or limited traversal (`--depth N`)
-  - Output formats: CSV (flattened), JSON (nested tree), or stdout (visual tree)
-  - **Example**: `vault-audit kv-mounts --format stdout`
-  - **Example**: `vault-audit kv-mounts --depth 2 --format csv --output kv-inventory.csv`
+# Authentication analysis
+vault-audit k8s-auth audit.log
+vault-audit airflow-polling audit.log
+```
 
-- **`auth-mounts`** - Enumerate authentication mounts with role/user discovery
-  - Automatically discovers all auth methods
-  - Lists roles, users, and groups within each mount (when `--depth > 0`)
-  - Supports kubernetes, approle, userpass, jwt/oidc, and ldap auth types
-  - Output formats: CSV (flattened), JSON (nested), or stdout (visual tree)
-  - **Example**: `vault-audit auth-mounts --format stdout`
-  - **Example**: `vault-audit auth-mounts --depth 0 --format json` (mounts only, no roles)
+### Vault API Commands
 
-### KV Secrets Analysis
+Connect to live Vault clusters for real-time analysis:
 
-- **`kv-analysis`** - Unified KV secrets analysis (recommended)
-  - `analyze` - Analyze KV usage by path and entity (generates CSV) (parallel processing)
-  - `compare` - Compare KV usage between two time periods (CSV comparison)
-  - `summary` - Summarize KV secret usage from CSV exports (CSV analysis)
-- **`kv-analyzer`** - DEPRECATED: Use `kv-analysis analyze` instead
-- **`kv-compare`** - DEPRECATED: Use `kv-analysis compare` instead
-- **`kv-summary`** - DEPRECATED: Use `kv-analysis summary` instead
+```bash
+# List all entities
+vault-audit entity-list --vault-addr https://vault.example.com --vault-token hvs.xxx
 
-## Vault Token Requirements
+# Query client activity
+vault-audit client-activity --start 2025-10-01T00:00:00Z --end 2025-10-31T23:59:59Z
 
-Most commands analyze audit log files and **do not require any Vault API access**. The following commands interact with Vault's API and require a token with specific permissions.
+# Enumerate KV mounts with full tree structure
+vault-audit kv-mounts --format stdout
+vault-audit kv-mounts --depth 0 --format csv  # Mounts only
+vault-audit kv-mounts --format json --output kv-tree.json
 
-### Commands That Don't Need Vault Access
+# Enumerate auth mounts with roles and metadata
+vault-audit auth-mounts --format stdout
+vault-audit auth-mounts --depth 1 --format json  # Include roles with metadata
+vault-audit auth-mounts --depth 0 --format csv   # Mounts only
+```
 
-These commands only read audit log files:
-- `system-overview`, `path-hotspots`, `entity-gaps`
-- `token-analysis`, `k8s-auth`, `airflow-polling`
-- `entity-analysis` (all subcommands)
-- `kv-analysis` (all subcommands)
+### Multi-File and Compressed File Support
 
-### Commands That Need Vault API Access
+```bash
+# Analyze compressed files directly
+vault-audit system-overview audit.log.gz
+
+# Multiple files (automatic parallel processing)
+vault-audit entity-analysis churn day1.log day2.log day3.log
+
+# Glob patterns
+vault-audit path-hotspots logs/*.log.gz
+
+# Mix compressed and uncompressed
+vault-audit token-analysis day1.log.gz day2.log day3.log.zst
+```
+
+## Web UI Usage
+
+### Getting Started
+
+1. **Upload Audit Logs**: Navigate to Files page and upload your audit log files
+2. **Configure Clusters** (optional): Add Vault cluster connections for API-based analysis
+3. **Run Analysis**: Go to Analysis page, select command and files, click Run
+4. **View Results**: Monitor progress in real-time, view output, download artifacts
+
+### Key Features
+
+#### Dashboard
+- System metrics and recent activity
+- Quick access to common operations
+- Job status overview
+
+#### Analysis Page
+- Select from 16+ analysis commands
+- Interactive file picker with metadata preview
+- Real-time progress tracking with SSE
+- CLI command display for reproducibility
+- Download generated artifacts
+
+#### Files Page
+- **Uploaded Files**: Manage audit log uploads
+- **Analysis Artifacts**: Browse generated reports with metadata
+- Timestamped outputs with command metadata
+- Download and delete operations
+
+#### Clusters Page
+- Manage Vault cluster connections
+- Test connectivity
+- Use for API-based commands (entity-list, client-activity, kv-mounts, auth-mounts)
+
+#### Jobs Page
+- View all analysis jobs
+- Real-time progress updates
+- Detailed output with syntax highlighting
+- Rerun previous jobs
+- CLI command for manual execution
+
+## Architecture
+
+### CLI Tool (`vault-audit`)
+- Standalone binary for command-line usage
+- Fast, memory-efficient streaming parser
+- Parallel processing for multi-file workloads
+- Supports all analysis commands
+
+### API Server (`vault-audit-server`)
+- RESTful API wrapping CLI functionality
+- Job queue with persistent storage
+- Server-Sent Events (SSE) for real-time progress
+- File upload and artifact management
+- Cluster configuration storage
+
+### Frontend
+- React + TypeScript + Vite
+- TailwindCSS for styling
+- Recharts for visualizations
+- Full dark mode support
+- Responsive design
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed technical documentation.
+
+## Vault API Integration
+
+### Required Permissions
+
+Commands that interact with Vault API require specific permissions:
 
 #### `kv-mounts` Command
-
-Enumerates all KV secret mounts and optionally lists their contents in a tree structure.
-
-**Required ACL Policy:**
 ```hcl
-# List and read secret mounts
 path "sys/mounts" {
   capabilities = ["read"]
 }
-
-# List KV v2 secrets (for each mount discovered)
 path "+/metadata/*" {
   capabilities = ["list"]
 }
-
-# List KV v1 secrets (for each mount discovered)
 path "+/*" {
   capabilities = ["list"]
 }
 ```
 
 #### `auth-mounts` Command
-
-Enumerates all authentication mounts and optionally lists roles, users, and groups within each mount.
-
-**Required ACL Policy:**
 ```hcl
-# List and read auth mounts
 path "sys/auth" {
   capabilities = ["read"]
 }
-
-# List roles for kubernetes, approle, jwt/oidc auth methods
 path "auth/+/role" {
-  capabilities = ["list"]
+  capabilities = ["list", "read"]
 }
-
-# List users for userpass and ldap auth methods
 path "auth/+/users" {
-  capabilities = ["list"]
+  capabilities = ["list", "read"]
 }
-
-# List groups for ldap auth method
 path "auth/+/groups" {
   capabilities = ["list"]
 }
 ```
 
 #### `entity-list` Command
-
-Exports complete entity list from Vault for baseline analysis.
-
-**Required ACL Policy:**
 ```hcl
-# Read entity information
 path "identity/entity/id" {
   capabilities = ["list"]
 }
-
 path "identity/entity/id/*" {
   capabilities = ["read"]
 }
-
-# Read auth mount configuration
 path "sys/auth" {
   capabilities = ["read"]
 }
 ```
 
 #### `client-activity` Command
-
-Queries Vault's activity log API for client usage metrics.
-
-**Required ACL Policy:**
 ```hcl
-# Export client activity data
-path "sys/internal/counters/activity/export" {
-  capabilities = ["read"]
-}
-
-# Read mount configuration (secret engines and auth methods)
-path "sys/mounts" {
-  capabilities = ["read"]
-}
-
-path "sys/auth" {
-  capabilities = ["read"]
-}
-```
-
-### Creating a Token with Required Permissions
-
-**Option 1: Separate policies for each command**
-
-```bash
-# For entity-list command
-vault policy write vault-audit-entity-list - <<EOF
-path "identity/entity/id" {
-  capabilities = ["list"]
-}
-path "identity/entity/id/*" {
-  capabilities = ["read"]
-}
-path "sys/auth" {
-  capabilities = ["read"]
-}
-EOF
-
-vault token create -policy=vault-audit-entity-list
-
-# For client-activity command
-vault policy write vault-audit-client-activity - <<EOF
 path "sys/internal/counters/activity/export" {
   capabilities = ["read"]
 }
@@ -312,525 +275,107 @@ path "sys/mounts" {
 path "sys/auth" {
   capabilities = ["read"]
 }
-EOF
-
-vault token create -policy=vault-audit-client-activity
-```
-
-**Option 2: Combined policy for all API commands**
-
-```bash
-vault policy write vault-audit-tools - <<EOF
-# Entity list access
-path "identity/entity/id" {
-  capabilities = ["list"]
-}
-path "identity/entity/id/*" {
-  capabilities = ["read"]
-}
-
-# Client activity access
-path "sys/internal/counters/activity/export" {
-  capabilities = ["read"]
-}
-
-# Mount information (used by both commands)
-path "sys/mounts" {
-  capabilities = ["read"]
-}
-path "sys/auth" {
-  capabilities = ["read"]
-}
-EOF
-
-vault token create -policy=vault-audit-tools
-```
-
-**Option 3: Use existing token**
-
-If you already have a Vault token with appropriate permissions (e.g., root token for testing, or admin token), you can use it:
-
-```bash
-export VAULT_ADDR="https://vault.example.com:8200"
-export VAULT_TOKEN="hvs.your-token-here"
-
-vault-audit entity-list --output entities.csv
-vault-audit client-activity --start-time 2025-10-01T00:00:00Z --end-time 2025-10-31T23:59:59Z
 ```
 
 ### Environment Variables
 
-Commands that interact with Vault API respect standard Vault environment variables:
-
-- `VAULT_ADDR` - Vault server address (e.g., `https://vault.example.com:8200`)
-- `VAULT_TOKEN` - Authentication token for API access
-- `VAULT_NAMESPACE` - Vault namespace for API requests (e.g., `tenant1`, `admin/team-a`)
-- `VAULT_SKIP_VERIFY` - Skip TLS certificate verification (set to `1`, `true`, or `yes`) - **USE ONLY FOR TESTING**
-- `VAULT_CACERT` - Path to CA certificate for TLS verification
-
-You can also provide these via command-line flags:
 ```bash
-# Query entities from a specific namespace
-vault-audit entity-list \
-  --vault-addr https://vault.example.com:8200 \
-  --vault-token hvs.xxxxx \
-  --vault-namespace tenant1 \
-  --output entities.csv
-
-# Client activity for a namespace
-vault-audit client-activity \
-  --start 2025-10-01T00:00:00Z \
-  --end 2025-10-31T23:59:59Z \
-  --vault-namespace admin/security \
-  --output activity.csv
-
-# Skip TLS verification (dev/test only)
-vault-audit entity-list --insecure --output entities.csv
+export VAULT_ADDR="https://vault.example.com:8200"
+export VAULT_TOKEN="hvs.your-token-here"
+export VAULT_NAMESPACE="tenant1"  # Optional, for Vault Enterprise
+export VAULT_SKIP_VERIFY="true"   # Optional, for dev/test only
 ```
 
-## Namespace Support
+### Docker Networking
 
-Vault Enterprise supports [namespaces](https://developer.hashicorp.com/vault/docs/enterprise/namespaces) for multi-tenant isolation. This toolset provides comprehensive namespace support for both API commands and audit log analysis.
-
-### API Commands with Namespaces
-
-Commands that query Vault's API (`entity-list` and `client-activity`) support the `--vault-namespace` flag (or `VAULT_NAMESPACE` environment variable) to target a specific namespace:
+When running in Docker, use `host.docker.internal` to access Vault on the host:
 
 ```bash
-# Set namespace via environment variable
-export VAULT_NAMESPACE="tenant1"
-vault-audit entity-list --output tenant1-entities.csv
-
-# Or use command-line flag
-vault-audit client-activity \
-  --start 2025-10-01T00:00:00Z \
-  --end 2025-10-31T23:59:59Z \
-  --vault-namespace admin/security
+# In cluster configuration
+Vault Address: http://host.docker.internal:8200
 ```
-
-### Audit Log Analysis with Namespace Filtering
-
-Audit logs from namespaced Vault clusters include namespace information in each entry. Use the `--namespace-filter` flag to analyze logs from a specific namespace:
-
-```bash
-# Analyze only operations in the "prod" namespace
-vault-audit system-overview audit.log --namespace-filter root
-
-# Show system overview for specific namespace
-vault-audit system-overview logs/*.log.gz --namespace-filter tenant1
-
-# All other audit log commands can filter by namespace using similar patterns
-vault-audit token-analysis audit.log --namespace-filter admin
-vault-audit kv-analysis analyze audit.log --namespace-filter myapp --output kv-usage.csv
-```
-
-**Note**: Namespace filtering for audit log commands currently supported:
-- `system-overview` - Full support with `--namespace-filter`
-- Other commands - Namespace ID is available in audit log entries via the `request.namespace.id` field
-
-### Namespace Best Practices
-
-1. **API Access**: Tokens must have appropriate permissions within the target namespace
-2. **Audit Logs**: Ensure audit logs include namespace information (enabled by default in Vault Enterprise)
-3. **Cross-Namespace Analysis**: To analyze multiple namespaces, run separate commands for each namespace
-4. **Root Namespace**: Use `--namespace-filter root` for operations in the root namespace
-
-## Documentation
-
-### API Documentation
-
-View the full API documentation with detailed module and function descriptions:
-
-```bash
-# Generate and open documentation in your browser
-cd vault-audit-tools
-cargo doc --no-deps --open
-```
-
-The documentation includes:
-- Comprehensive crate overview and architecture
-- Module-level documentation for all components
-- Function-level documentation with examples
-- Type definitions and their usage
-
-Once published to crates.io, the documentation will be automatically available at [docs.rs/vault-audit-tools](https://docs.rs/vault-audit-tools).
-
-### Command Help
-
-Get detailed help for any command:
-
-```bash
-# General help
-vault-audit --help
-
-# Unified command help
-vault-audit entity-analysis --help
-vault-audit token-analysis --help
-vault-audit kv-analysis --help
-
-# Subcommand-specific help
-vault-audit entity-analysis churn --help
-vault-audit kv-analysis analyze --help
-```
-
-### Application-Specific
-
-- **`airflow-polling`** - Analyze Airflow secret polling patterns with burst rate detection (parallel processing)
-
-### Utilities
-
-- **`generate-completion`** - Generate shell completion scripts
-
-## Usage Examples
-
-### Compressed File Support
-
-All commands automatically detect and decompress `.gz` (gzip) and `.zst` (zstandard) files:
-
-```bash
-# Analyze compressed files directly - no manual decompression needed
-vault-audit system-overview vault_audit.log.gz
-
-# Mix compressed and uncompressed files
-vault-audit entity-churn day1.log.gz day2.log day3.log.zst
-
-# Glob patterns work with compressed files
-vault-audit path-hotspots logs/*.log.gz
-
-# Streaming decompression - no temp files, no extra disk space needed
-vault-audit token-analysis huge_file.log.gz  # processes 1.79GB compressed → 13.8GB uncompressed
-```
-
-**Performance**: Compressed file processing maintains full speed (~57 MB/s) with no memory overhead thanks to streaming decompression.
-
-### Understanding Entities vs Token Accessors
-
-When analyzing token operations, it's important to understand the difference between **entities** and **accessors**:
-
-**Entity** (User/Service Identity):
-- A single identity like "fg-PIOP0SRVDEVOPS" or "approle"
-- Can have multiple tokens (accessors) over time
-- Summary view shows aggregated totals per entity
-- Example: One service might have 233,668 total operations
-
-**Accessor** (Individual Token):
-- A unique token identifier for a single token
-- Each accessor belongs to one entity
-- Tokens get rotated/recreated, creating new accessors
-- Example: That same service's 233k operations might be spread across 3 tokens:
-  - Token 1: 113,028 operations (10/06 07:26 - 10/07 07:41, 24.3h lifespan)
-  - Token 2: 79,280 operations (10/06 07:26 - 10/07 07:40, 24.2h lifespan)
-  - Token 3: 41,360 operations (10/06 07:28 - 10/07 07:40, 24.2h lifespan)
-
-**When to use each view**:
-- **Summary mode** (default): Shows per-entity totals for understanding overall usage patterns
-- **CSV export** (`--export`): Shows per-accessor detail for token lifecycle analysis, rotation patterns, and identifying specific problematic tokens
-
-```bash
-# See entity-level summary (6,091 entities with totals)
-vault-audit token-analysis vault_audit.log
-
-# Export accessor-level detail (907 individual tokens with timestamps)
-vault-audit token-analysis vault_audit.log --export tokens.csv
-
-# Filter to high-volume tokens only
-vault-audit token-analysis vault_audit.log --export tokens.csv --min-operations 1000
-```
-
-### Quick Analysis
-
-```bash
-# Get system overview (works with plain or compressed files)
-vault-audit system-overview vault_audit.log
-vault-audit system-overview vault_audit.log.gz
-
-# Analyze multiple days without concatenation
-vault-audit system-overview logs/vault_audit.2025-10-*.log
-
-# Find authentication issues
-vault-audit k8s-auth vault_audit.log
-
-# Detect token abuse across multiple compressed files
-vault-audit token-analysis day1.log.gz day2.log.gz day3.log.gz --abuse-threshold 5000
-```
-
-### Multi-File Long-Term Analysis
-
-All audit log commands support multiple files (compressed or uncompressed) for historical analysis:
-
-```bash
-# Week-long system overview with compressed files
-vault-audit system-overview vault_audit.2025-10-{07,08,09,10,11,12,13}.log.gz
-
-# Month-long entity churn tracking (auto-preprocesses entity mappings)
-vault-audit entity-analysis churn october/*.log.gz
-
-# Multi-day token operations analysis with mixed file types
-vault-audit token-analysis logs/vault_audit.*.log --export token_ops.csv
-
-# Path hotspot analysis across 30 days of compressed logs
-vault-audit path-hotspots logs/vault_audit.2025-10-*.log.zst
-```
-
-### Mount Enumeration and Discovery
-
-Enumerate and discover all mounts, roles, and secrets without needing to know mount names in advance:
-
-```bash
-# Discover all KV mounts and their complete tree structure
-vault-audit kv-mounts --format stdout
-
-# List only KV mount points (no traversal into secrets)
-vault-audit kv-mounts --depth 0 --format csv
-
-# Traverse 2 levels deep and save to CSV
-vault-audit kv-mounts --depth 2 --format csv --output kv-inventory.csv
-
-# Get complete KV structure as JSON for further processing
-vault-audit kv-mounts --format json --output kv-tree.json
-
-# Discover all auth mounts with their roles and users
-vault-audit auth-mounts --format stdout
-
-# List only auth mount points (no role enumeration)
-vault-audit auth-mounts --depth 0 --format json
-
-# Export auth configuration with roles to CSV
-vault-audit auth-mounts --format csv --output auth-config.csv
-```
-
-**Example Output - KV Mounts (stdout format):**
-```
-KV Mounts:
-================================================================================
-Path: kv/
-  Mount Type: kv
-  Version: 2
-  Description: key/value secret storage
-  Accessor: kv_f1c7d8b2
-  Children (11 paths):
-  kv/
-  └── dev/
-      └── apps/
-          ├── backend-service/
-          │   ├── config
-          │   └── example
-          ├── frontend-app/
-          │   ├── config
-          │   └── example
-          └── mobile-app/
-              ├── config
-              └── example
-```
-
-**Example Output - Auth Mounts (stdout format):**
-```
-Auth Mounts:
-================================================================================
-Path: kubernetes/
-  Type: kubernetes
-  Description:
-  Accessor: auth_kubernetes_e954d6e1
-  Roles/Users (5):
-    ├── backend-service
-    ├── cache-service
-    ├── database-operator
-    ├── frontend-app
-    └── monitoring
-
-Path: approle/
-  Type: approle
-  Description:
-  Accessor: auth_approle_6a0e0046
-  Roles/Users (5):
-    ├── ansible
-    ├── automation
-    ├── ci-pipeline
-    ├── monitoring-agent
-    └── terraform
-```
-
-### Parallel Processing
-
-Commands automatically use parallel processing when analyzing multiple files:
-
-```bash
-# Single file - uses sequential processing
-vault-audit system-overview vault_audit.log
-
-# Multiple files - automatically parallelizes across all CPU cores
-vault-audit system-overview day1.log day2.log day3.log day4.log
-
-# Glob expansion with many files - maximizes CPU utilization
-vault-audit path-hotspots logs/*.log.gz  # processes all files concurrently
-```
-
-**Commands with Parallel Processing:**
-- `system-overview` - System-wide audit analysis
-- `entity-analysis gaps` - Operations without entity IDs
-- `entity-gaps` - Operations without entity IDs (deprecated, use entity-analysis)
-- `path-hotspots` - Most accessed paths
-- `k8s-auth` - Kubernetes authentication analysis
-- `airflow-polling` - Airflow polling pattern detection
-- `kv-analysis analyze` - KV secrets usage analysis
-- `token-analysis` - Token operations analysis
-
-**How it works:**
-- Automatically detects when multiple files are provided
-- Processes files concurrently using all available CPU cores
-- Uses streaming approach to maintain low memory usage
-- Combines results correctly with proper aggregation
-- Provides accurate progress tracking across all files
-
-**Performance benefits:**
-- Near-linear speedup with number of CPU cores
-- 8-core system: ~7x faster on 8+ files
-- Real-world improvements: 40% faster for KV analysis, 7x for system overview
-- Memory efficient: 2x memory overhead for significant speed gains
-- No configuration needed - works automatically
-- Falls back to sequential processing for single files
-
-### Deep Dive Analysis
-
-```bash
-# Analyze entity creation patterns by auth path (auto-preprocessing enabled)
-vault-audit entity-analysis creation vault_audit.log
-
-# Track entity lifecycle across multiple days (auto-preprocessing enabled)
-vault-audit entity-analysis churn day1.log day2.log day3.log --baseline baseline_entities.json
-
-# Analyze specific entity behavior
-vault-audit entity-analysis timeline --entity-id <UUID> day1.log day2.log
-
-# Detect activity gaps (potential security issues)
-vault-audit entity-analysis gaps vault_audit.log --window-seconds 300
-
-# Token analysis with multiple output modes
-vault-audit token-analysis vault_audit.log                              # Summary view (per-entity)
-vault-audit token-analysis vault_audit.log --abuse-threshold 10000      # Abuse detection
-vault-audit token-analysis vault_audit.log --filter lookup,revoke       # Filter operation types
-vault-audit token-analysis vault_audit.log --export tokens.csv          # Export per-accessor detail (907 tokens)
-vault-audit token-analysis vault_audit.log --export tokens.csv --min-operations 1000  # High-volume tokens only
-
-# Analyze Airflow polling with burst detection
-vault-audit airflow-polling vault_audit.log
-
-# Query Vault API for client activity metrics
-vault-audit client-activity --start 2025-10-01T00:00:00Z --end 2025-11-01T00:00:00Z
-```
-
-### KV Usage Analysis
-
-```bash
-# Generate KV usage report (new unified command with parallel processing)
-vault-audit kv-analysis analyze vault_audit.log --kv-prefix "appcodes/" --output kv_usage.csv
-
-# Multi-file analysis - 40% faster with parallel processing
-vault-audit kv-analysis analyze logs/*.log --output kv_usage.csv
-
-# Compare two time periods
-vault-audit kv-analysis compare old_usage.csv new_usage.csv
-
-# Get summary statistics
-vault-audit kv-analysis summary kv_usage.csv
-```
-
-## Performance
-
-Tested on production audit logs:
-
-**Single File:**
-- **Log Size**: 15.7 GB (3,986,972 lines)
-- **Processing Time**: ~17 seconds
-- **Memory Usage**: <100 MB
-- **Throughput**: ~230,000 lines/second
-
-**Multi-File Sequential (7 days):**
-- **Total Size**: 105 GB (26,615,476 lines)
-- **Processing Time**: ~2.5 minutes average per command
-- **Memory Usage**: <100 MB (streaming approach)
-- **Throughput**: ~175,000 lines/second sustained
-
-**Multi-File Parallel (multiple files, multi-core):**
-- **Total Size**: Varies by workload
-- **Processing Time**: 40-85% faster than sequential (command-dependent)
-- **Memory Usage**: 80-300 MB (2x overhead for parallel workers)
-- **Throughput**: 2-7x sequential performance
-- **Speedup**: Near-linear scaling with CPU cores
-- **Example**: KV analysis 40% faster (141s → 85s, ~77 MB memory)
-
-**Compressed Files:**
-- **File Size**: 1.79 GB compressed → 13.8 GB uncompressed
-- **Processing Time**: ~31 seconds (299,958 login operations)
-- **Throughput**: ~57 MB/sec compressed, ~230,000 lines/second
-- **Memory Usage**: <100 MB (streaming decompression, no temp files)
-- **Formats Supported**: gzip (.gz), zstandard (.zst)
-
-**Parallel Processing Benchmarks (Real-World):**
-- **KV Analysis** (`kv-analysis analyze`)
-  - Sequential: 2m 21.32s (140 MB/s, ~40 MB memory)
-  - Parallel: 1m 24.60s (233 MB/s, ~77 MB memory)
-  - **Improvement: 40.1% faster** (56.7 second reduction)
-  - CPU utilization: 124.68s → 175.60s user time (multi-core usage)
-  - Memory overhead: 2x (expected for parallel workers)
-
-## Output Formats
-
-Most commands produce formatted text output with:
-- Summary statistics
-- Top N lists sorted by volume/importance
-- Percentage breakdowns
-- Optimization recommendations
-
-CSV export commands generate standard CSV files for:
-- Spreadsheet analysis
-- Database imports
-- Further processing with other tools
-
-## Architecture
-
-- **Streaming Parser**: Processes logs line-by-line without loading entire file into memory
-- **Parallel Processing**: Multi-file workloads automatically use all CPU cores via Rayon
-- **Efficient Data Structures**: Uses HashMaps and BTreeMaps for fast aggregation
-- **Smart Processing Mode**: Auto-detects single vs multi-file operations for optimal performance
-- **Type Safety**: Comprehensive error handling with anyhow
 
 ## Development
 
-### Build
+### Prerequisites
+- Go 1.23+
+- Node.js 18+
+- Make
+
+### Build Everything
 
 ```bash
-cd vault-audit-tools
-cargo build --release
+# Build CLI and server
+make build
+make server
+
+# Build frontend
+cd frontend && npm install && npm run build
+
+# Run tests
+make test
+
+# Run linters
+make lint
 ```
 
-### Test
+### Run Locally
 
 ```bash
-cargo test
+# Terminal 1: Start API server
+./server
+
+# Terminal 2: Start frontend dev server
+cd frontend && npm run dev
+
+# Access at http://localhost:5173
 ```
 
-### Benchmarking
-
-To measure performance and memory usage on macOS/Linux:
+### Testing
 
 ```bash
-# macOS - shows execution time and peak memory usage
-/usr/bin/time -l ./target/release/vault-audit <command> <args> 2>&1 | grep -E "(real|maximum resident)"
+# Run all tests
+go test ./...
 
-# Linux - shows execution time and peak memory usage
-/usr/bin/time -v ./target/release/vault-audit <command> <args> 2>&1 | grep -E "(Elapsed|Maximum resident)"
+# Run with coverage
+make cover
 
-# Example: Benchmark KV analysis
-/usr/bin/time -l ./target/release/vault-audit kv-analysis analyze logs/*.log
+# Run specific package
+go test ./internal/api -v
 ```
 
-**Key metrics:**
-- **Real time**: Wall-clock time (actual duration)
-- **User time**: CPU time (higher with parallel processing = good!)
-- **Maximum resident set size**: Peak memory usage in bytes
-  - Divide by 1,048,576 to convert to MB
-  - Example: 80,461,824 bytes = ~77 MB
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design decisions
+- [FRONTEND_SETUP.md](FRONTEND_SETUP.md) - Frontend development guide
+- [examples/setup-test-auth.sh](examples/setup-test-auth.sh) - Script to populate test auth mounts
+
+## Use Cases
+
+### Security & Compliance
+- Generate audit reports for SOC 2, ISO 27001 compliance
+- Identify anomalous access patterns and potential threats
+- Track access reviews and secret usage over time
+- Investigate security incidents with targeted log analysis
+
+### Platform & Infrastructure
+- Optimize costs by identifying unused secrets and mounts
+- Plan capacity based on usage patterns and peak times
+- Inform migration and restructuring decisions
+- Troubleshoot performance bottlenecks
+
+### DevOps & Engineering
+- Understand application secret dependencies
+- Track secret lifecycle and identify stale credentials
+- Monitor team access patterns
+- Integrate into CI/CD for continuous monitoring
+
+## Performance
+
+- **Throughput**: ~230,000 lines/second on single files
+- **Memory**: <100 MB for streaming operations
+- **Parallel**: Near-linear scaling with CPU cores
+- **Compressed**: Direct `.gz`/`.zst` support with no temp files
 
 ## License
 
@@ -840,11 +385,6 @@ MIT
 
 Contributions welcome! Please open an issue or PR.
 
-## Requirements
-
-- Rust 1.70+ (2021 edition)
-- Works on Linux, macOS, and Windows
-
 ## Support
 
-For issues or questions, please open a GitHub issue.
+For issues or questions, please open a [GitHub issue](https://github.com/trenner1/hashicorp-vault-audit-analysis/issues).
