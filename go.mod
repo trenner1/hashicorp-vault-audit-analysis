@@ -3,7 +3,7 @@ module github.com/trenner1/hashicorp-vault-audit-analysis
 go 1.26.2
 
 require (
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.17.9
 	github.com/schollz/progressbar/v3 v3.14.6
