@@ -397,17 +397,17 @@ func TestInjectClusterArgs(t *testing.T) {
 	if !has("--vault-addr", "https://vault.prod") {
 		t.Errorf("--vault-addr not injected: %v", args)
 	}
-	if !has("--token", "hvs.tok") {
-		t.Errorf("--token not injected: %v", args)
+	if !has("--vault-token", "hvs.tok") {
+		t.Errorf("--vault-token not injected: %v", args)
 	}
-	if !has("--namespace", "ns-infra") {
-		t.Errorf("--namespace not injected: %v", args)
+	if !has("--vault-namespace", "ns-infra") {
+		t.Errorf("--vault-namespace not injected: %v", args)
 	}
 }
 
 func TestInjectClusterArgs_SkipsIfAlreadyPresent(t *testing.T) {
 	c := &Cluster{VaultAddr: "https://vault.prod", Token: "tok"}
-	args := injectClusterArgs([]string{"--vault-addr", "https://override", "--token", "user-tok"}, c)
+	args := injectClusterArgs([]string{"--vault-addr", "https://override", "--vault-token", "user-tok"}, c)
 	count := 0
 	for _, a := range args {
 		if a == "--vault-addr" {
