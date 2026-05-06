@@ -41,7 +41,7 @@ jobs:
           <p>Redirecting to <a href="https://pkg.go.dev/${MODULE}">pkg.go.dev/${MODULE}</a>&hellip;</p>
           EOF
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
