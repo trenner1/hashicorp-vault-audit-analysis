@@ -1,0 +1,27 @@
+# Intentional fire-and-forget Close() calls
+# Deferred closes are best-effort cleanup
+(io.Closer).Close
+(*os.File).Close
+(*io.PipeWriter).Close
+(*multipart.Writer).Close
+(*net/http.Response.Body).Close
+
+# Best-effort cleanup operations
+os.Remove
+
+# CSV Writer.Write errors are checked via w.Error() after the loop
+(*encoding/csv.Writer).Write
+
+# Intentional intermediate json.Unmarshal (data already validated)
+encoding/json.Unmarshal
+
+# Fire-and-forget output operations in CLI context
+fmt.Fprintf
+fmt.Fprint
+fmt.Fprintln
+
+# Progress bar operations are fire-and-forget
+(*github.com/schollz/progressbar/v3.ProgressBar).Add
+(*github.com/schollz/progressbar/v3.ProgressBar).Set
+(*github.com/schollz/progressbar/v3.ProgressBar).Finish
+(*github.com/schollz/progressbar/v3.ProgressBar).Clear

@@ -1,0 +1,31 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  disable:
+    - errcheck        # Intentional fire-and-forget patterns
+    - staticcheck     # Includes errcheck
+  enable:
+    # Correctness
+    - govet           # go vet checks
+    - ineffassign     # detect ineffectual assignments
+    - unused          # report unused code
+
+    # Style / maintainability
+    - misspell        # fix spelling in comments and strings
+    - whitespace      # unnecessary blank lines
+    - unconvert       # remove unnecessary type conversions
+
+formatters:
+  enable:
+    - gofmt           # code is gofmt-formatted
+    - goimports       # imports are grouped and sorted
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+# Made with Bob
