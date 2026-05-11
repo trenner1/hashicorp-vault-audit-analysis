@@ -317,7 +317,7 @@ export function Dashboard() {
                       <Cell key={i} fill={STATUS_COLORS[entry.name] ?? '#94a3b8'} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number, name: string) => [value, name]} />
+                  <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-1 mt-2">
