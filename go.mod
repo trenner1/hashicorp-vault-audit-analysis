@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/google/uuid v1.6.0
-	github.com/klauspost/compress v1.17.9
+	github.com/klauspost/compress v1.18.6
 	github.com/schollz/progressbar/v3 v3.14.6
 	github.com/spf13/cobra v1.10.2
 	github.com/vbauerster/mpb/v8 v8.12.0
