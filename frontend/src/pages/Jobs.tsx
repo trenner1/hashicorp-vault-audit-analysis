@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, ReactElement } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { api, QueryResponse, Job } from '../api/client'
@@ -30,7 +30,7 @@ function isFilePath(arg: string): boolean {
 function ArgsDisplay({ args, compact = false }: { args: string[]; compact?: boolean }) {
   if (!args || args.length === 0) return null
 
-  const chips: JSX.Element[] = []
+  const chips: ReactElement[] = []
   let i = 0
   
   while (i < args.length) {
