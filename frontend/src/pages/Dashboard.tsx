@@ -186,7 +186,11 @@ export function Dashboard() {
   // Filter jobs based on selected status and command
   let filteredJobs = jobs
   if (statusFilter) {
-    filteredJobs = filteredJobs.filter(j => j.status === statusFilter)
+    filteredJobs = filteredJobs.filter((j) =>
+      statusFilter === 'running'
+        ? j.status === 'running' || j.status === 'pending'
+        : j.status === statusFilter
+    )
   }
   if (commandFilter) {
     filteredJobs = filteredJobs.filter(j => j.command === commandFilter)
