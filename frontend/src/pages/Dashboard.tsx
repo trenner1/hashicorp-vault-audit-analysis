@@ -128,6 +128,8 @@ function ChartTooltip({ active, payload, label }: {
 export function Dashboard() {
   const navigate = useNavigate()
   const [isDark, setIsDark] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [commandFilter, setCommandFilter] = useState<string | null>(null)
 
   useEffect(() => {
     // Check if dark mode is active
@@ -180,7 +182,17 @@ export function Dashboard() {
   const timeline = buildTimeline(jobs)
   const commandData = buildCommandBreakdown(jobs)
   const statusData = buildStatusBreakdown(jobs)
-  const recentJobs = [...jobs]
+  
+  // Filter jobs based on selected status and command
+  let filteredJobs = jobs
+  if (statusFilter) {
+    filteredJobs = filteredJobs.filter(j => j.status === statusFilter)
+  }
+  if (commandFilter) {
+    filteredJobs = filteredJobs.filter(j => j.command === commandFilter)
+  }
+  
+  const recentJobs = [...filteredJobs]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 8)
 
@@ -312,9 +324,19 @@ export function Dashboard() {
                     outerRadius={70}
                     paddingAngle={3}
                     dataKey="value"
+                    onClick={(data) => {
+                      const newFilter = statusFilter === data.name ? null : data.name
+                      setStatusFilter(newFilter)
+                      setCommandFilter(null) // Clear command filter when status is selected
+                    }}
+                    style={{ cursor: 'pointer' }}
                   >
                     {statusData.map((entry, i) => (
-                      <Cell key={i} fill={STATUS_COLORS[entry.name] ?? '#94a3b8'} />
+                      <Cell
+                        key={i}
+                        fill={STATUS_COLORS[entry.name] ?? '#94a3b8'}
+                        opacity={statusFilter === null || statusFilter === entry.name ? 1 : 0.3}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -322,15 +344,36 @@ export function Dashboard() {
               </ResponsiveContainer>
               <div className="space-y-1 mt-2">
                 {statusData.map(d => (
-                  <div key={d.name} className="flex items-center justify-between text-xs">
+                  <div
+                    key={d.name}
+                    className="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
+                    onClick={() => {
+                      const newFilter = statusFilter === d.name ? null : d.name
+                      setStatusFilter(newFilter)
+                      setCommandFilter(null)
+                    }}
+                  >
                     <div className="flex items-center gap-1.5">
                       <span
                         className="h-2 w-2 rounded-full"
-                        style={{ background: STATUS_COLORS[d.name] ?? '#94a3b8' }}
+                        style={{
+                          background: STATUS_COLORS[d.name] ?? '#94a3b8',
+                          opacity: statusFilter === null || statusFilter === d.name ? 1 : 0.3
+                        }}
                       />
-                      <span className="capitalize text-gray-600 dark:text-slate-400">{d.name}</span>
+                      <span
+                        className="capitalize text-gray-600 dark:text-slate-400"
+                        style={{ opacity: statusFilter === null || statusFilter === d.name ? 1 : 0.5 }}
+                      >
+                        {d.name}
+                      </span>
                     </div>
-                    <span className="font-semibold text-gray-800 dark:text-slate-200">{d.value}</span>
+                    <span
+                      className="font-semibold text-gray-800 dark:text-slate-200"
+                      style={{ opacity: statusFilter === null || statusFilter === d.name ? 1 : 0.5 }}
+                    >
+                      {d.value}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -359,9 +402,24 @@ export function Dashboard() {
                 axisLine={false}
               />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="count" name="Jobs" radius={[4, 4, 0, 0]}>
-                {commandData.map((_, i) => (
-                  <Cell key={i} fill={COMMAND_COLORS[i % COMMAND_COLORS.length]} />
+              <Bar
+                dataKey="count"
+                name="Jobs"
+                radius={[4, 4, 0, 0]}
+                onClick={(data) => {
+                  const cmd = data.command.replace(/\u2011/g, '-') // Convert back from non-breaking hyphen
+                  const newFilter = commandFilter === cmd ? null : cmd
+                  setCommandFilter(newFilter)
+                  setStatusFilter(null) // Clear status filter when command is selected
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                {commandData.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={COMMAND_COLORS[i % COMMAND_COLORS.length]}
+                    opacity={commandFilter === null || commandFilter === entry.command.replace(/\u2011/g, '-') ? 1 : 0.3}
+                  />
                 ))}
               </Bar>
             </BarChart>
@@ -372,7 +430,35 @@ export function Dashboard() {
       {/* Recent jobs */}
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-700">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">Recent Jobs</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-slate-300">Recent Jobs</h2>
+            {(statusFilter || commandFilter) && (
+              <div className="flex items-center gap-2">
+                {statusFilter && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                    Status: {statusFilter}
+                    <button
+                      onClick={() => setStatusFilter(null)}
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+                {commandFilter && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300">
+                    Command: {commandFilter}
+                    <button
+                      onClick={() => setCommandFilter(null)}
+                      className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
           <button
             onClick={() => navigate('/jobs')}
             className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
