@@ -324,7 +324,8 @@ export function Dashboard() {
                     outerRadius={70}
                     paddingAngle={3}
                     dataKey="value"
-                    onClick={(data) => {
+                    onClick={(data: any) => {
+                      if (!data || !data.name) return
                       const newFilter = statusFilter === data.name ? null : data.name
                       setStatusFilter(newFilter)
                       setCommandFilter(null) // Clear command filter when status is selected
@@ -406,7 +407,8 @@ export function Dashboard() {
                 dataKey="count"
                 name="Jobs"
                 radius={[4, 4, 0, 0]}
-                onClick={(data) => {
+                onClick={(data: any) => {
+                  if (!data || !data.command) return
                   const cmd = data.command.replace(/\u2011/g, '-') // Convert back from non-breaking hyphen
                   const newFilter = commandFilter === cmd ? null : cmd
                   setCommandFilter(newFilter)
