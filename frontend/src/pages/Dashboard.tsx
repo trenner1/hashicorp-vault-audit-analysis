@@ -351,7 +351,7 @@ export function Dashboard() {
                 {statusData.map(d => (
                   <button
                     key={d.name}
-                    className="w-full flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
+                    className="w-full flex items-center justify-between text-xs hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
                     onClick={() => {
                       const newFilter = statusFilter === d.name ? null : d.name
                       setStatusFilter(newFilter)
@@ -433,17 +433,17 @@ export function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
           <div className="flex flex-wrap gap-2 mt-4">
-            {commandData.map((d, i) => {
+            {commandData.map((d) => {
               const cmd = d.command.replace(/\u2011/g, '-')
               const isActive = commandFilter === cmd
+              const colorClass = isActive 
+                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
+                : 'bg-transparent text-gray-600 dark:text-slate-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
               return (
                 <button
                   key={cmd}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors border ${colorClass}`}
                   style={{
-                    backgroundColor: isActive ? COMMAND_COLORS[i % COMMAND_COLORS.length] : 'transparent',
-                    color: isActive ? '#ffffff' : isDark ? '#94a3b8' : '#64748b',
-                    border: `1px solid ${COMMAND_COLORS[i % COMMAND_COLORS.length]}`,
                     opacity: commandFilter === null || isActive ? 1 : 0.4
                   }}
                   onClick={() => {
