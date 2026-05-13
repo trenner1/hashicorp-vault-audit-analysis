@@ -68,10 +68,12 @@ export function JobOutput({ jobId }: JobOutputProps) {
   useEffect(() => {
     if (!job) return undefined
 
-    // Only seed from REST when we have no SSE lines yet.
-    if (outputLines.length === 0 && job.output && job.output.length > 0) {
-      setOutputLines(job.output)
-      job.output.forEach(l => seenLines.current.add(l))
+    // Seed from REST when we have no SSE lines yet, OR when job is complete and we have more lines in REST
+    if (job.output && job.output.length > 0) {
+      if (outputLines.length === 0 || (job.status !== 'running' && job.status !== 'pending' && job.output.length > outputLines.length)) {
+        setOutputLines(job.output)
+        job.output.forEach(l => seenLines.current.add(l))
+      }
     }
 
     if ((job.status === 'running' || job.status === 'pending') && !isStreaming) {
