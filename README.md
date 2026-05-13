@@ -301,32 +301,78 @@ Vault Address: http://host.docker.internal:8200
 - Go 1.23+
 - Node.js 18+
 - Make
+- Docker and Docker Compose (optional, for containerized development)
 
-### Build Everything
+### Available Make Commands
 
+#### Building
 ```bash
-# Build CLI and server
-make build
-make server
-
-# Build frontend
-cd frontend && npm install && npm run build
-
-# Run tests
-make test
-
-# Run linters
-make lint
+make build              # Build CLI binary to ./build/vault-audit
+make server             # Build API server binary to ./server
+make install            # Install CLI binary to GOPATH/bin
+make release            # Build release binaries for multiple platforms
 ```
 
-### Run Locally
+#### Frontend
+```bash
+make frontend-install   # Install frontend dependencies (npm install)
+make frontend-build     # Build frontend for production (creates frontend/dist/)
+make frontend-dev       # Start frontend dev server on :5173
+```
 
+#### Docker
+```bash
+make docker-build       # Build frontend and Docker images (runs frontend-build first)
+make docker-up          # Start Docker containers with docker-compose
+make docker-down        # Stop Docker containers
+```
+
+#### Testing & Quality
+```bash
+make test               # Run all tests
+make test-race          # Run tests with race detector
+make cover              # Run tests with coverage summary
+make cover-html         # Generate and open HTML coverage report
+make bench              # Run benchmarks
+make lint               # Run staticcheck and vet
+make vet                # Run go vet
+make tidy               # Tidy and verify modules
+```
+
+#### Development Workflows
+```bash
+make dev                # Start API server + frontend dev server concurrently
+make dev-server         # Build and run API server with vault-audit binary
+make clean              # Remove build artifacts
+make help               # Show all available commands
+```
+
+### Quick Start Development
+
+#### Option 1: Docker Compose (Recommended)
+```bash
+# Build and start everything
+make docker-build
+make docker-up
+
+# Access at http://localhost:3000
+```
+
+#### Option 2: Local Development
 ```bash
 # Terminal 1: Start API server
-./server
+make dev-server
 
 # Terminal 2: Start frontend dev server
-cd frontend && npm run dev
+make frontend-dev
+
+# Access at http://localhost:5173
+```
+
+#### Option 3: Concurrent Development
+```bash
+# Start both API server and frontend in one command
+make dev
 
 # Access at http://localhost:5173
 ```
@@ -335,13 +381,19 @@ cd frontend && npm run dev
 
 ```bash
 # Run all tests
-go test ./...
+make test
 
 # Run with coverage
 make cover
 
+# Open coverage report in browser
+make cover-html
+
 # Run specific package
 go test ./internal/api -v
+
+# Run with race detector
+make test-race
 ```
 
 ## Documentation
