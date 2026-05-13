@@ -243,7 +243,13 @@ export function Jobs() {
     queryFn: api.listJobs,
     refetchInterval: (query) => {
       const data = query.state.data ?? []
-      return data.some((j: Job) => j.status === 'running' || j.status === 'pending') ? 3000 : false
+      const hasActiveJobs = data.some((j: Job) => j.status === 'running' || j.status === 'pending')
+      const selectedJob = selectedJobId ? data.find((j: Job) => j.id === selectedJobId) : null
+      const selectedJobNeedsPolling =
+        selectedJobId !== null &&
+        (selectedJob == null || selectedJob.status === 'running' || selectedJob.status === 'pending')
+
+      return (hasActiveJobs || selectedJobNeedsPolling) ? 3000 : false
     },
   })
 
