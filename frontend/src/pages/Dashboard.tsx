@@ -349,14 +349,16 @@ export function Dashboard() {
               </ResponsiveContainer>
               <div className="space-y-1 mt-2">
                 {statusData.map(d => (
-                  <div
+                  <button
                     key={d.name}
-                    className="flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
+                    className="w-full flex items-center justify-between text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 px-2 py-1 rounded transition-colors"
                     onClick={() => {
                       const newFilter = statusFilter === d.name ? null : d.name
                       setStatusFilter(newFilter)
                       setCommandFilter(null)
                     }}
+                    aria-label={`Filter by ${d.name} status`}
+                    aria-pressed={statusFilter === d.name}
                   >
                     <div className="flex items-center gap-1.5">
                       <span
@@ -379,7 +381,7 @@ export function Dashboard() {
                     >
                       {d.value}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </>
@@ -430,6 +432,33 @@ export function Dashboard() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          <div className="flex flex-wrap gap-2 mt-4">
+            {commandData.map((d, i) => {
+              const cmd = d.command.replace(/\u2011/g, '-')
+              const isActive = commandFilter === cmd
+              return (
+                <button
+                  key={cmd}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: isActive ? COMMAND_COLORS[i % COMMAND_COLORS.length] : 'transparent',
+                    color: isActive ? '#ffffff' : isDark ? '#94a3b8' : '#64748b',
+                    border: `1px solid ${COMMAND_COLORS[i % COMMAND_COLORS.length]}`,
+                    opacity: commandFilter === null || isActive ? 1 : 0.4
+                  }}
+                  onClick={() => {
+                    const newFilter = isActive ? null : cmd
+                    setCommandFilter(newFilter)
+                    setStatusFilter(null)
+                  }}
+                  aria-label={`Filter by ${cmd} command`}
+                  aria-pressed={isActive}
+                >
+                  {cmd} ({d.count})
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -446,6 +475,7 @@ export function Dashboard() {
                     <button
                       onClick={() => setStatusFilter(null)}
                       className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                      aria-label="Clear status filter"
                     >
                       ×
                     </button>
@@ -457,6 +487,7 @@ export function Dashboard() {
                     <button
                       onClick={() => setCommandFilter(null)}
                       className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                      aria-label="Clear command filter"
                     >
                       ×
                     </button>
