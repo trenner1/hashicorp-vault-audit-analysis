@@ -102,8 +102,8 @@ frontend-build:
 # Docker
 .PHONY: docker-build docker-up docker-down
 
-## docker-build: Build Docker images
-docker-build:
+## docker-build: Build frontend and Docker images
+docker-build: frontend-build
 	docker-compose build
 
 ## docker-up: Start Docker containers
