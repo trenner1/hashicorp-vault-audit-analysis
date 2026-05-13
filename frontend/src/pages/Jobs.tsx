@@ -243,10 +243,13 @@ export function Jobs() {
     queryFn: api.listJobs,
     refetchInterval: (query) => {
       const data = query.state.data ?? []
-      // Keep polling if there are running/pending jobs OR if viewing a specific job
       const hasActiveJobs = data.some((j: Job) => j.status === 'running' || j.status === 'pending')
-      const viewingJob = selectedJobId !== null
-      return (hasActiveJobs || viewingJob) ? 3000 : false
+      const selectedJob = selectedJobId ? data.find((j: Job) => j.id === selectedJobId) : null
+      const selectedJobNeedsPolling =
+        selectedJobId !== null &&
+        (selectedJob == null || selectedJob.status === 'running' || selectedJob.status === 'pending')
+
+      return (hasActiveJobs || selectedJobNeedsPolling) ? 3000 : false
     },
   })
 
